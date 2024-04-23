@@ -1,0 +1,34 @@
+version: '3'
+services:
+  postgres:
+    container_name: osiris-db
+    image: postgres:13-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=osirisdb
+      - POSTGRES_USER=osiris
+      - POSTGRES_PASSWORD=osiris2023
+      - POSTGRES_HOST_AUTH_METHOD=trust
+
+  spring-boot-app:
+      container_name: osiris-backend
+      build:
+        context: ./osiris-backend
+        dockerfile: Dockerfile
+      ports:
+        - "8080:8080"
+      depends_on:
+        - postgres
+      environment:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/osirisdb
+        SPRING_DATASOURCE_USERNAME: osiris
+        SPRING_DATASOURCE_PASSWORD: osiris2023
+
+  react-app:
+      container_name: osiris-app
+      build:
+        context: ./osiris-frontend
+        dockerfile: Dockerfile
+      ports:
+        - "3000:80"
