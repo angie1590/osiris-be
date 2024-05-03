@@ -1,4 +1,4 @@
-package com.osiris.backend.service;
+package com.osiris.backend.security.service;
 
 import com.osiris.backend.model.Product;
 

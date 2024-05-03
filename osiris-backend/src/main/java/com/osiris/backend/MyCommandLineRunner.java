@@ -1,7 +1,8 @@
 package com.osiris.backend;
 
 import com.osiris.backend.model.Product;
-import com.osiris.backend.service.ProductService;
+import com.osiris.backend.security.service.ProductService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
