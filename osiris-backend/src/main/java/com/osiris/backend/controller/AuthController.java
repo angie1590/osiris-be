@@ -20,7 +20,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import com.osiris.backend.exception.TokenRefreshException;
 import com.osiris.backend.model.ERole;
+import com.osiris.backend.model.RefreshToken;
 import com.osiris.backend.model.Role;
 import com.osiris.backend.model.User;
 import com.osiris.backend.payload.request.LoginRequest;
@@ -75,48 +77,43 @@ public class AuthController {
     RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
 
     return ResponseEntity.ok(new JwtResponse(jwt, refreshToken.getToken(), userDetails.getId(),
-        userDetails.getUsername(), userDetails.getEmail(), roles));
+        userDetails.getUsername(), roles));
   }
 
   @PostMapping("/signup")
   public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
     if (userRepository.existsByUsername(signUpRequest.getUsername())) {
-      return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
-    }
-
-    if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-      return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
+      return ResponseEntity.badRequest().body(new MessageResponse("Error: El usuario ya existe!"));
     }
 
     // Create new user's account
-    User user = new User(signUpRequest.getUsername(), signUpRequest.getEmail(),
-        encoder.encode(signUpRequest.getPassword()));
+    User user = new User(signUpRequest.getUsername(),encoder.encode(signUpRequest.getPassword()));
 
     Set<String> strRoles = signUpRequest.getRole();
     Set<Role> roles = new HashSet<>();
 
     if (strRoles == null) {
       Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-          .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+          .orElseThrow(() -> new RuntimeException("Error: El rol no existe"));
       roles.add(userRole);
     } else {
       strRoles.forEach(role -> {
         switch (role) {
         case "admin":
           Role adminRole = roleRepository.findByName(ERole.ROLE_ADMIN)
-              .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+              .orElseThrow(() -> new RuntimeException("Error: El rol no existe"));
           roles.add(adminRole);
 
           break;
         case "mod":
           Role modRole = roleRepository.findByName(ERole.ROLE_MODERATOR)
-              .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+              .orElseThrow(() -> new RuntimeException("Error: El rol no existe"));
           roles.add(modRole);
 
           break;
         default:
           Role userRole = roleRepository.findByName(ERole.ROLE_USER)
-              .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+              .orElseThrow(() -> new RuntimeException("Error: El rol no existe"));
           roles.add(userRole);
         }
       });
