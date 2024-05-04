@@ -16,7 +16,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import com.osiris.backend.security.jwt.AuthEntryPointJwt;
 import com.osiris.backend.security.jwt.AuthTokenFilter;
-import com.osiris.backend.security.service.impl.UserDetailsServiceImpl;
 
 @Configuration
 @EnableMethodSecurity
