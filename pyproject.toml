@@ -1,0 +1,17 @@
+[project]
+name = "osiris-be"
+version = "0.1.0"
+description = "Proyecto Osiris Backend"
+authors = [
+    {name = "Open Latina", email = "openlatina.cue@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+dependencies = ["fe-ec @ file:///Users/andrea/Documents/Proyectos/osiris-be/lib/fe_ec-0.1.0-py3-none-any-3.whl", "pydantic (>=2.11.3,<3.0.0)", "python-dotenv (>=1.1.0,<2.0.0)", "pydantic-settings (>=2.8.1,<3.0.0)"]
+
+[tool.poetry]
+package-mode = false  # <- agrega esto
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
