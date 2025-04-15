@@ -6,7 +6,6 @@ __pycache__/
 *.sqlite3
 .env
 .env.*
-*.whl
 .venv
 venv
 env

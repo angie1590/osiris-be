@@ -3,24 +3,26 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv, dotenv_values
 from pydantic_settings import BaseSettings
-from pydantic import Field, ValidationError, field_validator
-
+from pydantic import Field, ValidationError, field_validator, AnyUrl
 
 # 📁 Cargar base de ruta del proyecto
 BASE_DIR = Path(__file__).resolve().parents[3]
-
+print(BASE_DIR)
 class Settings(BaseSettings):
     # 🌐 Entorno general
-    ENVIRONMENT: str = Field("development")
+    ENVIRONMENT: str = Field("development", description="Entorno actual")
 
     # 🔐 Configuración de la firma electrónica
     FEEC_P12_PATH: Path = Field(..., description="Ruta al archivo .p12")
     FEEC_P12_PASSWORD: str = Field(..., description="Contraseña del archivo .p12")
     FEEC_XSD_PATH: Path = Field(..., description="Ruta al archivo XSD del SRI")
     FEEC_AMBIENTE: str = Field("pruebas", description="Ambiente del SRI: pruebas o produccion")
+    POSTGRES_USER: str = Field(..., description="Usuario de la base de datos")
+    POSTGRES_PASSWORD: str = Field(..., description="Contraseña de la base de datos")
+    POSTGRES_DB: str = Field(..., description="Nombre de la base de datos")
 
     # 🗄️ Configuración de base de datos
-    DATABASE_URL: str = Field("postgresql://postgres:postgres@localhost/osiris", description="URL de conexión a la base de datos")
+    DATABASE_URL: AnyUrl = Field(..., description="URL de conexión a la base de datos")
 
     # ✅ Validación de rutas de archivos
     @field_validator("FEEC_P12_PATH", "FEEC_XSD_PATH")
