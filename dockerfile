@@ -18,4 +18,4 @@ COPY conf ./conf
 
 RUN poetry config virtualenvs.create false && poetry install --no-root
 
-CMD ["poetry", "run", "python", "src/osiris/api/main.py"]
+CMD ["poetry", "run", "uvicorn", "src.osiris.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
