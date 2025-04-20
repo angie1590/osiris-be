@@ -52,16 +52,16 @@ osiris-be/
 ENVIRONMENT=development
 
 # Firma electrónica
-FEEC_P12_PATH=conf/firma.p12
-FEEC_P12_PASSWORD=Angie1590
-FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd
-FEEC_AMBIENTE=pruebas
+FEEC_P12_PATH=conf/archivo.p12
+FEEC_P12_PASSWORD=p12_password
+FEEC_XSD_PATH=conf/sri_docs/archivo.xsd
+FEEC_AMBIENTE=[pruebas,prooduccion]
 
 # Base de datos
-POSTGRES_USER=osiris_user
-POSTGRES_PASSWORD=osiris_pass
-POSTGRES_DB=osiris_db
-DATABASE_URL=postgresql://osiris_user:osiris_pass@db:5432/osiris_db
+POSTGRES_USER=db_user
+POSTGRES_PASSWORD=db__pass
+POSTGRES_DB=db
+DATABASE_URL=postgresql://db_user:db_pass@db:port/db
 ```
 
 ### `.env.production`
@@ -145,4 +145,4 @@ No compartas los archivos `.p12` ni sus contraseñas. Se recomienda usar variabl
 
 ## 🧾 Autor
 
-Desarrollado por [Andrea Peralta Bravo](https://github.com/andreaperaltabravo) con ❤️ para la facturación electrónica en Ecuador 🇪🇨.
+Desarrollado por [OpenLatina].
