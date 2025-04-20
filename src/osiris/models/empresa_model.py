@@ -21,7 +21,7 @@ class EmpresaBase(BaseModel):
     telefono: Optional[str] = None
     codigo_establecimiento: constr(min_length=3, max_length=3)
     obligado_contabilidad: bool
-    tipo_contribuyente_id: UUID
+    tipo_contribuyente_id: str
 
 
 class EmpresaCrear(EmpresaBase):
@@ -37,7 +37,7 @@ class EmpresaActualizar(BaseModel):
     telefono: Optional[str]
     codigo_establecimiento: Optional[str]
     obligado_contabilidad: Optional[bool]
-    tipo_contribuyente_id: Optional[UUID]
+    tipo_contribuyente_id: Optional[str]
 
 
 class EmpresaRespuesta(EmpresaBase):
@@ -46,4 +46,4 @@ class EmpresaRespuesta(EmpresaBase):
     activo: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
