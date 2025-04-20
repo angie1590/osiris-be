@@ -38,6 +38,13 @@ docker-compose.override.yml
 
 # Facturación electrónica temporal
 *.xml
+*.p12
+*.xsd
+test.py
+test2.py
+
+#Variables de entorno
+.env.*
 
 # Facturación firmada
 fact_firmado.xml
