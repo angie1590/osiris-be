@@ -44,6 +44,3 @@ fact_firmado.xml
 
 # Archivos de producción
 *.whl
-
-# Tests temporales
-test*.py
