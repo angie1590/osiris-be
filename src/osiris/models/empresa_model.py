@@ -4,7 +4,7 @@ para los datos relacionados con la entidad Empresa, según los requerimientos
 tributarios del SRI en Ecuador.
 """
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, ConfigDict, constr
 from uuid import UUID
 from typing import Optional
 
@@ -45,5 +45,4 @@ class EmpresaRespuesta(EmpresaBase):
     id: UUID
     activo: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

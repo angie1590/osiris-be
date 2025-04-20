@@ -38,7 +38,10 @@ async def crear_empresa(datos: EmpresaCrear, servicio: EmpresaServicio = Depends
 
 @router.put("/{empresa_id}", response_model=EmpresaRespuesta)
 async def actualizar_empresa(empresa_id: UUID, datos: EmpresaActualizar, servicio: EmpresaServicio = Depends(obtener_servicio_empresa)):
-    return await servicio.actualizar_empresa(empresa_id, datos)
+    try:
+        return await servicio.actualizar_empresa(empresa_id, datos)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/{empresa_id}", status_code=status.HTTP_204_NO_CONTENT)
