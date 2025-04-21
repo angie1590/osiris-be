@@ -18,4 +18,7 @@ COPY conf ./conf
 
 RUN poetry config virtualenvs.create false && poetry install --no-root
 
+# Asegurar que el PYTHONPATH incluya la carpeta src
+ENV PYTHONPATH="/app/src"
+
 CMD ["poetry", "run", "uvicorn", "src.osiris.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
