@@ -13,7 +13,10 @@ build:
 	docker-compose --env-file $(ENV_FILE) build
 
 shell:
-	docker-compose exec backend bash
+	docker-compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
-	docker-compose exec backend poetry run pytest
+	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest
+
+migrate:
+	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
