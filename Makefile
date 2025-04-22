@@ -16,7 +16,7 @@ shell:
 	docker-compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
-	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest
+	poetry run pytest
 
 migrate:
 	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head

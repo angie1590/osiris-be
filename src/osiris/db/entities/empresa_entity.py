@@ -26,9 +26,18 @@ class Empresa(Base):
     telefono = Column(String)
     codigo_establecimiento = Column(String(3), nullable=False)
     obligado_contabilidad = Column(Boolean, nullable=False, default=False)
-    tipo_contribuyente_id = Column(UUID(as_uuid=True), ForeignKey("aux_tipo_contribuyente.id"))
     activo = Column(Boolean, default=True)
 
-    tipo_contribuyente = relationship("TipoContribuyente")
-    sucursales = relationship("Sucursal", back_populates="empresa")
-    puntos_emision = relationship("PuntoEmision", back_populates="empresa")
+    tipo_contribuyente_id = Column(
+        String(2),
+        ForeignKey("aux_tipo_contribuyente.codigo", ondelete="RESTRICT"),
+        nullable=False
+    )
+
+
+    # Relaciones
+    tipo_contribuyente = relationship("TipoContribuyente", backref="empresa")
+   # sucursales = relationship("Sucursal", back_populates="empresa")
+   # puntos_emision = relationship("PuntoEmision", back_populates="empresa")
+
+from src.osiris.db.entities.tipo_contribuyente_entity import TipoContribuyente

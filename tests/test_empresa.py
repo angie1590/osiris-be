@@ -99,7 +99,7 @@ def test_empresa_modelo_valido_con_ruc_correcto():
         telefono="0999999999",
         codigo_establecimiento="001",
         obligado_contabilidad=True,
-        tipo_contribuyente_id="privado"
+        tipo_contribuyente_id="01"
     )
     assert empresa.ruc == "0104815956001"
 

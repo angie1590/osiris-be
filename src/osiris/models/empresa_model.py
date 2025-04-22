@@ -17,7 +17,7 @@ class EmpresaBase(BaseModel):
     telefono: Optional[constr(pattern=r'^\d{7,10}$')] = None
     codigo_establecimiento: constr(min_length=3, max_length=3, pattern=r'^\d{3}$')
     obligado_contabilidad: bool
-    tipo_contribuyente_id: str
+    tipo_contribuyente_id: constr(min_length=2, max_length=2)
 
     @field_validator('ruc')
     @classmethod
@@ -40,7 +40,7 @@ class EmpresaActualizar(BaseModel):
     telefono: Optional[constr(pattern=r'^\d{7,10}$')] = None
     codigo_establecimiento: Optional[constr(min_length=3, max_length=3, pattern=r'^\d{3}$')] = None
     obligado_contabilidad: Optional[bool] = None
-    tipo_contribuyente_id: Optional[str] = None
+    tipo_contribuyente_id: Optional[constr(min_length=2, max_length=2)] = None
 
 
 class EmpresaRespuesta(EmpresaBase):

@@ -29,6 +29,7 @@ class RepositorioEmpresa:
 
     async def crear(self, empresa: Empresa) -> Empresa:
         self.session.add(empresa)
+        await self.session.commit()
         await self.session.flush()
         await self.session.refresh(empresa)
         return empresa

@@ -27,13 +27,13 @@ class EmpresaServicio:
         existe = await self.repositorio.obtener_por_ruc(datos.ruc)
         if existe:
             raise ValueError("Ya existe una empresa registrada con este RUC")
-        empresa = Empresa(**datos.dict())
+        empresa = Empresa(**datos.model_dump())
         nueva_empresa = await self.repositorio.crear(empresa)
         return nueva_empresa  # este sí debe incluir el ID
 
     async def actualizar_empresa(self, empresa_id: UUID, datos: EmpresaActualizar) -> Empresa:
         empresa = await self.obtener_por_id(empresa_id)
-        for campo, valor in datos.dict(exclude_unset=True).items():
+        for campo, valor in datos.model_dump(exclude_unset=True).items():
             setattr(empresa, campo, valor)
         return await self.repositorio.actualizar(empresa)
 
