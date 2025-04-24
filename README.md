@@ -16,15 +16,19 @@ osiris-be/
 │   └── fe_ec-0.1.0-py3-none-any-3.whl
 ├── src/
 │   └── osiris/
-│       ├── api/              # Endpoints (FastAPI o similar)
+│       ├── api/              # Endpoints REST
 │       ├── core/             # Configuración del entorno
 │       │   └── config.py
-│       ├── db/               # Configuración de la base de datos
-│       ├── models/           # Modelos Pydantic / ORM
-│       ├── services/         # Servicios de negocio
-│       └── __init__.py
+│       ├── db/               # Configuración de la base de datos, Alembic y modelos
+│       │   ├── entities/
+│       │   ├── repositories/
+│       │   └── alembic/
+│           └── versions/
+│       ├── services/         # Lógica de negocio
+│       ├── utils/            # Validaciones generales
+│       └── main.py           # Punto de entrada
 ├── tests/                    # Pruebas unitarias
-│   └── __init__.py
+│   └── test_empresa.py
 ├── .env.development          # Variables de entorno (desarrollo)
 ├── .env.production           # Variables de entorno (producción)
 ├── pyproject.toml            # Configuración de Poetry
@@ -37,90 +41,92 @@ osiris-be/
 
 ---
 
-## 📦 Requisitos
-
-- [Poetry](https://python-poetry.org/) `>=2.1.1`
-- [Docker](https://www.docker.com/) y [Docker Compose](https://docs.docker.com/compose/)
-- Python 3.10 (solo si corres sin Docker)
-
----
-
 ## ⚙️ Variables de Entorno
 
-### `.env.development`
+Ejemplo `.env.development`:
+
 ```env
-ENVIRONMENT=development
+APP_ENV=development
 
 # Firma electrónica
-FEEC_P12_PATH=conf/archivo.p12
-FEEC_P12_PASSWORD=p12_password
-FEEC_XSD_PATH=conf/sri_docs/archivo.xsd
-FEEC_AMBIENTE=[pruebas,prooduccion]
+FEEC_P12_PATH=conf/firma.p12
+FEEC_P12_PASSWORD=clave123
+FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd
+FEEC_AMBIENTE=1
 
 # Base de datos
-POSTGRES_USER=db_user
-POSTGRES_PASSWORD=db__pass
-POSTGRES_DB=db
-DATABASE_URL=postgresql://db_user:db_pass@db:port/db
-```
-
-### `.env.production`
-Similar al anterior, pero adaptado al ambiente productivo.
-
----
-
-## ▶️ Uso con Makefile
-
-Estos comandos están disponibles para facilitar tu flujo de trabajo:
-
-```bash
-# Construir imagen y levantar contenedores
-make build
-
-# Solo levantar servicios sin reconstruir
-make up
-
-# Parar contenedores
-make stop
-
-# Eliminar contenedores y volúmenes
-make clean
-
-# Ejecutar tests
-make test
-
-# Ejecutar comandos dentro del contenedor
-make bash
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=dev_password
+POSTGRES_DB=osiris_db
+DB_URL=postgresql+asyncpg://postgres:dev_password@db:5432/osiris_db
+DB_URL_ALEMBIC=postgresql+psycopg2://postgres:dev_password@db:5432/osiris_db
 ```
 
 ---
 
-## 🚀 Instalación Local (sin Docker)
+## ▶️ Comandos con Makefile
 
 ```bash
-# Instalar dependencias con poetry
+make build      # Construye imagen Docker
+make up         # Levanta los contenedores
+make stop       # Detiene los servicios
+make clean      # Elimina volúmenes y contenedores
+make bash       # Acceso al contenedor
+make migrate    # Ejecuta las migraciones Alembic
+make test       # Ejecuta pruebas unitarias
+```
+
+---
+
+## 🐳 Levantar el Proyecto desde Cero
+
+```bash
+# 1. Instalar dependencias
 poetry install
 
-# Activar entorno
-poetry shell
+# 2. Iniciar contenedores
+make build
+make up
 
-# Ejecutar prueba de entorno
-python test.py
+# 3. Migrar la base de datos
+make migrate
+
+# 4. Ver la documentación Swagger
+http://localhost:8000/docs
 ```
 
 ---
 
-## 📄 Uso de la Librería de Facturación Electrónica
+## 🌐 Documentación Swagger
 
-La librería `fe-ec` se instala desde el paquete `.whl` incluido en `lib/`. Está incluida en el `pyproject.toml`:
+Disponible automáticamente al levantar el sistema en:
 
-```toml
-dependencies = [
-  "fe-ec @ file://./lib/fe_ec-0.1.0-py3-none-any-3.whl"
-]
+- [http://localhost:8000/docs](http://localhost:8000/docs)
+- [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+---
+
+## 🧱 Migraciones Alembic
+
+```bash
+# Crear una nueva revisión basada en los modelos
+PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m "mensaje"
+
+# Aplicar migraciones
+make migrate
 ```
 
-Puedes usar sus funcionalidades desde cualquier archivo en `osiris`:
+---
+
+## 📦 Librería de Facturación Electrónica
+
+Se encuentra en `lib/` como `.whl` y se instala vía `pyproject.toml`:
+
+```toml
+fe-ec = { path = "./lib/fe_ec-0.1.0-py3-none-any-3.whl" }
+```
+
+Uso típico:
 
 ```python
 from fe_ec import GeneradorClaveAcceso, ManejadorXML
@@ -128,21 +134,27 @@ from fe_ec import GeneradorClaveAcceso, ManejadorXML
 
 ---
 
-## 🧪 Pruebas
+## ✅ Pruebas Unitarias
+
+Las pruebas están en `tests/` y utilizan `pytest`:
 
 ```bash
-# Dentro del contenedor o en poetry shell:
-pytest
+make test
 ```
+
+✅ Las pruebas usan mocks para evitar conexiones reales a la base de datos o al SRI.
 
 ---
 
 ## 🔐 Seguridad
 
-No compartas los archivos `.p12` ni sus contraseñas. Se recomienda usar variables de entorno o un gestor de secretos para producción.
+- No subir archivos `.p12` ni contraseñas al repositorio.
+- Usar variables de entorno en `.env.{ambiente}` o secretos externos.
 
 ---
 
-## 🧾 Autor
+## 📞 Contacto
 
-Desarrollado por [OpenLatina].
+**OpenLatina**  
+📱 0984228883  
+📱 0995767370
