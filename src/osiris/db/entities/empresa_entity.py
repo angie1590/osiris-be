@@ -37,7 +37,13 @@ class Empresa(Base):
 
     # Relaciones
     tipo_contribuyente = relationship("TipoContribuyente", backref="empresa")
-   # sucursales = relationship("Sucursal", back_populates="empresa")
-   # puntos_emision = relationship("PuntoEmision", back_populates="empresa")
+    sucursales = relationship(
+        "Sucursal",
+        back_populates="empresa",
+        cascade="all, delete-orphan",
+        lazy="selectin"  # opcional: mejora el rendimiento en listados
+    )
+    puntos_emision = relationship("PuntoEmision", back_populates="empresa")
 
 from src.osiris.db.entities.tipo_contribuyente_entity import TipoContribuyente
+from src.osiris.db.entities.sucursal_entity import Sucursal

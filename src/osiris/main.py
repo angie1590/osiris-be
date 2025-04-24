@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from src.osiris.api.empresa_router import router as empresa_router
+from src.osiris.api.punto_emision_router import router as punto_emision
+from src.osiris.api.sucursal_router import router as sucursal
 
 app = FastAPI(
     title="Osiris API",
@@ -11,3 +13,5 @@ app = FastAPI(
 
 # Incluir routers
 app.include_router(empresa_router)
+app.include_router(sucursal)
+app.include_router(punto_emision)
