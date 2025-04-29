@@ -1,6 +1,7 @@
 # src/osiris/services/sucursal_service.py
 
 from uuid import UUID
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.osiris.db.repositories.sucursal_repository import SucursalRepositorio
 from src.osiris.models.sucursal_model import SucursalCrear, SucursalActualizar
@@ -21,4 +22,8 @@ class SucursalServicio:
 
     @staticmethod
     async def eliminar_logico(db: AsyncSession, id: UUID):
-        return await SucursalRepositorio.eliminar_logico(db, id)
+        sucursal = await SucursalRepositorio.obtener_por_id(db, id)
+        if not sucursal:
+            raise HTTPException(status_code=404, detail="Sucursal no encontrada")
+        sucursal.activo = False
+        await db.commit()

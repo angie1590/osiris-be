@@ -1,6 +1,6 @@
 # src/osiris/api/sucursal_router.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from src.osiris.db.database import get_session
@@ -9,7 +9,7 @@ from src.osiris.models.sucursal_model import SucursalCrear, SucursalActualizar, 
 
 router = APIRouter(prefix="/sucursales", tags=["Sucursales"])
 
-@router.post("/", response_model=SucursalRespuesta)
+@router.post("/", response_model=SucursalRespuesta, status_code=status.HTTP_201_CREATED)
 async def crear_sucursal(entrada: SucursalCrear, db: AsyncSession = Depends(get_session)):
     return await SucursalServicio.crear(db, entrada)
 
@@ -24,9 +24,6 @@ async def actualizar_sucursal(id: UUID, datos: SucursalActualizar, db: AsyncSess
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
     return suc
 
-@router.delete("/{id}", response_model=SucursalRespuesta)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def eliminar_sucursal(id: UUID, db: AsyncSession = Depends(get_session)):
-    suc = await SucursalServicio.eliminar_logico(db, id)
-    if not suc:
-        raise HTTPException(status_code=404, detail="Sucursal no encontrada")
-    return suc
+    await SucursalServicio.eliminar_logico(db, id)

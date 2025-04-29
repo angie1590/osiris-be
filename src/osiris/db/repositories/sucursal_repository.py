@@ -10,7 +10,7 @@ from src.osiris.models.sucursal_model import SucursalCrear, SucursalActualizar
 class SucursalRepositorio:
     @staticmethod
     async def crear(db: AsyncSession, datos: SucursalCrear):
-        sucursal = Sucursal(**datos.dict())
+        sucursal = Sucursal(**datos.model_dump())
         db.add(sucursal)
         await db.commit()
         await db.refresh(sucursal)
