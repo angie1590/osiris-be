@@ -1,6 +1,7 @@
 # src/osiris/services/punto_emision_service.py
 
 from uuid import UUID
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.osiris.models.punto_emision_model import PuntoEmisionCrear, PuntoEmisionActualizar
 from src.osiris.db.repositories.punto_emision_repository import PuntoEmisionRepositorio
@@ -25,4 +26,8 @@ class PuntoEmisionServicio:
 
     @staticmethod
     async def eliminar_logico(db: AsyncSession, id: UUID):
-        return await PuntoEmisionRepositorio.eliminar_logico(db, id)
+        punto_emision = await PuntoEmisionRepositorio.eliminar_logico(db, id)
+        if not punto_emision:
+             raise HTTPException(status_code=404, detail="Punto de emisión no encontrado")
+        punto_emision.activo = False
+        await db.commit()

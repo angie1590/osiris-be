@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from uuid import UUID
 from src.osiris.db.entities.punto_emision_entity import PuntoEmision
-
+from src.osiris.models.punto_emision_model import PuntoEmisionCrear, PuntoEmisionActualizar
 
 class PuntoEmisionRepositorio:
     @staticmethod
-    async def crear(db: AsyncSession, datos: PuntoEmision) -> PuntoEmision:
-        punto = PuntoEmision(**datos.dict())
+    async def crear(db: AsyncSession, datos: PuntoEmisionCrear):
+        punto = PuntoEmision(**datos.model_dump())
         db.add(punto)
         await db.commit()
         await db.refresh(punto)
