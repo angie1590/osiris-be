@@ -34,7 +34,7 @@ class SucursalRepositorio:
         sucursal = await SucursalRepositorio.obtener_por_id(db, id)
         if not sucursal:
             return None
-        for attr, value in datos.dict(exclude_unset=True).items():
+        for attr, value in datos.model_dump(exclude_unset=True).items():
             setattr(sucursal, attr, value)
         await db.commit()
         await db.refresh(sucursal)
