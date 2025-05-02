@@ -14,7 +14,7 @@ class Rol(Base):
 
     activo = Column(Boolean, default=True)
     fecha_creacion = Column(DateTime, default=datetime.now())
-    fecha_modificacion = Column(DateTime, default=datetime.now(), onupdate=datetime.utcnow)
+    fecha_modificacion = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
     usuario_auditoria = Column(String, nullable=True)
 
     usuarios = relationship("Usuario", back_populates="rol")
