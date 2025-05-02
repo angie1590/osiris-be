@@ -19,7 +19,10 @@ SUCURSAL_MOCK_OUTPUT = {
     "telefono": "0999888777",
     "empresa_id": "08fd3cc1-afe1-4606-af27-b5d78ab8027c",
     "id": "6b4de6b5-a105-4fe4-8905-671564b9a6d2",
-    "activo": True
+    "activo": True,
+    "fecha_creacion": "2025-04-30T10:00:00",
+    "fecha_modificacion": "2025-04-30T10:00:00",
+    "usuario_auditoria": "admin"
 }
 
 @pytest.mark.asyncio

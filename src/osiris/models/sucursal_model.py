@@ -1,5 +1,6 @@
 # src/osiris/db/models/sucursal_modelo.py
 
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, constr
 from typing import Optional
 from uuid import UUID
@@ -27,5 +28,8 @@ class SucursalActualizar(BaseModel):
 class SucursalRespuesta(SucursalBase):
     id: UUID
     activo: bool
+    fecha_creacion: datetime
+    fecha_modificacion: datetime
+    usuario_auditoria: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)

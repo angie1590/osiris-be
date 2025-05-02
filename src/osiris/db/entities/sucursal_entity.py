@@ -1,10 +1,11 @@
 # src/osiris/db/entities/sucursal_entidad.py
 
-from sqlalchemy import Column, String, Boolean, ForeignKey
+from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.osiris.db.database import Base
 import uuid
+from datetime import datetime
 
 
 class Sucursal(Base):
@@ -16,6 +17,10 @@ class Sucursal(Base):
     direccion = Column(String, nullable=False)
     telefono = Column(String)
     activo = Column(Boolean, default=True)
+
+    fecha_creacion = Column(DateTime, default=datetime.now())
+    fecha_modificacion = Column(DateTime, default=datetime.now(), onupdate=datetime.utcnow)
+    usuario_auditoria = Column(String, nullable=True)
 
     empresa_id = Column(UUID(as_uuid=True), ForeignKey("tbl_empresa.id"), nullable=False)
     empresa = relationship("Empresa", back_populates="sucursales")
