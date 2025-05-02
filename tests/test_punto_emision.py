@@ -18,7 +18,10 @@ PUNTO_EMISION_MOCK_OUTPUT = {
   "empresa_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "sucursal_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "activo": True
+  "activo": True,
+  "fecha_creacion": "2025-04-30T10:00:00",
+  "fecha_modificacion": "2025-04-30T10:00:00",
+  "usuario_auditoria": "admin"
 }
 
 @pytest.mark.asyncio

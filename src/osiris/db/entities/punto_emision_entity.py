@@ -1,6 +1,7 @@
 # src/osiris/db/entities/punto_emision_entidad.py
 
-from sqlalchemy import Column, String, Boolean, Integer, ForeignKey, UniqueConstraint
+from datetime import datetime
+from sqlalchemy import Column, DateTime, String, Boolean, Integer, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.osiris.db.database import Base
@@ -15,6 +16,10 @@ class PuntoEmision(Base):
     descripcion = Column(String, nullable=False)
     secuencial_actual = Column(Integer, default=1)
     activo = Column(Boolean, default=True)
+
+    fecha_creacion = Column(DateTime, default=datetime.now())
+    fecha_modificacion = Column(DateTime, default=datetime.now(), onupdate=datetime.now())
+    usuario_auditoria = Column(String, nullable=True)
 
     empresa_id = Column(UUID(as_uuid=True), ForeignKey("tbl_empresa.id"), nullable=False)
     sucursal_id = Column(UUID(as_uuid=True), ForeignKey("tbl_sucursal.id"), nullable=True)
