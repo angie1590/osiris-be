@@ -7,6 +7,7 @@ from src.osiris.api.rol_router import router as rol_router
 from src.osiris.api.usuario_router import router as usuario_router
 from src.osiris.api.empleado_router import router as empleado_router
 from src.osiris.api.tipo_cliente_router import router as tipo_cliente_router
+from src.osiris.api.cliente_router import router as cliente_router
 
 app = FastAPI(
     title="Osiris API",
@@ -25,3 +26,4 @@ app.include_router(rol_router)
 app.include_router(usuario_router)
 app.include_router(empleado_router)
 app.include_router(tipo_cliente_router)
+app.include_router(cliente_router)
