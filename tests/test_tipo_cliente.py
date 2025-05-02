@@ -9,7 +9,7 @@ TIPO_CLIENTE_MOCK_INPUT = {
 }
 
 TIPO_CLIENTE_MOCK_OUTPUT = {
-    "id": "11111111-1111-1111-1111-111111111111",
+    "id": "8b79ee6b-4d08-4051-9375-59488afbba6b",
     "nombre": "VIP",
     "descuento": 10.00
 }
@@ -27,17 +27,22 @@ async def test_crear_tipo_cliente():
 
 
 @pytest.mark.asyncio
-async def test_actualizar_tipo_cliente():
-    with patch("src.osiris.services.tipo_cliente_service.TipoClienteServicio.actualizar", new=AsyncMock(return_value=TIPO_CLIENTE_MOCK_OUTPUT)):
+async def test_actualizar_tipo_cliente_completo():
+    with patch(
+        "src.osiris.services.tipo_cliente_service.TipoClienteServicio.actualizar",
+        new=AsyncMock(return_value=TIPO_CLIENTE_MOCK_OUTPUT)
+    ):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             response = await ac.put(
                 f"/tipos-cliente/{TIPO_CLIENTE_MOCK_OUTPUT['id']}",
-                json={"descuento": 15.00}
+                json={"nombre": "VIP", "descuento": 15.00}
             )
 
         assert response.status_code == 200
         assert response.json()["id"] == TIPO_CLIENTE_MOCK_OUTPUT["id"]
+        assert response.json()["descuento"] == 10.00  # <-- el mock sigue con 10.00
+
 
 
 @pytest.mark.asyncio

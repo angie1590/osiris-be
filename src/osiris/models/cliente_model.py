@@ -1,14 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from typing import Optional
 from datetime import datetime
-from pydantic import ConfigDict
 
 class ClienteBase(BaseModel):
     tipo_cliente_id: UUID
 
 class ClienteCrear(ClienteBase):
-    persona_id: UUID
+    id: UUID  # <- ahora representa directamente el ID de la persona
     usuario_auditoria: str
 
 class ClienteActualizar(BaseModel):

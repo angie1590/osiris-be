@@ -8,7 +8,7 @@ class EmpleadoServicio:
 
     @staticmethod
     async def crear(db: AsyncSession, data: EmpleadoCrear) -> Empleado:
-        existente = await EmpleadoRepositorio.obtener_por_persona_id(db, data.persona_id)
+        existente = await EmpleadoRepositorio.obtener_por_id(db, data.id)
         if existente:
             raise ValueError("Esta persona ya está registrada como empleado.")
         return await EmpleadoRepositorio.crear(db, data)

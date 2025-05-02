@@ -15,8 +15,8 @@ class ClienteRepositorio:
         return nuevo
 
     @staticmethod
-    async def obtener_por_persona_id(db: AsyncSession, persona_id: UUID) -> Cliente | None:
-        result = await db.execute(select(Cliente).where(Cliente.id == persona_id, Cliente.activo == True))
+    async def obtener_por_id(db: AsyncSession, cliente_id: UUID) -> Cliente | None:
+        result = await db.execute(select(Cliente).where(Cliente.id == cliente_id, Cliente.activo == True))
         return result.scalar_one_or_none()
 
     @staticmethod

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from src.osiris.main import app
 
 EMPLEADO_MOCK_INPUT = {
-    "persona_id": "4e90ff1e-ccf7-4f6e-81b3-d353e2c82f6c",
+    "id": "4e90ff1e-ccf7-4f6e-81b3-d353e2c82f6c",
     "salario": 1500.00,
     "cargo": "Analista",
     "fecha_ingreso": "2023-01-10",
@@ -14,7 +14,6 @@ EMPLEADO_MOCK_INPUT = {
 
 EMPLEADO_MOCK_OUTPUT = {
     **EMPLEADO_MOCK_INPUT,
-    "id": "ba72dc7b-29a3-4c53-a116-5f818d4d3f89",
     "fecha_salida": None,
     "activo": True
 }
@@ -28,7 +27,7 @@ async def test_crear_empleado():
             response = await ac.post("/empleados/", json=EMPLEADO_MOCK_INPUT)
 
         assert response.status_code == 201
-        assert response.json()["persona_id"] == EMPLEADO_MOCK_INPUT["persona_id"]
+        assert response.json()["id"] == EMPLEADO_MOCK_INPUT["id"]
 
 
 @pytest.mark.asyncio

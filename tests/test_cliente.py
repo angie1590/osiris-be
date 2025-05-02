@@ -4,14 +4,14 @@ from unittest.mock import AsyncMock, patch
 from src.osiris.main import app
 
 CLIENTE_MOCK_INPUT = {
-    "persona_id": "f6ff8d8b-73a6-49f4-9438-113c5d9f7a4e",
+    "id": "f6ff8d8b-73a6-49f4-9438-113c5d9f7a4e",
     "tipo_cliente_id": "1a2b3c4d-5e6f-7a8b-9c0d-abcdef123456",
     "usuario_auditoria": "admin"
 }
 
 CLIENTE_MOCK_OUTPUT = {
     "id": "4b9f9261-390a-4fa3-b9d0-1fa2e8e8b22d",
-    "persona_id": CLIENTE_MOCK_INPUT["persona_id"],
+    "id": CLIENTE_MOCK_INPUT["id"],
     "tipo_cliente_id": CLIENTE_MOCK_INPUT["tipo_cliente_id"],
     "activo": True,
     "fecha_creacion": "2025-04-30T10:00:00",
@@ -28,7 +28,7 @@ async def test_crear_cliente():
             response = await ac.post("/clientes/", json=CLIENTE_MOCK_INPUT)
 
         assert response.status_code == 201
-        assert response.json()["persona_id"] == CLIENTE_MOCK_INPUT["persona_id"]
+        assert response.json()["id"] == CLIENTE_MOCK_INPUT["id"]
 
 
 @pytest.mark.asyncio

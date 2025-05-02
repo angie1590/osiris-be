@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import List
@@ -22,13 +22,15 @@ async def listar_tipos_cliente(db: AsyncSession = Depends(get_session)):
     return await TipoClienteServicio.listar(db)
 
 
-@router.put("/{tipo_id}", response_model=TipoClienteRespuesta)
+@router.put('/{tipo_id}', response_model=TipoClienteRespuesta)
 async def actualizar_tipo_cliente(
     tipo_id: UUID,
-    data: TipoClienteActualizar,
-    db: AsyncSession = Depends(get_session),
+    data: TipoClienteActualizar = Body(...),
+    db: AsyncSession = Depends(get_session)
 ):
     try:
         return await TipoClienteServicio.actualizar(db, tipo_id, data)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+

@@ -1,8 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from datetime import date
 from typing import Optional
-from pydantic import ConfigDict
 
 class EmpleadoBase(BaseModel):
     salario: float = Field(gt=0)
@@ -12,7 +11,7 @@ class EmpleadoBase(BaseModel):
     fecha_salida: Optional[date] = None
 
 class EmpleadoCrear(EmpleadoBase):
-    persona_id: UUID
+    id: UUID  # <- usamos directamente el ID heredado de persona
     usuario_auditoria: str
 
 class EmpleadoActualizar(BaseModel):

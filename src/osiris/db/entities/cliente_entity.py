@@ -7,7 +7,7 @@ from src.osiris.db.database import Base
 class Cliente(Base):
     __tablename__ = "tbl_cliente"
 
-    id = Column(UUID(as_uuid=True), primary_key=True)  # FK con Persona
+    id = Column(UUID(as_uuid=True), primary_key=True)  # <- FK con persona
     tipo_cliente_id = Column(UUID(as_uuid=True), ForeignKey("aux_tipo_cliente.id"), nullable=False)
 
     activo = Column(Boolean, default=True)

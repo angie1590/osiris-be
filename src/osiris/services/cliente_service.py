@@ -8,7 +8,7 @@ class ClienteServicio:
 
     @staticmethod
     async def crear(db: AsyncSession, data: ClienteCrear) -> Cliente:
-        existente = await ClienteRepositorio.obtener_por_persona_id(db, data.persona_id)
+        existente = await ClienteRepositorio.obtener_por_id(db, data.id)
         if existente:
             raise ValueError("Esta persona ya está registrada como cliente.")
         return await ClienteRepositorio.crear(db, data)
