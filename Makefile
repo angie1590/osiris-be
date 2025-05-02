@@ -18,5 +18,9 @@ shell:
 test:
 	poetry run pytest
 
-migrate:
+db-upgrade:
 	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
+
+db-makemigration:
+	docker-compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m '$(mensaje)'"
+
