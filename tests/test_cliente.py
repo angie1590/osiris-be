@@ -28,7 +28,8 @@ async def test_crear_cliente():
             response = await ac.post("/clientes/", json=CLIENTE_MOCK_INPUT)
 
         assert response.status_code == 201
-        assert response.json()["id"] == CLIENTE_MOCK_INPUT["id"]
+        assert response.json()["id"] == CLIENTE_MOCK_INPUT["" \
+        "id"]
 
 
 @pytest.mark.asyncio
