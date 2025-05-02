@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from src.osiris.db.database import Base
@@ -14,7 +14,7 @@ class Empleado(Base):
     fecha_ingreso = Column(Date, nullable=False)
     fecha_salida = Column(Date, nullable=True)
 
-    activo = Column(String, default=True)
+    activo = Column(Boolean, default=True)
     fecha_creacion = Column(Date, default=datetime.now())
     fecha_modificacion = Column(Date, default=datetime.now(), onupdate=datetime.now())
     usuario_auditoria = Column(String, nullable=True)

@@ -12,8 +12,8 @@ class UsuarioServicio:
     @staticmethod
     async def crear(db: AsyncSession, data: UsuarioCrear) -> Usuario:
         # Validar existencia en Empleado o Cliente
-        empleado = await EmpleadoRepositorio.obtener_por_persona_id(db, data.persona_id)
-        cliente = await ClienteRepositorio.obtener_por_persona_id(db, data.persona_id)
+        empleado = await EmpleadoRepositorio.obtener_por_id(db, data.persona_id)
+        cliente = await ClienteRepositorio.obtener_por_id(db, data.persona_id)
 
         if not empleado and not cliente:
             raise ValueError("Solo los empleados o clientes pueden tener acceso al sistema.")
