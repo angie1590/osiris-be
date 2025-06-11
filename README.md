@@ -4,7 +4,7 @@ Backend del sistema empresarial **Osiris**, desarrollado en **Python 3.10** util
 
 ---
 
-## 📁 Estructura del Proyecto
+## 📁 Estructura general del Proyecto
 
 ```
 osiris-be/
