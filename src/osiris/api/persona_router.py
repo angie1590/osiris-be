@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from src.osiris.db.database import get_session
 from src.osiris.services.persona_service import PersonaServicio
-from src.osiris.models.persona_modelo import PersonaCrear, PersonaActualizar, PersonaRespuesta
+from osiris.models.persona_model import PersonaCrear, PersonaActualizar, PersonaRespuesta
 
 router = APIRouter(prefix="/personas", tags=["Personas"])
 

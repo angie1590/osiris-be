@@ -4,7 +4,7 @@ from sqlalchemy import or_
 from uuid import UUID
 
 from src.osiris.db.entities.persona_entity import Persona
-from src.osiris.models.persona_modelo import PersonaCrear, PersonaActualizar
+from osiris.models.persona_model import PersonaCrear, PersonaActualizar
 
 
 class PersonaRepositorio:

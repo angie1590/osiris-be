@@ -2,7 +2,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.osiris.db.repositories.persona_repository import PersonaRepositorio
-from src.osiris.models.persona_modelo import PersonaCrear, PersonaActualizar
+from osiris.models.persona_model import PersonaCrear, PersonaActualizar
 from src.osiris.db.entities.persona_entity import Persona
 
 
