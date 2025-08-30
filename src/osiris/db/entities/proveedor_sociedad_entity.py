@@ -11,11 +11,12 @@ class ProveedorSociedad(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ruc = Column(String, unique=True,nullable=False)
     razon_social = Column(String, nullable=False)
+    nombre_comercial = Column(String, nullable=True)
     direccion = Column(String, nullable=False)
     telefono = Column(String, nullable=True)
     email = Column(String, nullable=False)
 
-    tipo_contribuyente_id = Column(String(2), ForeignKey("aux_tipo_contribuyente.id"), nullable=False)
+    tipo_contribuyente_id = Column(String(2), ForeignKey("aux_tipo_contribuyente.codigo"), nullable=False)
     persona_contacto_id = Column(UUID(as_uuid=True), ForeignKey("tbl_persona.id"), nullable=False)
 
     activo = Column(Boolean, default=True)
@@ -24,4 +25,4 @@ class ProveedorSociedad(Base):
     fecha_modificacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     usuario_auditoria = Column(String, nullable=True)
 
-    tipo_contribuyente = relationship("TipoContribuyente")
+    tipo_contribuyente = relationship("TipoContribuyente", overlaps="empresas")

@@ -36,7 +36,7 @@ class Empresa(Base):
 
 
     # Relaciones
-    tipo_contribuyente = relationship("TipoContribuyente", backref="empresa")
+    tipo_contribuyente = relationship("TipoContribuyente", backref="empresa",overlaps="empresas")
     sucursales = relationship(
         "Sucursal",
         back_populates="empresa",

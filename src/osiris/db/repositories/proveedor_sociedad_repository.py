@@ -12,15 +12,17 @@ class ProveedorSociedadRepositorio:
 
     @staticmethod
     async def crear(db: AsyncSession, data: ProveedorSociedadCrear) -> ProveedorSociedad:
+        print(data)
         nuevo = ProveedorSociedad(
-            ruc=data.ruc,
-            razon_social=data.razon_social,
-            direccion=data.direccion,
-            telefono=data.telefono,
-            email=data.email,
-            tipo_contribuyente_id=data.tipo_contribuyente_id,
-            persona_contacto_id=data.persona_contacto_id,
-            usuario_auditoria=data.usuario_auditoria
+            ruc=data["ruc"],
+            razon_social=data["razon_social"],
+            nombre_comercial=data["nombre_comercial"],
+            direccion=data["direccion"],
+            telefono=data["telefono"],
+            email=data["email"],
+            tipo_contribuyente_id=data["tipo_contribuyente_id"],
+            persona_contacto_id=data["persona_contacto_id"],
+            usuario_auditoria=data["usuario_auditoria"]
         )
         db.add(nuevo)
         await db.commit()

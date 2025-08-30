@@ -4,6 +4,7 @@ from uuid import UUID
 from src.osiris.models.proveedor_sociedad_model import (
     ProveedorSociedadCrear,
     ProveedorSociedadActualizar,
+    ProveedorSociedadInput
 )
 from src.osiris.db.entities.proveedor_sociedad_entity import ProveedorSociedad
 from src.osiris.db.repositories.proveedor_sociedad_repository import ProveedorSociedadRepositorio
@@ -13,12 +14,16 @@ from src.osiris.db.repositories.persona_repository import PersonaRepositorio
 class ProveedorSociedadServicio:
 
     @staticmethod
-    async def crear(db: AsyncSession, data: ProveedorSociedadCrear) -> ProveedorSociedad:
-        persona = await PersonaRepositorio.obtener_por_id(db, data.persona_contacto_id)
+    async def crear(db: AsyncSession, data: ProveedorSociedadInput) -> ProveedorSociedad:
+        persona = await PersonaRepositorio.obtener_por_identificacion(db, data.identificacion_contacto)
         if not persona or not persona.activo:
             raise ValueError("La persona de contacto no existe o está inactiva.")
 
-        return await ProveedorSociedadRepositorio.crear(db, data)
+        data_dict = data.model_dump()
+        data_dict["persona_contacto_id"] = persona.id
+        data_dict.pop("identificacion_contacto")
+        return await ProveedorSociedadRepositorio.crear(db, data_dict)
+
 
     @staticmethod
     async def listar(db: AsyncSession) -> list[ProveedorSociedad]:

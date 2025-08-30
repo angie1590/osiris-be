@@ -7,6 +7,7 @@ from src.osiris.db.database import get_session
 from src.osiris.services.proveedor_sociedad_service import ProveedorSociedadServicio
 from src.osiris.models.proveedor_sociedad_model import (
     ProveedorSociedadCrear,
+    ProveedorSociedadInput,
     ProveedorSociedadActualizar,
     ProveedorSociedadRespuesta
 )
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/proveedores-sociedad", tags=["Proveedores Sociedad"]
 
 @router.post("/", response_model=ProveedorSociedadRespuesta, status_code=status.HTTP_201_CREATED)
 async def crear_proveedor_sociedad(
-    data: ProveedorSociedadCrear,
+    data: ProveedorSociedadInput,
     db: AsyncSession = Depends(get_session),
 ):
     try:

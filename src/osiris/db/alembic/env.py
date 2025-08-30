@@ -6,7 +6,7 @@ from sqlalchemy import pool
 
 from alembic import context
 from src.osiris.db.database import Base
-from src.osiris.db.entities import empresa_entity, tipo_contribuyente_entity, punto_emision_entity, sucursal_entity, persona_entity, rol_entity, tipo_cliente_entity, cliente_entity, empleado_entity, usuario_entity, proveedor_persona_entity
+from src.osiris.db.entities import empresa_entity, tipo_contribuyente_entity, punto_emision_entity, sucursal_entity, persona_entity, rol_entity, tipo_cliente_entity, cliente_entity, empleado_entity, usuario_entity, proveedor_persona_entity, proveedor_sociedad_entity
 
 
 from dotenv import load_dotenv

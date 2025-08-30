@@ -15,4 +15,4 @@ class TipoContribuyente(Base):
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     activo = Column(Boolean, default=True)
 
-    empresas = relationship("Empresa", back_populates="tipo_contribuyente")
+    empresas = relationship("Empresa", back_populates="tipo_contribuyente", overlaps="empresa")
