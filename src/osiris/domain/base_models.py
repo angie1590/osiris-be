@@ -15,5 +15,5 @@ class AuditMixin(SQLModel):
 class SoftDeleteMixin(SQLModel):
     activo: bool = Field(default=True, index=True)
 
-class BaseTable(SQLModel, table=True):
+class BaseTable(SQLModel, table=False):
     id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)

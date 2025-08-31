@@ -4,7 +4,7 @@ run:
 	docker-compose --env-file $(ENV_FILE) up --build
 
 stop:
-	docker-compose down
+	docker compose --env-file $(ENV_FILE) down
 
 lint:
 	poetry run ruff check .

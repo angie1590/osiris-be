@@ -4,10 +4,14 @@ import os
 from sqlalchemy import engine_from_config, pool, create_engine, text
 from sqlalchemy.engine.url import make_url, URL
 
+from sqlmodel import SQLModel
+target_metadata = SQLModel.metadata
+
 from alembic import context
 from src.osiris.db.database import Base
 
 from dotenv import load_dotenv
+from src.osiris.modules.common.rol import models as rol_models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -40,7 +44,7 @@ if not db_url:
 config.set_main_option("sqlalchemy.url", db_url)
 
 # Paso 3: incluir metadata para autogeneración
-target_metadata = Base.metadata
+target_metadata = SQLModel.metadata
 
 def _admin_url_for_postgres(target: URL) -> URL:
     """Misma URL pero apuntando a la BD administrativa 'postgres'."""
