@@ -1,6 +1,7 @@
 # src/domain/repository.py
 from typing import Generic, Type, TypeVar, Optional, Dict, Any, List, Tuple
 from sqlmodel import SQLModel, Session, select
+from sqlalchemy import func
 from .strategies import DefaultCreate, DefaultUpdate, DefaultDelete, CreateStrategy, UpdateStrategy, DeleteStrategy
 from src.osiris.core.errors import NotFoundError, InactiveRecordError
 
@@ -29,12 +30,30 @@ class BaseRepository(Generic[ModelT]):
     def get(self, session: Session, id_) -> Optional[ModelT]:
         return session.get(self.model, id_)
 
-    def list(self, session: Session, *, only_active: bool = True, limit=50, offset=0) -> Tuple[List[ModelT], int]:
+    def list(
+        self,
+        session: Session,
+        *,
+        only_active: bool = True,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Tuple[List[ModelT], int]:
         stmt = select(self.model)
+        cnt = select(func.count()).select_from(self.model)
+
         if hasattr(self.model, "activo") and only_active:
-            stmt = stmt.where(self.model.activo == True)  # noqa
-        total = session.exec(select(self.model).count()).one()
+            stmt = stmt.where(self.model.activo == True)   # noqa: E712
+            cnt = cnt.where(self.model.activo == True)
+
+        # opcional: orden estable
+        stmt = stmt.order_by(self.model.id)
+
         rows = session.exec(stmt.offset(offset).limit(limit)).all()
+
+        # SQLAlchemy 1.4: usar .one() y desempacar
+        total_row = session.exec(cnt).one()   # p.ej. (42,)
+        total = int(total_row[0]) if isinstance(total_row, tuple) else int(total_row)
+
         return rows, total
 
     def update(self, session: Session, id_, data: Dict[str, Any]) -> ModelT:

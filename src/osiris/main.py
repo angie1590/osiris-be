@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from src.osiris.core.errors import NotFoundError
 from src.osiris.modules.common.rol.router import router as roles_router
 
 app = FastAPI(
@@ -8,6 +10,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+@app.exception_handler(NotFoundError)
+async def not_found_handler(_req: Request, exc: NotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 # Incluir routers
 app.include_router(roles_router, prefix="/api")

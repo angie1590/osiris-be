@@ -4,6 +4,7 @@ from fastapi import Body
 from typing import Any, Type
 from sqlmodel import SQLModel, Session
 from src.osiris.core.db import get_session
+from uuid import UUID
 
 def register_crud_routes(
     *,
@@ -26,7 +27,7 @@ def register_crud_routes(
         return items
 
     @router.get(f"/{prefix}" + "/{item_id}", response_model=model_read, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
-    def get_item(item_id: str, session: Session = Depends(get_session)):
+    def get_item(item_id: UUID, session: Session = Depends(get_session)):
         return service.get(session, item_id)
 
     @router.post(f"/{prefix}", response_model=model_read, status_code=201, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
@@ -38,13 +39,13 @@ def register_crud_routes(
 
     @router.patch(f"/{prefix}" + "/{item_id}", response_model=model_read, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
     def update_item(
-        item_id: str,
+        item_id: UUID,
         payload: model_update = Body(...),  # pyright: ignore[reportInvalidTypeForm]
         session: Session = Depends(get_session),
     ):
         return service.update(session, item_id, payload.model_dump(exclude_unset=True))
 
     @router.delete(f"/{prefix}" + "/{item_id}", status_code=204, tags=tags)
-    def delete_item(item_id: str, session: Session = Depends(get_session)):
+    def delete_item(item_id: UUID, session: Session = Depends(get_session)):
         service.delete(session, item_id)
         return None
