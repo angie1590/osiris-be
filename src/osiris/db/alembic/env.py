@@ -1,13 +1,11 @@
 from logging.config import fileConfig
 import os
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool, create_engine, text
+from sqlalchemy.engine.url import make_url, URL
 
 from alembic import context
 from src.osiris.db.database import Base
-from src.osiris.db.entities import empresa_entity, tipo_contribuyente_entity, punto_emision_entity, sucursal_entity, persona_entity, rol_entity, tipo_cliente_entity, cliente_entity, empleado_entity, usuario_entity, proveedor_persona_entity, proveedor_sociedad_entity
-
 
 from dotenv import load_dotenv
 
@@ -44,6 +42,31 @@ config.set_main_option("sqlalchemy.url", db_url)
 # Paso 3: incluir metadata para autogeneración
 target_metadata = Base.metadata
 
+def _admin_url_for_postgres(target: URL) -> URL:
+    """Misma URL pero apuntando a la BD administrativa 'postgres'."""
+    return target.set(database="postgres")
+
+def ensure_database_exists(db_url_str: str) -> None:
+    """
+    Si la base de datos (db_url_str.database) no existe, la crea.
+    PostgreSQL no tiene 'CREATE DATABASE IF NOT EXISTS', por eso consultamos pg_database.
+    """
+    target_url = make_url(db_url_str)
+    admin_url = _admin_url_for_postgres(target_url)
+
+    # AUTOCOMMIT requerido para CREATE DATABASE
+    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
+    dbname = target_url.database
+
+    with admin_engine.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :d"),
+            {"d": dbname},
+        ).scalar()
+        if not exists:
+            # Opcional: OWNER {target_url.username}, ENCODING/LC, TEMPLATE
+            conn.execute(text(f'CREATE DATABASE "{dbname}"'))
+    admin_engine.dispose()
 
 
 def run_migrations_offline() -> None:
