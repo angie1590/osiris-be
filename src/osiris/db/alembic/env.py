@@ -11,7 +11,8 @@ from sqlmodel import SQLModel
 from src.osiris.core.db import get_settings
 
 # IMPORTA tus modelos para que Alembic detecte las tablas
-from src.osiris.modules.common.rol import models as rol_models  # noqa: F401
+from src.osiris.modules.common.rol import entity as rol_entity  # noqa: F401
+from src.osiris.modules.aux.tipo_contribuyente import models as tipo_contribuyente_models
 
 # Config Alembic y logging
 config = context.config

@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 from src.osiris.domain.router import register_crud_routes
 from .models import RolCreate, RolUpdate, RolRead
-from .repository import RolRepository
 from .service import RolService
 
 router = APIRouter()
