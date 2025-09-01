@@ -3,12 +3,20 @@ from typing import Generic, TypeVar, Dict, Any, Tuple, List
 from sqlmodel import Session
 from .repository import BaseRepository
 from src.osiris.core.errors import NotFoundError
+from src.osiris.utils.pagination import build_pagination_meta, PaginationMeta
 
 ModelT = TypeVar("ModelT")
 
 class BaseService(Generic[ModelT]):
-    def __init__(self, repo: BaseRepository[ModelT]) -> None:
-        self.repo = repo
+    repo = None  # cada subclase la setea
+
+    def list(self, session: Session, *, only_active=True, limit=50, offset=0, **kw):
+        return self.repo.list(session, only_active=only_active, limit=limit, offset=offset, **kw)
+
+    def list_paginated(self, session: Session, *, only_active=True, limit=50, offset=0, **kw):
+        items, total = self.repo.list(session, only_active=only_active, limit=limit, offset=offset, **kw)
+        meta = build_pagination_meta(total=total, limit=limit, offset=offset)
+        return items, meta
 
     # Hooks de dominio
     def validate_create(self, data: Dict[str, Any], session: Session) -> None: ...
@@ -24,22 +32,17 @@ class BaseService(Generic[ModelT]):
         self.on_created(obj, session)
         return obj
 
-    def get(self, session: Session, id_) -> ModelT:
-        obj = self.repo.get(session, id_)
-        if not obj:
-            raise NotFoundError(f"{self.repo.model.__name__} {id_} not found")
-        return obj
+    def get(self, session: Session, item_id: Any):
+        return self.repo.get(session, item_id)
 
-    def list(self, session: Session, *, only_active=True, limit=50, offset=0) -> Tuple[List[ModelT], int]:
-        return self.repo.list(session, only_active=only_active, limit=limit, offset=offset)
+    def update(self, session: Session, item_id: Any, data: Any):
+        db_obj = self.repo.get(session, item_id)
+        if not db_obj:
+            return None
+        return self.repo.update(session, db_obj, data)
 
-    def update(self, session: Session, id_, data: Dict[str, Any]) -> ModelT:
-        self.validate_update(data, session)
-        obj = self.repo.update(session, id_, data)
-        self.on_updated(obj, session)
-        return obj
-
-    def delete(self, session: Session, id_) -> None:
-        obj = self.get(session, id_)  # asegura existencia
-        self.repo.delete(session, id_)
-        self.on_deleted(obj, session)
+    def delete(self, session: Session, item_id: Any) -> bool | None:
+        db_obj = self.repo.get(session, item_id)
+        if not db_obj:
+            return None
+        return self.repo.delete(session, db_obj)

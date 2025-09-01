@@ -1,51 +1,96 @@
-# src/domain/router.py
-from fastapi import APIRouter, Depends, Query
-from fastapi import Body
+# src/osiris/domain/router.py
 from typing import Any, Type
-from sqlmodel import SQLModel, Session
-from src.osiris.core.db import get_session
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, Path, Body, HTTPException, status
+from sqlmodel import Session
+
+from src.osiris.core.db import get_session
+from src.osiris.domain.schemas import PaginatedResponse  # items + meta
+
 
 def register_crud_routes(
     *,
     router: APIRouter,
     prefix: str,
     tags: list[str],
-    model_read: Type[SQLModel],
-    model_create: Type[SQLModel],
-    model_update: Type[SQLModel],
+    model_read: Type[Any],     # usado en response_model (ignorar para linter)
+    model_create: Type[Any],   # se usa para POST y PUT (full replace)
+    model_update: Type[Any],   # si luego habilitas PATCH parcial
     service: Any,
-):
-    @router.get(f"/{prefix}", response_model=list[model_read], tags=tags)  # pyright: ignore[reportInvalidTypeForm]
+) -> None:
+    base_path = f"/{prefix}"
+
+    # -------- LIST (paginado: items + meta)
+    @router.get(base_path, response_model=PaginatedResponse[model_read], tags=tags)  # type: ignore[valid-type]
     def list_items(
-        limit: int = Query(50, ge=1, le=1000),
-        offset: int = Query(0, ge=0),
-        only_active: bool = True,
+        limit: int = Query(50, ge=1, le=1000, description="Máximo de registros a devolver"),
+        offset: int = Query(0, ge=0, description="Número de registros a saltar"),
+        only_active: bool = Query(True, description="Filtrar por activo=True/False"),
         session: Session = Depends(get_session),
     ):
-        items, _ = service.list(session, only_active=only_active, limit=limit, offset=offset)
-        return items
+        items, meta = service.list_paginated(
+            session,
+            only_active=only_active,
+            limit=limit,
+            offset=offset,
+        )
+        return {"items": items, "meta": meta}
 
-    @router.get(f"/{prefix}" + "/{item_id}", response_model=model_read, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
-    def get_item(item_id: UUID, session: Session = Depends(get_session)):
-        return service.get(session, item_id)
+    # -------- GET BY ID
+    @router.get(f"{base_path}/{{item_id}}", response_model=model_read, tags=tags)  # type: ignore[valid-type]
+    def get_item(
+        item_id: UUID = Path(...),
+        session: Session = Depends(get_session),
+    ):
+        obj = service.get(session, item_id)
+        if not obj:
+            singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
+            raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
+        return obj
 
-    @router.post(f"/{prefix}", response_model=model_read, status_code=201, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
+    # -------- CREATE (201)  ← anotado con model_create para que OpenAPI muestre el esquema correcto
+    @router.post(base_path, response_model=model_read, status_code=status.HTTP_201_CREATED, tags=tags)  # type: ignore[valid-type]
     def create_item(
-        payload: model_create = Body(...),  # pyright: ignore[reportInvalidTypeForm]
+        payload: model_create = Body(...),  # type: ignore[name-defined,valid-type]
         session: Session = Depends(get_session),
     ):
         return service.create(session, payload.model_dump(exclude_unset=True))
 
-    @router.patch(f"/{prefix}" + "/{item_id}", response_model=model_read, tags=tags)  # pyright: ignore[reportInvalidTypeForm]
+    # -------- UPDATE (PUT = full replace, mismo schema que create)
+    @router.put(f"{base_path}/{{item_id}}", response_model=model_read, tags=tags)  # type: ignore[valid-type]
     def update_item(
-        item_id: UUID,
-        payload: model_update = Body(...),  # pyright: ignore[reportInvalidTypeForm]
+        item_id: UUID = Path(...),
+        payload: model_create = Body(...),  # type: ignore[name-defined,valid-type]
         session: Session = Depends(get_session),
     ):
-        return service.update(session, item_id, payload.model_dump(exclude_unset=True))
+        updated = service.update(session, item_id, payload)
+        if updated is None:
+            singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
+            raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
+        return updated
 
-    @router.delete(f"/{prefix}" + "/{item_id}", status_code=204, tags=tags)
-    def delete_item(item_id: UUID, session: Session = Depends(get_session)):
-        service.delete(session, item_id)
-        return None
+    # (Opcional) PATCH parcial usando model_update:
+    # @router.patch(f"{base_path}/{{item_id}}", response_model=model_read, tags=tags)  # type: ignore[valid-type]
+    # def patch_item(
+    #     item_id: UUID | str = Path(...),
+    #     payload: model_update = Body(...),  # type: ignore[name-defined,valid-type]
+    #     session: Session = Depends(get_session),
+    # ):
+    #     updated = service.update(session, item_id, payload)
+    #     if updated is None:
+    #         singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
+    #         raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
+    #     return updated
+
+    # -------- DELETE (204 / 404)
+    @router.delete(f"{base_path}/{{item_id}}", status_code=status.HTTP_204_NO_CONTENT, tags=tags)
+    def delete_item(
+        item_id: UUID = Path(...),
+        session: Session = Depends(get_session),
+    ):
+        ok = service.delete(session, item_id)
+        if ok is None:
+            singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
+            raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
+        # 204 sin body
