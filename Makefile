@@ -27,6 +27,7 @@ db-upgrade:
 
 db-makemigration:
 	docker-compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m '$(mensaje)'"
+	docker compose --env-file .env.development exec osiris-backend poetry run alembic upgrade head
 
 db-recreate:
 	docker compose --env-file .env.development exec postgres bash -lc '\
