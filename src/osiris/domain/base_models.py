@@ -10,7 +10,7 @@ class BaseOSModel(SQLModel):
 class AuditMixin(SQLModel):
     creado_en: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     actualizado_en: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    usuario_auditoria: Optional[str] = Field(default=None)
+    usuario_auditoria: str = Field(default=None)
 
 class SoftDeleteMixin(SQLModel):
     activo: bool = Field(default=True, index=True)
