@@ -7,9 +7,6 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column, String, ForeignKey
 from sqlmodel import SQLModel, Field, Relationship
 
-from src.osiris.modules.aux.tipo_contribuyente.entity import TipoContribuyente  # noqa: F401
-
-
 class Empresa(SQLModel, table=True):
     __tablename__ = "tbl_empresa"
 

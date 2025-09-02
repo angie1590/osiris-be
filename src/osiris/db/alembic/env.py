@@ -14,6 +14,7 @@ from src.osiris.core.db import get_settings
 from osiris.modules.aux.tipo_contribuyente import entity as tipo_contribuyente_entity
 from src.osiris.modules.common.rol import entity as rol_entity  # noqa: F401
 from src.osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
+from src.osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
 
 # Config Alembic y logging
 config = context.config

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from src.osiris.core.errors import NotFoundError
 from src.osiris.modules.common.rol.router import router as rol_router
 from src.osiris.modules.common.empresa.router import router as empresa_router
+from src.osiris.modules.common.sucursal.router import router as sucursal_router
 
 app = FastAPI(
     title="Osiris API",
@@ -19,3 +20,4 @@ async def not_found_handler(_req: Request, exc: NotFoundError):
 # Incluir routers
 app.include_router(rol_router, prefix="/api")
 app.include_router(empresa_router, prefix="/api")
+app.include_router(sucursal_router, prefix="/api")
