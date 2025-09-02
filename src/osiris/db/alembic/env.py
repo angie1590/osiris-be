@@ -16,6 +16,7 @@ from src.osiris.modules.common.rol import entity as rol_entity  # noqa: F401
 from src.osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
 from src.osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
 from src.osiris.modules.common.punto_emision import entity as punto_emision_entity  # noqa: F401
+from src.osiris.modules.common.persona import entity as persona_entity  # noqa: F401
 
 # Config Alembic y logging
 config = context.config

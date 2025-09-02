@@ -1,82 +1,221 @@
+# tests/unit/test_persona_unit.py
+from __future__ import annotations
+
+from uuid import uuid4
+from unittest.mock import MagicMock, patch
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
-from src.osiris.main import app
+from fastapi import HTTPException
+from pydantic import ValidationError
 
-PERSONA_MOCK_INPUT = {
-    "identificacion": "0104815956",
-    "tipo_identificacion": "CEDULA",
-    "nombre": "Juan",
-    "apellido": "Pérez",
-    "direccion": "Av. Loja",
-    "telefono": "0999999999",
-    "ciudad": "Cuenca",
-    "email": "juan.perez@example.com",
-    "usuario_auditoria": "admin"
-}
-
-PERSONA_MOCK_OUTPUT = {
-    **PERSONA_MOCK_INPUT,
-    "id": "123e4567-e89b-12d3-a456-426614174000",
-    "activo": True,
-    "fecha_creacion": "2025-04-30T10:00:00",
-    "fecha_modificacion": "2025-04-30T10:00:00"
-}
+from src.osiris.modules.common.persona.models import (
+    PersonaCreate,
+    PersonaUpdate,
+    PersonaRead,
+    TipoIdentificacion,
+)
+from src.osiris.modules.common.persona.entity import Persona
+from src.osiris.modules.common.persona.service import PersonaService
+from src.osiris.modules.common.persona.repository import PersonaRepository
 
 
-@pytest.mark.asyncio
-async def test_crear_persona():
-    with patch("src.osiris.services.persona_service.PersonaServicio.crear", new=AsyncMock(return_value=PERSONA_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.post("/personas/", json=PERSONA_MOCK_INPUT)
+# ============================================================
+# Validaciones de PersonaCreate (cédula / ruc natural / pasaporte)
+# ============================================================
 
-        assert response.status_code == 201
-        assert response.json()["identificacion"] == PERSONA_MOCK_INPUT["identificacion"]
-
-
-@pytest.mark.asyncio
-async def test_actualizar_persona():
-    with patch("src.osiris.services.persona_service.PersonaServicio.actualizar", new=AsyncMock(return_value=PERSONA_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.put(f"/personas/{PERSONA_MOCK_OUTPUT['id']}", json={
-                "telefono": "0888888888",
-                "usuario_auditoria": "admin"
-            })
-
-        assert response.status_code == 200
-        assert response.json()["id"] == PERSONA_MOCK_OUTPUT["id"]
+def test_persona_create_cedula_valida_ok():
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
+        return_value=True,
+    ):
+        dto = PersonaCreate(
+            identificacion="0123456789",
+            tipo_identificacion=TipoIdentificacion.CEDULA,
+            nombre="Juan",
+            apellido="Pérez",
+            usuario_auditoria="tester",
+        )
+        assert dto.tipo_identificacion is TipoIdentificacion.CEDULA
 
 
-@pytest.mark.asyncio
-async def test_eliminar_persona():
-    with patch("src.osiris.services.persona_service.PersonaServicio.eliminar", new=AsyncMock(return_value=None)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.delete(f"/personas/{PERSONA_MOCK_OUTPUT['id']}?usuario=admin")
-
-        assert response.status_code == 200
-        assert response.json()["mensaje"] == "Persona eliminada correctamente."
-
-
-@pytest.mark.asyncio
-async def test_buscar_por_identificacion():
-    with patch("src.osiris.services.persona_service.PersonaServicio.buscar_por_identificacion", new=AsyncMock(return_value=PERSONA_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get(f"/personas/buscar?identificacion={PERSONA_MOCK_INPUT['identificacion']}")
-
-        assert response.status_code == 200
-        assert response.json()[0]["identificacion"] == PERSONA_MOCK_INPUT["identificacion"]
+def test_persona_create_cedula_invalida_falla():
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
+        return_value=False,
+    ):
+        with pytest.raises(ValidationError) as exc:
+            PersonaCreate(
+                identificacion="0000000000",
+                tipo_identificacion=TipoIdentificacion.CEDULA,
+                nombre="Juan",
+                apellido="Pérez",
+                usuario_auditoria="tester",
+            )
+        assert "cédula" in str(exc.value).lower()
 
 
-@pytest.mark.asyncio
-async def test_buscar_por_apellido():
-    with patch("src.osiris.services.persona_service.PersonaServicio.buscar_por_apellido", new=AsyncMock(return_value=[PERSONA_MOCK_OUTPUT])):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get(f"/personas/buscar?apellido=Pérez")
+def test_persona_create_ruc_persona_natural_ok():
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        return_value=True,
+    ):
+        dto = PersonaCreate(
+            identificacion="0123456789001",
+            tipo_identificacion=TipoIdentificacion.RUC,
+            nombre="Ana",
+            apellido="López",
+            usuario_auditoria="tester",
+        )
+        assert dto.tipo_identificacion is TipoIdentificacion.RUC
 
-        assert response.status_code == 200
-        assert response.json()[0]["apellido"] == PERSONA_MOCK_INPUT["apellido"]
+
+def test_persona_create_ruc_no_natural_rechazado():
+    # Sólo se acepta RUC de persona natural → aquí forzamos False
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        return_value=False,
+    ):
+        with pytest.raises(ValidationError) as exc:
+            PersonaCreate(
+                identificacion="1790012345001",  # típico de sociedad → debe fallar
+                tipo_identificacion=TipoIdentificacion.RUC,
+                nombre="Carlos",
+                apellido="Mora",
+                usuario_auditoria="tester",
+            )
+        assert "persona natural" in str(exc.value).lower()
+
+
+def test_persona_create_pasaporte_corto_falla():
+    with pytest.raises(ValidationError) as exc:
+        PersonaCreate(
+            identificacion="AB12",  # < 5
+            tipo_identificacion=TipoIdentificacion.PASAPORTE,
+            nombre="Lina",
+            apellido="Gómez",
+            usuario_auditoria="tester",
+        )
+    assert "pasaporte" in str(exc.value).lower()
+
+
+# ============================================================
+# Validaciones de PersonaUpdate
+# ============================================================
+
+def test_persona_update_ident_y_tipo_deben_ir_juntos():
+    # Enviar solo identificacion sin tipo → debe fallar
+    with pytest.raises(ValidationError) as exc:
+        PersonaUpdate(
+            identificacion="0123456789",
+            usuario_auditoria="tester",
+        )
+    assert "debes enviar también el tipo" in str(exc.value).lower()
+
+
+def test_persona_update_ruc_natural_ok():
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        return_value=True,
+    ):
+        dto = PersonaUpdate(
+            identificacion="0123456789001",
+            tipo_identificacion=TipoIdentificacion.RUC,
+            usuario_auditoria="tester",
+        )
+        assert dto.identificacion.endswith("001")
+
+
+def test_persona_update_ruc_no_natural_falla():
+    with patch(
+        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        return_value=False,
+    ):
+        with pytest.raises(ValidationError) as exc:
+            PersonaUpdate(
+                identificacion="1790012345001",
+                tipo_identificacion=TipoIdentificacion.RUC,
+                usuario_auditoria="tester",
+            )
+        assert "persona natural" in str(exc.value).lower()
+
+
+# ============================================================
+# Service: create → 409 si la identificación ya existe
+# ============================================================
+
+def test_persona_service_create_ident_duplicada_da_409():
+    session = MagicMock()
+
+    # Simular que ya existe una persona con esa identificación
+    exists_cursor = MagicMock()
+    exists_cursor.first.return_value = object()
+    session.exec.return_value = exists_cursor
+
+    svc = PersonaService()
+    svc.repo = MagicMock()
+
+    payload = {
+        "identificacion": "0123456789",
+        "tipo_identificacion": TipoIdentificacion.CEDULA,
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "usuario_auditoria": "tester",
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        svc.create(session, payload)
+
+    assert exc.value.status_code == 409
+    assert "ya existe" in exc.value.detail.lower()
+    svc.repo.create.assert_not_called()
+
+
+def test_persona_service_create_ok_llama_repo_create():
+    session = MagicMock()
+
+    # No existe la identificación previa
+    not_exists_cursor = MagicMock()
+    not_exists_cursor.first.return_value = None
+    session.exec.return_value = not_exists_cursor
+
+    svc = PersonaService()
+    svc.repo = MagicMock()
+    svc.repo.create.return_value = "CREATED"
+
+    payload = {
+        "identificacion": "0123456789",
+        "tipo_identificacion": TipoIdentificacion.CEDULA,
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "usuario_auditoria": "tester",
+    }
+
+    out = svc.create(session, payload)
+    assert out == "CREATED"
+    svc.repo.create.assert_called_once()
+
+
+# ============================================================
+# Repository: delete lógico (marca activo=False, commit)
+# ============================================================
+
+def test_persona_repository_delete_logico():
+    session = MagicMock()
+    repo = PersonaRepository()
+
+    obj = Persona(
+        identificacion="0123456789",
+        tipo_identificacion=TipoIdentificacion.CEDULA,
+        nombre="Pedro",
+        apellido="Suárez",
+        usuario_auditoria="tester",
+        activo=True,
+    )
+
+    ok = repo.delete(session, obj)
+
+    assert ok is True
+    assert obj.activo is False
+    session.add.assert_called_once_with(obj)
+    session.commit.assert_called_once()
+    # No exigimos refresh por ser DELETE 204 y no tener triggers de UPDATE
+    session.refresh.assert_not_called()
