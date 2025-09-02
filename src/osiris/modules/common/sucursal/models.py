@@ -35,8 +35,8 @@ class SucursalUpdate(BaseModel):
 class SucursalRead(SucursalBase):
     id: UUID
     activo: bool
-    fecha_creacion: datetime
-    fecha_modificacion: datetime
+    creado_en: datetime
+    actualizado_en: datetime
     usuario_auditoria: str
 
     model_config = ConfigDict(from_attributes=True)
