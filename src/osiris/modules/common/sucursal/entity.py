@@ -1,37 +1,21 @@
 from __future__ import annotations
-from datetime import datetime
 from typing import Optional
-from uuid import UUID, uuid4
+from uuid import UUID
+from sqlmodel import Field
 
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
-from sqlmodel import SQLModel, Field
+from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
-class Sucursal(SQLModel, table=True):
+class Sucursal(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_sucursal"
 
-    # PK
-    id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)
+    codigo: str = Field(index=True, nullable=False, max_length=3)
+    nombre: str = Field(nullable=False, max_length=50)
+    direccion: str = Field(nullable=False, max_length=100)
+    telefono: Optional[str] = Field(default=None, max_length=15)
 
-    # Campos de dominio
-    codigo: str = Field(sa_column=Column(String(3), nullable=False))
-    nombre: str = Field(nullable=False)
-    direccion: str = Field(nullable=False)
-    telefono: Optional[str] = Field(default=None)
-    activo: bool = Field(default=True, nullable=False)
-
-    # Auditoría
-    fecha_creacion: datetime = Field(default_factory=datetime.now, nullable=False)
-    fecha_modificacion: datetime = Field(
-        default_factory=datetime.now, nullable=False
-    )
-    usuario_auditoria: str = Field(nullable=False)
-
-    # FK a empresa (sin relationship para evitar ciclos)
+    # FK a empresa (forma simple y consistente)
     empresa_id: UUID = Field(
-        sa_column=Column(
-            SQLModel.metadata.schema and UUID,
-            ForeignKey("tbl_empresa.id"),
-            nullable=False,
-        )
+        foreign_key="tbl_empresa.id",
+        nullable=False,
     )
