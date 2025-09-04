@@ -7,6 +7,7 @@ from src.osiris.modules.common.sucursal.router import router as sucursal_router
 from src.osiris.modules.common.punto_emision.router import router as punto_emision_router
 from src.osiris.modules.common.persona.router import router as persona_router
 from src.osiris.modules.common.tipo_cliente.router import router as tipo_cliente_router
+from src.osiris.modules.common.usuario.router import router as usuario_router
 
 app = FastAPI(
     title="Osiris API",
@@ -27,3 +28,4 @@ app.include_router(sucursal_router, prefix="/api")
 app.include_router(punto_emision_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
 app.include_router(tipo_cliente_router, prefix="/api")
+app.include_router(usuario_router, prefix="/api")
