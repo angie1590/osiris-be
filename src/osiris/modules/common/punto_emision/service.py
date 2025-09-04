@@ -18,41 +18,6 @@ class PuntoEmisionService(BaseService):
         "empresa_id": Empresa,
         "sucursal_id": Sucursal,
     }
-    # ---------- overrides para validar FKs ----------
-    def _assert_fks(self, session: Session, empresa_id: UUID, sucursal_id: Optional[UUID]):
-        if not session.exec(select(Empresa).where(Empresa.id == empresa_id)).first():
-            raise HTTPException(status_code=404, detail=f"Empresa {empresa_id} not found")
-        if sucursal_id:
-            if not session.exec(select(Sucursal).where(Sucursal.id == sucursal_id)).first():
-                raise HTTPException(status_code=404, detail=f"Sucursal {sucursal_id} not found")
-
-    def create(self, session: Session, data):
-        # data puede venir como dict o DTO
-        empresa_id = data["empresa_id"] if isinstance(data, dict) else data.empresa_id
-        sucursal_id = data.get("sucursal_id") if isinstance(data, dict) else getattr(data, "sucursal_id", None)
-        self._assert_fks(session, empresa_id, sucursal_id)
-        return super().create(session, data)
-
-    def update(self, session: Session, item_id: UUID, data):
-        empresa_id = None
-        sucursal_id = None
-        if isinstance(data, dict):
-            empresa_id = data.get("empresa_id")
-            sucursal_id = data.get("sucursal_id")
-        else:
-            empresa_id = getattr(data, "empresa_id", None)
-            sucursal_id = getattr(data, "sucursal_id", None)
-
-        if empresa_id or sucursal_id:
-            # Necesitamos los valores actuales si alguno no vino
-            current = self.get(session, item_id)
-            if current is None:
-                return None
-            empresa_id = empresa_id or current.empresa_id
-            sucursal_id = sucursal_id if sucursal_id is not None else current.sucursal_id
-            self._assert_fks(session, empresa_id, sucursal_id)
-
-        return super().update(session, item_id, data)
 
     # ---------- atajos ----------
     def list_by_empresa_sucursal(

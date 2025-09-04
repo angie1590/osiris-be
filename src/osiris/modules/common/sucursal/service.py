@@ -12,28 +12,8 @@ from src.osiris.modules.common.empresa.entity import Empresa
 
 
 class SucursalService(BaseService):
-    repo = SucursalRepository()
     fk_models = {"empresa_id": Empresa}
-    # ---------- overrides para validar FKs ----------
-    def create(self, session: Session, data):
-        empresa_id = data["empresa_id"] if isinstance(data, dict) else data.empresa_id
-        if not session.exec(select(Empresa).where(Empresa.id == empresa_id)).first():
-            raise HTTPException(status_code=404, detail=f"Empresa {empresa_id} not found")
-        return super().create(session, data)
-
-    def update(self, session: Session, item_id: UUID, data):
-        # Si en update cambian empresa_id, también validamos
-        empresa_id = None
-        if isinstance(data, dict):
-            empresa_id = data.get("empresa_id")
-        else:
-            empresa_id = getattr(data, "empresa_id", None)
-
-        if empresa_id:
-            if not session.exec(select(Empresa).where(Empresa.id == empresa_id)).first():
-                raise HTTPException(status_code=404, detail=f"Empresa {empresa_id} not found")
-
-        return super().update(session, item_id, data)
+    repo = SucursalRepository()
 
     # ---------- atajos que ya tenías ----------
     def list_by_empresa(
