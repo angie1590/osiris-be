@@ -61,10 +61,11 @@ def register_crud_routes(
     @router.put(f"{base_path}/{{item_id}}", response_model=model_read, tags=tags)  # type: ignore[valid-type]
     def update_item(
         item_id: UUID = Path(...),
-        payload: model_create = Body(...),  # type: ignore[name-defined,valid-type]
+        payload: model_update = Body(...),  # type: ignore[name-defined,valid-type]
         session: Session = Depends(get_session),
     ):
-        updated = service.update(session, item_id, payload)
+        data = payload.model_dump(exclude_unset=True)
+        updated = service.update(session, item_id, data)
         if updated is None:
             singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
             raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")

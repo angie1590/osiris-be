@@ -14,7 +14,10 @@ from src.osiris.modules.common.sucursal.entity import Sucursal
 
 class PuntoEmisionService(BaseService):
     repo = PuntoEmisionRepository()
-
+    fk_models = {
+        "empresa_id": Empresa,
+        "sucursal_id": Sucursal,
+    }
     # ---------- overrides para validar FKs ----------
     def _assert_fks(self, session: Session, empresa_id: UUID, sucursal_id: Optional[UUID]):
         if not session.exec(select(Empresa).where(Empresa.id == empresa_id)).first():

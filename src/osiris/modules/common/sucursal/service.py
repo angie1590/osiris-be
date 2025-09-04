@@ -13,7 +13,7 @@ from src.osiris.modules.common.empresa.entity import Empresa
 
 class SucursalService(BaseService):
     repo = SucursalRepository()
-
+    fk_models = {"empresa_id": Empresa}
     # ---------- overrides para validar FKs ----------
     def create(self, session: Session, data):
         empresa_id = data["empresa_id"] if isinstance(data, dict) else data.empresa_id
