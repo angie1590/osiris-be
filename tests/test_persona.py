@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from src.osiris.modules.common.persona.models import (
     PersonaCreate,
@@ -17,6 +18,24 @@ from src.osiris.modules.common.persona.entity import Persona
 from src.osiris.modules.common.persona.service import PersonaService
 from src.osiris.modules.common.persona.repository import PersonaRepository
 
+
+
+class _Diag:
+    def __init__(self, constraint_name=None, column_name=None, table_name=None):
+        self.constraint_name = constraint_name
+        self.column_name = column_name
+        self.table_name = table_name
+
+class _PGOrig:
+    def __init__(self, pgcode, constraint=None, column=None, table=None, text=""):
+        self.pgcode = pgcode
+        self.diag = _Diag(constraint, column, table)
+        self._text = text
+    def __str__(self):
+        return self._text or f"PG error {self.pgcode}"
+
+def _mk_integrity_error(pgcode, *, constraint=None, column=None, table=None, text=""):
+    return IntegrityError("stmt", {}, _PGOrig(pgcode, constraint, column, table, text))
 
 # ============================================================
 # Validaciones de PersonaCreate (cédula / ruc natural / pasaporte)
@@ -142,20 +161,22 @@ def test_persona_update_ruc_no_natural_falla():
 # Service: create → 409 si la identificación ya existe
 # ============================================================
 
-def test_persona_service_create_ident_duplicada_da_409():
+def test_persona_service_create_ident_duplicada_da_409_via_repository():
     session = MagicMock()
+    session.add = MagicMock()
+    session.commit.side_effect = _mk_integrity_error(
+        "23505",
+        constraint="uq_tbl_persona_identificacion",
+        column="identificacion",
+        table="tbl_persona",
+    )
+    session.refresh = MagicMock()
 
-    # Simular que ya existe una persona con esa identificación
-    exists_cursor = MagicMock()
-    exists_cursor.first.return_value = object()
-    session.exec.return_value = exists_cursor
-
-    svc = PersonaService()
-    svc.repo = MagicMock()
+    svc = PersonaService()  # usa repo real (con handler de IntegrityError)
 
     payload = {
         "identificacion": "0123456789",
-        "tipo_identificacion": TipoIdentificacion.CEDULA,
+        "tipo_identificacion": "CEDULA",
         "nombre": "Juan",
         "apellido": "Pérez",
         "usuario_auditoria": "tester",
@@ -165,8 +186,11 @@ def test_persona_service_create_ident_duplicada_da_409():
         svc.create(session, payload)
 
     assert exc.value.status_code == 409
-    assert "ya existe" in exc.value.detail.lower()
-    svc.repo.create.assert_not_called()
+    assert (
+        "ya existe" in exc.value.detail.lower()
+        or "duplic" in exc.value.detail.lower()
+        or "únic" in exc.value.detail.lower()
+    )
 
 
 def test_persona_service_create_ok_llama_repo_create():

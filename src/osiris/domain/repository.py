@@ -6,6 +6,9 @@ from sqlalchemy import func
 from sqlalchemy.sql import Select
 from pydantic import BaseModel
 
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
+
 
 class BaseRepository:
     """
@@ -90,6 +93,56 @@ class BaseRepository:
     def get(self, session: Session, item_id: Any) -> Any:
         return session.get(self.model, item_id)
 
+    # ------------------------------
+    # 🆕 Handler genérico de integridad
+    # ------------------------------
+    def _raise_integrity(self, e: IntegrityError) -> None:
+        """
+        Traduce errores de integridad (PostgreSQL) a HTTPException con mensaje claro.
+        - 23505: unique violation
+        - 23503: foreign key violation
+        """
+        orig = getattr(e, "orig", None)
+        pgcode: Optional[str] = getattr(orig, "pgcode", None)  # '23505', '23503', etc.
+        diag = getattr(orig, "diag", None)
+        constraint = getattr(diag, "constraint_name", None)
+        column = getattr(diag, "column_name", None)
+        table = getattr(diag, "table_name", None)
+        CONSTRAINT_MESSAGES = {
+            # ejemplo: índice único de persona en cliente
+            "ix_tbl_cliente_persona_id": "La persona ya está registrada como cliente (persona_id duplicado).",
+            # añade otras restricciones si quieres mensajes custom
+            "uq_codigo_por_entidad": "El código ya existe para esa entidad.",
+            "ix_tbl_persona_identificacion": "La identificación ya existe.",
+        }
+
+        if pgcode == "23505":  # unique violation
+            if constraint and constraint in CONSTRAINT_MESSAGES:
+                detail = CONSTRAINT_MESSAGES[constraint]
+            else:
+                # Mensaje genérico, intentando aportar algo de contexto
+                if column:
+                    detail = f"Registro duplicado: el valor de '{column}' ya existe."
+                elif constraint:
+                    detail = f"Registro duplicado: se violó la restricción única '{constraint}'."
+                else:
+                    detail = "Registro duplicado (violación de restricción única)."
+            raise HTTPException(status_code=409, detail=detail) from e
+
+        if pgcode == "23503":  # foreign key violation
+            if constraint and table:
+                detail = (
+                    f"Violación de llave foránea '{constraint}' en tabla '{table}'. "
+                    "Verifica que las referencias existan y estén activas."
+                )
+            else:
+                detail = "Violación de llave foránea. Verifica que las claves referenciadas existan y estén activas."
+            raise HTTPException(status_code=409, detail=detail) from e
+
+        # Fallback: cualquier otro error de integridad
+        tech = str(orig) if orig else str(e)
+        raise HTTPException(status_code=409, detail=f"Violación de integridad: {tech}") from e
+
     def create(self, session: Session, obj: Any) -> Any:
         # Acepta dict o Pydantic y lo convierte al modelo SQLModel
         if isinstance(obj, BaseModel):
@@ -103,7 +156,11 @@ class BaseRepository:
             obj = self.model(**data)  # instancia del modelo
 
         session.add(obj)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as e:
+            session.rollback()
+            self._raise_integrity(e)
         session.refresh(obj)
         return obj
 
@@ -125,7 +182,11 @@ class BaseRepository:
                 setattr(db_obj, field, value)
 
         session.add(db_obj)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as e:
+            session.rollback()
+            self._raise_integrity(e)
         session.refresh(db_obj)
         return db_obj
 
@@ -138,5 +199,9 @@ class BaseRepository:
             # fallback: borrado físico
             session.delete(db_obj)
 
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError as e:
+            session.rollback()
+            self._raise_integrity(e)
         return True
