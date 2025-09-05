@@ -19,6 +19,7 @@ from src.osiris.modules.common.punto_emision import entity as punto_emision_enti
 from src.osiris.modules.common.persona import entity as persona_entity  # noqa: F401
 from src.osiris.modules.common.tipo_cliente import entity as tipo_cliente_entity  # noqa: F401
 from src.osiris.modules.common.usuario import entity as usuario_entity  # noqa: F401
+from src.osiris.modules.common.cliente import entity as cliente_entity  # noqa: F401
 
 
 # Config Alembic y logging
