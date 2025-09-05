@@ -1,0 +1,12 @@
+# src/osiris/modules/common/rol/entity.py
+from __future__ import annotations
+from typing import Optional
+
+from sqlmodel import Field
+from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+
+class Cargo(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_cargo"
+
+    # mismos campos y restricciones que ya tienes
+    nombre: str = Field(index=True, nullable=False, unique=True, max_length=120)

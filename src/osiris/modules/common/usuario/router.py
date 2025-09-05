@@ -10,7 +10,7 @@ from .service import UsuarioService
 from .repository import UsuarioRepository
 
 router = APIRouter()
-service = UsuarioService(repo=UsuarioRepository())
+service = UsuarioService()
 
 # Genera las rutas CRUD genéricas (excepto PUT)
 register_crud_routes(
