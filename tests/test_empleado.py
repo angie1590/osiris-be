@@ -1,67 +1,261 @@
+# tests/test_empleado.py
+from __future__ import annotations
+
+import os
+from datetime import date, timedelta
+from uuid import uuid4
+from unittest.mock import MagicMock
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
-from src.osiris.main import app
+from fastapi import HTTPException
+from pydantic import ValidationError
 
-EMPLEADO_MOCK_INPUT = {
-    "id": "4e90ff1e-ccf7-4f6e-81b3-d353e2c82f6c",
-    "salario": 1500.00,
-    "cargo": "Analista",
-    "fecha_ingreso": "2023-01-10",
-    "fecha_nacimiento": "1990-05-20",
-    "usuario_auditoria": "admin"
-}
-
-EMPLEADO_MOCK_OUTPUT = {
-    **EMPLEADO_MOCK_INPUT,
-    "fecha_salida": None,
-    "activo": True
-}
+from src.osiris.modules.common.empleado.service import EmpleadoService
+from src.osiris.modules.common.empleado.models import (
+    EmpleadoCreate,
+    EmpleadoUpdate,
+    UsuarioInlineCreate,
+)
+from src.osiris.modules.common.empleado.entity import Empleado
+from src.osiris.modules.common.empleado.strategy import EmpleadoCrearUsuarioStrategy
+from src.osiris.modules.common.usuario.service import UsuarioService
 
 
-@pytest.mark.asyncio
-async def test_crear_empleado():
-    with patch("src.osiris.services.empleado_service.EmpleadoServicio.crear", new=AsyncMock(return_value=EMPLEADO_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.post("/empleados/", json=EMPLEADO_MOCK_INPUT)
-
-        assert response.status_code == 201
-        assert response.json()["id"] == EMPLEADO_MOCK_INPUT["id"]
-
-
-@pytest.mark.asyncio
-async def test_actualizar_empleado():
-    with patch("src.osiris.services.empleado_service.EmpleadoServicio.actualizar", new=AsyncMock(return_value=EMPLEADO_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.put(
-                f"/empleados/{EMPLEADO_MOCK_OUTPUT['id']}",
-                json={"cargo": "Senior Analyst", "usuario_auditoria": "admin"}
-            )
-
-        assert response.status_code == 200
-        assert response.json()["id"] == EMPLEADO_MOCK_OUTPUT["id"]
+# --------------------------
+# Helpers
+# --------------------------
+def _mk_session():
+    s = MagicMock()
+    s.exec = MagicMock()
+    s.add = MagicMock()
+    s.commit = MagicMock()
+    s.refresh = MagicMock()
+    return s
 
 
-@pytest.mark.asyncio
-async def test_eliminar_empleado():
-    with patch("src.osiris.services.empleado_service.EmpleadoServicio.eliminar", new=AsyncMock(return_value=None)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.delete(f"/empleados/{EMPLEADO_MOCK_OUTPUT['id']}?usuario=admin")
+# --------------------------
+# Creación: crea usuario + empleado
+# --------------------------
+def test_empleado_create_crea_usuario_y_empleado(monkeypatch):
+    session = _mk_session()
 
-        assert response.status_code == 200
-        assert response.json()["mensaje"] == "Empleado eliminado correctamente."
+    # Mock strategy: debe crear usuario
+    created_user = MagicMock()
+    created_user.id = uuid4()
+
+    strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
+    strategy.create_user_for_persona = MagicMock(return_value=created_user)
+
+    # Mock repo.create para el empleado
+    svc = EmpleadoService(strategy=strategy)
+    svc.repo = MagicMock()
+    svc.repo.create = MagicMock(return_value=Empleado(
+        persona_id=uuid4(),
+        salario=1000.00,
+        fecha_ingreso=date(2024, 1, 1),
+        usuario_auditoria="tester",
+    ))
+
+    persona_id = uuid4()
+    payload = {
+        "persona_id": persona_id,
+        "salario": "1200.00",
+        "fecha_ingreso": "2024-01-01",
+        "usuario": {
+            "username": "jdoe",
+            "password": "secret123",
+            "rol_id": str(uuid4()),
+        },
+        "usuario_auditoria": "tester",
+    }
+
+    emp = svc.create(session, payload)
+
+    # Strategy creada usuario
+    strategy.create_user_for_persona.assert_called_once()
+    # Se creó empleado por repo
+    svc.repo.create.assert_called_once()
+    assert isinstance(emp, Empleado)
 
 
-@pytest.mark.asyncio
-async def test_listar_empleados():
-    with patch("src.osiris.services.empleado_service.EmpleadoServicio.listar", new=AsyncMock(return_value=[EMPLEADO_MOCK_OUTPUT])):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get("/empleados/")
+# --------------------------
+# Validaciones de modelo (DTO): edad mínima y coherencia de fechas
+# --------------------------
+def test_empleado_create_valida_edad_minima_por_env(monkeypatch):
+    # Forzamos edad mínima a 18
+    monkeypatch.setenv("EMP_MIN_AGE", "18")
+    hoy = date.today()
+    menor_17 = date(hoy.year - 17, hoy.month, hoy.day)
 
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert response.json()[0]["cargo"] == EMPLEADO_MOCK_INPUT["cargo"]
+    usuario = UsuarioInlineCreate(
+        username="jdoe",
+        password="secret123",
+        rol_id=uuid4(),
+    )
+
+    # Falla por ser menor de 18
+    with pytest.raises(ValidationError) as exc:
+        EmpleadoCreate(
+            persona_id=uuid4(),
+            salario="1000.00",
+            fecha_ingreso=hoy,
+            fecha_nacimiento=menor_17,
+            usuario=usuario,
+        )
+    assert "al menos 18 años" in str(exc.value).lower()
+
+
+def test_empleado_create_valida_fecha_salida_posterior():
+    hoy = date.today()
+    usuario = UsuarioInlineCreate(
+        username="jdoe",
+        password="secret123",
+        rol_id=uuid4(),
+    )
+    # fecha_salida <= fecha_ingreso debe fallar
+    with pytest.raises(ValidationError) as exc:
+        EmpleadoCreate(
+            persona_id=uuid4(),
+            salario="1000.00",
+            fecha_ingreso=hoy,
+            fecha_salida=hoy,  # igual que ingreso
+            usuario=usuario,
+        )
+    assert "fecha de salida debe ser posterior" in str(exc.value).lower()
+
+
+# --------------------------
+# Update: no cambia persona_id, valida fechas coherentes
+# --------------------------
+def test_empleado_update_no_cambia_persona_id(monkeypatch):
+    session = _mk_session()
+    svc = EmpleadoService(strategy=MagicMock())
+    svc.repo = MagicMock()
+
+    # Objeto actual
+    current = Empleado(
+        persona_id=uuid4(),
+        salario=1500.0,
+        fecha_ingreso=date(2024, 1, 1),
+        usuario_auditoria="current",
+    )
+    current.id = uuid4()
+    svc.repo.get.return_value = current
+
+    # Incoming intenta cambiar persona_id (no permitido) y salario
+    new_persona_id = uuid4()
+    incoming = EmpleadoUpdate(
+        salario="2000.00",
+        usuario_auditoria="tester",
+    )
+    # Simulamos que llega persona_id "por error" en dict:
+    data_dict = incoming.model_dump(exclude_unset=True)
+    data_dict["persona_id"] = str(new_persona_id)
+
+    svc.repo.update.return_value = current
+
+    res = svc.update(session, current.id, data_dict)
+
+    # Service debe haber eliminado persona_id de la actualización
+    assert res is current
+    assert current.persona_id != new_persona_id
+
+    svc.repo.update.assert_called_once()
+    args, kwargs = svc.repo.update.call_args
+    update_payload = args[2] if len(args) >= 3 else kwargs.get("data", {})
+    assert "persona_id" not in update_payload
+
+
+def test_empleado_update_valida_fecha_salida_vs_ingreso():
+    session = _mk_session()
+    svc = EmpleadoService(strategy=MagicMock())
+    svc.repo = MagicMock()
+
+    current = Empleado(
+        persona_id=uuid4(),
+        salario=1500.0,
+        fecha_ingreso=date(2024, 1, 10),
+        usuario_auditoria="current",
+    )
+    current.id = uuid4()
+    svc.repo.get.return_value = current
+
+    # Intentamos poner fecha_salida <= fecha_ingreso (debe 400)
+    with pytest.raises(HTTPException) as exc:
+        svc.update(session, current.id, {"fecha_salida": "2024-01-09"})
+    assert exc.value.status_code == 400
+    assert "fecha de salida debe ser posterior" in exc.value.detail.lower()
+
+
+# --------------------------
+# Estrategia: valida rol_id antes de crear usuario
+# --------------------------
+def test_empleado_create_valida_rol_en_strategy(monkeypatch):
+    session = _mk_session()
+
+    # Simular que select(Rol.id) -> first() = None => 404
+    cursor = MagicMock()
+    cursor.first.return_value = None
+    session.exec.return_value = cursor
+
+    svc = EmpleadoService()  # usa estrategia real con validación de rol
+
+    payload = {
+        "persona_id": str(uuid4()),
+        "salario": "1000.00",
+        "fecha_ingreso": str(date.today()),
+        "usuario": {
+            "username": "jdoe",
+            "password": "secret123",
+            "rol_id": str(uuid4()),  # inexistente/inactivo
+        },
+        "usuario_auditoria": "tester",
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        svc.create(session, payload)
+    assert exc.value.status_code == 404
+    assert "rol" in exc.value.detail.lower()
+
+
+# --------------------------
+# Compensación: si falla crear empleado tras crear usuario, elimina usuario
+# --------------------------
+def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
+    session = _mk_session()
+
+    fake_user = MagicMock()
+    fake_user.id = uuid4()
+
+    strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
+    strategy.create_user_for_persona = MagicMock(return_value=fake_user)
+
+    called = {"deleted": False}
+
+    # 👈 Agrega 'self' al método de instancia
+    def _fake_delete(self, _session, _user_id):
+        called["deleted"] = True
+
+    # Parchea el método en la clase correcta
+    monkeypatch.setattr(
+        "src.osiris.modules.common.usuario.service.UsuarioService.delete",
+        _fake_delete,
+        raising=True,
+    )
+
+    svc = EmpleadoService(strategy=strategy)
+    svc.repo = MagicMock()
+    svc.repo.create.side_effect = RuntimeError("fallo al crear empleado")
+
+    payload = {
+        "persona_id": str(uuid4()),
+        "salario": "1000.00",
+        "fecha_ingreso": str(date.today()),
+        "usuario": {"username": "jdoe", "password": "secret123", "rol_id": str(uuid4())},
+        "usuario_auditoria": "tester",
+    }
+
+    with pytest.raises(RuntimeError):
+        svc.create(session, payload)
+
+    assert called["deleted"] is True
