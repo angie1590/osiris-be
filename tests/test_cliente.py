@@ -8,10 +8,10 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
-from src.osiris.modules.common.cliente.service import ClienteService
-from src.osiris.modules.common.cliente.repository import ClienteRepository
-from src.osiris.modules.common.cliente.models import ClienteCreate
-from src.osiris.modules.common.cliente.entity import Cliente
+from osiris.modules.common.cliente.service import ClienteService
+from osiris.modules.common.cliente.repository import ClienteRepository
+from osiris.modules.common.cliente.models import ClienteCreate
+from osiris.modules.common.cliente.entity import Cliente
 
 
 # -----------------------

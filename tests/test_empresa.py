@@ -7,10 +7,10 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from src.osiris.modules.common.empresa.models import EmpresaCreate, EmpresaUpdate
-from src.osiris.modules.common.empresa.entity import Empresa
-from src.osiris.modules.common.empresa.repository import EmpresaRepository
-from src.osiris.modules.common.empresa.service import EmpresaService
+from osiris.modules.common.empresa.models import EmpresaCreate, EmpresaUpdate
+from osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.empresa.repository import EmpresaRepository
+from osiris.modules.common.empresa.service import EmpresaService
 
 
 # =======================
@@ -19,7 +19,7 @@ from src.osiris.modules.common.empresa.service import EmpresaService
 
 def test_empresa_create_valida_usa_validador_ruc_ok():
     with patch(
-        "src.osiris.modules.common.empresa.models.ValidacionCedulaRucService.es_identificacion_valida",
+        "osiris.modules.common.empresa.models.ValidacionCedulaRucService.es_identificacion_valida",
         return_value=True,
     ):
         dto = EmpresaCreate(
@@ -39,7 +39,7 @@ def test_empresa_create_valida_usa_validador_ruc_ok():
 
 def test_empresa_create_ruc_invalido_lanza_validationerror():
     with patch(
-        "src.osiris.modules.common.empresa.models.ValidacionCedulaRucService.es_identificacion_valida",
+        "osiris.modules.common.empresa.models.ValidacionCedulaRucService.es_identificacion_valida",
         return_value=False,
     ):
         with pytest.raises(ValidationError):

@@ -7,10 +7,10 @@ import pytest
 from pydantic import BaseModel
 
 # Repositorio/Servicio reales (no tocan BD porque mockeamos Session / repo)
-from src.osiris.modules.common.rol.repository import RolRepository
-from src.osiris.modules.common.rol.service import RolService
-from src.osiris.modules.common.rol.entity import Rol
-from src.osiris.modules.common.rol.models import RolUpdate
+from osiris.modules.common.rol.repository import RolRepository
+from osiris.modules.common.rol.service import RolService
+from osiris.modules.common.rol.entity import Rol
+from osiris.modules.common.rol.models import RolUpdate
 
 
 # ---------------------------
@@ -147,9 +147,9 @@ def test_rol_service_list_paginated_retorna_items_y_meta():
 
 def test_rol_repository_update_no_sobrescribe_campos_no_enviados():
     from unittest.mock import MagicMock
-    from src.osiris.modules.common.rol.repository import RolRepository
-    from src.osiris.modules.common.rol.entity import Rol
-    from src.osiris.modules.common.rol.models import RolUpdate
+    from osiris.modules.common.rol.repository import RolRepository
+    from osiris.modules.common.rol.entity import Rol
+    from osiris.modules.common.rol.models import RolUpdate
 
     session = MagicMock()
     repo = RolRepository()

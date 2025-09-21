@@ -5,13 +5,13 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from src.osiris.modules.common.tipo_cliente.models import (
+from osiris.modules.common.tipo_cliente.models import (
     TipoClienteCreate,
     TipoClienteUpdate,
 )
-from src.osiris.modules.common.tipo_cliente.entity import TipoCliente
-from src.osiris.modules.common.tipo_cliente.service import TipoClienteService
-from src.osiris.modules.common.tipo_cliente.repository import TipoClienteRepository
+from osiris.modules.common.tipo_cliente.entity import TipoCliente
+from osiris.modules.common.tipo_cliente.service import TipoClienteService
+from osiris.modules.common.tipo_cliente.repository import TipoClienteRepository
 
 
 # ============================================================

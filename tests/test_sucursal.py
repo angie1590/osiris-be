@@ -7,10 +7,10 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from src.osiris.modules.common.sucursal.models import SucursalCreate, SucursalUpdate
-from src.osiris.modules.common.sucursal.entity import Sucursal
-from src.osiris.modules.common.sucursal.service import SucursalService
-from src.osiris.modules.common.sucursal.repository import SucursalRepository
+from osiris.modules.common.sucursal.models import SucursalCreate, SucursalUpdate
+from osiris.modules.common.sucursal.entity import Sucursal
+from osiris.modules.common.sucursal.service import SucursalService
+from osiris.modules.common.sucursal.repository import SucursalRepository
 
 
 # =======================

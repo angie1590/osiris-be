@@ -8,15 +8,15 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
-from src.osiris.modules.common.persona.models import (
+from osiris.modules.common.persona.models import (
     PersonaCreate,
     PersonaUpdate,
     PersonaRead,
     TipoIdentificacion,
 )
-from src.osiris.modules.common.persona.entity import Persona
-from src.osiris.modules.common.persona.service import PersonaService
-from src.osiris.modules.common.persona.repository import PersonaRepository
+from osiris.modules.common.persona.entity import Persona
+from osiris.modules.common.persona.service import PersonaService
+from osiris.modules.common.persona.repository import PersonaRepository
 
 
 
@@ -43,11 +43,11 @@ def _mk_integrity_error(pgcode, *, constraint=None, column=None, table=None, tex
 
 def test_persona_create_cedula_valida_ok():
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
         return_value=True,
     ):
         dto = PersonaCreate(
-            identificacion="0123456789",
+            identificacion="0104815956",
             tipo_identificacion=TipoIdentificacion.CEDULA,
             nombre="Juan",
             apellido="Pérez",
@@ -58,7 +58,7 @@ def test_persona_create_cedula_valida_ok():
 
 def test_persona_create_cedula_invalida_falla():
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_cedula_valida",
         return_value=False,
     ):
         with pytest.raises(ValidationError) as exc:
@@ -74,11 +74,11 @@ def test_persona_create_cedula_invalida_falla():
 
 def test_persona_create_ruc_persona_natural_ok():
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
         return_value=True,
     ):
         dto = PersonaCreate(
-            identificacion="0123456789001",
+            identificacion="0104815956001",
             tipo_identificacion=TipoIdentificacion.RUC,
             nombre="Ana",
             apellido="López",
@@ -90,7 +90,7 @@ def test_persona_create_ruc_persona_natural_ok():
 def test_persona_create_ruc_no_natural_rechazado():
     # Sólo se acepta RUC de persona natural → aquí forzamos False
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
         return_value=False,
     ):
         with pytest.raises(ValidationError) as exc:
@@ -132,11 +132,11 @@ def test_persona_update_ident_y_tipo_deben_ir_juntos():
 
 def test_persona_update_ruc_natural_ok():
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
         return_value=True,
     ):
         dto = PersonaUpdate(
-            identificacion="0123456789001",
+            identificacion="0104815956001",
             tipo_identificacion=TipoIdentificacion.RUC,
             usuario_auditoria="tester",
         )
@@ -145,7 +145,7 @@ def test_persona_update_ruc_natural_ok():
 
 def test_persona_update_ruc_no_natural_falla():
     with patch(
-        "src.osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
+        "osiris.utils.validacion_identificacion.ValidacionCedulaRucService.es_ruc_persona_natural_valido",
         return_value=False,
     ):
         with pytest.raises(ValidationError) as exc:

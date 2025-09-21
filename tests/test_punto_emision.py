@@ -7,10 +7,10 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from src.osiris.modules.common.punto_emision.models import PuntoEmisionCreate, PuntoEmisionUpdate
-from src.osiris.modules.common.punto_emision.entity import PuntoEmision
-from src.osiris.modules.common.punto_emision.service import PuntoEmisionService
-from src.osiris.modules.common.punto_emision.repository import PuntoEmisionRepository
+from osiris.modules.common.punto_emision.models import PuntoEmisionCreate, PuntoEmisionUpdate
+from osiris.modules.common.punto_emision.entity import PuntoEmision
+from osiris.modules.common.punto_emision.service import PuntoEmisionService
+from osiris.modules.common.punto_emision.repository import PuntoEmisionRepository
 
 
 # =======================

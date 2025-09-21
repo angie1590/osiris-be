@@ -7,8 +7,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 
-from src.osiris.modules.common.usuario.service import UsuarioService
-from src.osiris.modules.common.usuario.models import UsuarioCreate, UsuarioUpdate
+from osiris.modules.common.usuario.service import UsuarioService
+from osiris.modules.common.usuario.models import UsuarioCreate, UsuarioUpdate
 
 
 # -----------------------

@@ -10,15 +10,15 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from src.osiris.modules.common.empleado.service import EmpleadoService
-from src.osiris.modules.common.empleado.models import (
+from osiris.modules.common.empleado.service import EmpleadoService
+from osiris.modules.common.empleado.models import (
     EmpleadoCreate,
     EmpleadoUpdate,
     UsuarioInlineCreate,
 )
-from src.osiris.modules.common.empleado.entity import Empleado
-from src.osiris.modules.common.empleado.strategy import EmpleadoCrearUsuarioStrategy
-from src.osiris.modules.common.usuario.service import UsuarioService
+from osiris.modules.common.empleado.entity import Empleado
+from osiris.modules.common.empleado.strategy import EmpleadoCrearUsuarioStrategy
+from osiris.modules.common.usuario.service import UsuarioService
 
 
 # --------------------------
@@ -238,7 +238,7 @@ def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
 
     # Parchea el método en la clase correcta
     monkeypatch.setattr(
-        "src.osiris.modules.common.usuario.service.UsuarioService.delete",
+        "osiris.modules.common.usuario.service.UsuarioService.delete",
         _fake_delete,
         raising=True,
     )
