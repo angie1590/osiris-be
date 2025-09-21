@@ -6,11 +6,11 @@ from datetime import date
 from sqlmodel import Session
 
 from fastapi import HTTPException
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .repository import EmpleadoRepository
 from .entity import Empleado
 
-from src.osiris.modules.common.persona.entity import Persona
+from osiris.modules.common.persona.entity import Persona
 from .strategy import EmpleadoCrearUsuarioStrategy
 
 
@@ -60,7 +60,7 @@ class EmpleadoService(BaseService):
         except Exception:
             # Compensación: si falla Empleado, desactivar/eliminar usuario creado
             try:
-                from src.osiris.modules.common.usuario.service import UsuarioService
+                from osiris.modules.common.usuario.service import UsuarioService
                 UsuarioService().delete(session, created_user.id)
             except Exception:
                 pass

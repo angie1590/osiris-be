@@ -5,10 +5,10 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .repository import SucursalRepository
 from .entity import Sucursal
-from src.osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.empresa.entity import Empresa
 
 
 class SucursalService(BaseService):

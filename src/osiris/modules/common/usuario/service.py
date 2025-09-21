@@ -6,12 +6,12 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 from uuid import UUID
 
-from src.osiris.domain.service import BaseService
-from src.osiris.core import security
+from osiris.domain.service import BaseService
+from osiris.core import security
 from .repository import UsuarioRepository
 from .entity import Usuario
-from src.osiris.modules.common.persona.entity import Persona
-from src.osiris.modules.common.rol.entity import Rol
+from osiris.modules.common.persona.entity import Persona
+from osiris.modules.common.rol.entity import Rol
 
 
 class UsuarioService(BaseService):

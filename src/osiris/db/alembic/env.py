@@ -8,19 +8,20 @@ from sqlalchemy import create_engine, pool
 from sqlmodel import SQLModel
 
 # Usa la misma configuración que la app
-from src.osiris.core.db import get_settings
+from osiris.core.db import get_settings
 
 # IMPORTA tus modelos para que Alembic detecte las tablas
 from osiris.modules.aux.tipo_contribuyente import entity as tipo_contribuyente_entity
-from src.osiris.modules.common.rol import entity as rol_entity  # noqa: F401
-from src.osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
-from src.osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
-from src.osiris.modules.common.punto_emision import entity as punto_emision_entity  # noqa: F401
-from src.osiris.modules.common.persona import entity as persona_entity  # noqa: F401
-from src.osiris.modules.common.tipo_cliente import entity as tipo_cliente_entity  # noqa: F401
-from src.osiris.modules.common.usuario import entity as usuario_entity  # noqa: F401
-from src.osiris.modules.common.cliente import entity as cliente_entity  # noqa: F401
-from src.osiris.modules.common.empleado import entity as empleado_entity  # noqa: F401
+from osiris.modules.common.rol import entity as rol_entity  # noqa: F401
+from osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
+from osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
+from osiris.modules.common.punto_emision import entity as punto_emision_entity  # noqa: F401
+from osiris.modules.common.persona import entity as persona_entity  # noqa: F401
+from osiris.modules.common.tipo_cliente import entity as tipo_cliente_entity  # noqa: F401
+from osiris.modules.common.usuario import entity as usuario_entity  # noqa: F401
+from osiris.modules.common.cliente import entity as cliente_entity  # noqa: F401
+from osiris.modules.common.empleado import entity as empleado_entity  # noqa: F401
+from osiris.modules.common.proveedor_persona import entity as proveedor_persona  # noqa: F401
 
 
 # Config Alembic y logging

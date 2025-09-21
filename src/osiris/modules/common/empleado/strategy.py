@@ -6,8 +6,8 @@ from uuid import UUID
 from sqlmodel import Session, select
 from fastapi import HTTPException
 
-from src.osiris.modules.common.usuario.service import UsuarioService
-from src.osiris.modules.common.rol.entity import Rol  # <-- importar Rol para validar FK
+from osiris.modules.common.usuario.service import UsuarioService
+from osiris.modules.common.rol.entity import Rol  # <-- importar Rol para validar FK
 
 
 class EmpleadoCrearUsuarioStrategy:

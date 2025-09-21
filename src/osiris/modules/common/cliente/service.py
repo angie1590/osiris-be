@@ -6,12 +6,12 @@ from sqlmodel import select, Session
 from uuid import UUID
 from typing import Any
 
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .entity import Cliente
 from .repository import ClienteRepository
 
-from src.osiris.modules.common.persona.entity import Persona
-from src.osiris.modules.common.tipo_cliente.entity import TipoCliente
+from osiris.modules.common.persona.entity import Persona
+from osiris.modules.common.tipo_cliente.entity import TipoCliente
 
 class ClienteService(BaseService):
     repo = ClienteRepository()
