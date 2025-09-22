@@ -1,15 +1,17 @@
-from fastapi import FastAPI
-from src.osiris.api.empresa_router import router as empresa_router
-from src.osiris.api.punto_emision_router import router as punto_emision
-from src.osiris.api.sucursal_router import router as sucursal
-from src.osiris.api.persona_router import router as persona_router
-from src.osiris.api.rol_router import router as rol_router
-from src.osiris.api.usuario_router import router as usuario_router
-from src.osiris.api.empleado_router import router as empleado_router
-from src.osiris.api.tipo_cliente_router import router as tipo_cliente_router
-from src.osiris.api.cliente_router import router as cliente_router
-from src.osiris.api.proveedor_persona_router import router as proveedor_persona_router
-from src.osiris.api.proveedor_sociedad_router import router as proveedor_sociedad_router
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from osiris.core.errors import NotFoundError
+from osiris.modules.common.rol.router import router as rol_router
+from osiris.modules.common.empresa.router import router as empresa_router
+from osiris.modules.common.sucursal.router import router as sucursal_router
+from osiris.modules.common.punto_emision.router import router as punto_emision_router
+from osiris.modules.common.persona.router import router as persona_router
+from osiris.modules.common.tipo_cliente.router import router as tipo_cliente_router
+from osiris.modules.common.usuario.router import router as usuario_router
+from osiris.modules.common.cliente.router import router as cliente_router
+from osiris.modules.common.empleado.router import router as empleado_router
+from osiris.modules.common.proveedor_persona.router import router as proveedor_persona_router
+from osiris.modules.common.proveedor_sociedad.router import router as proveedor_sociedad_router
 
 app = FastAPI(
     title="Osiris API",
@@ -19,15 +21,19 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+@app.exception_handler(NotFoundError)
+async def not_found_handler(_req: Request, exc: NotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
 # Incluir routers
-app.include_router(empresa_router)
-app.include_router(sucursal)
-app.include_router(punto_emision)
-app.include_router(persona_router)
-app.include_router(rol_router)
-app.include_router(usuario_router)
-app.include_router(empleado_router)
-app.include_router(tipo_cliente_router)
-app.include_router(cliente_router)
-app.include_router(proveedor_persona_router)
-app.include_router(proveedor_sociedad_router)
+app.include_router(rol_router, prefix="/api")
+app.include_router(empresa_router, prefix="/api")
+app.include_router(sucursal_router, prefix="/api")
+app.include_router(punto_emision_router, prefix="/api")
+app.include_router(persona_router, prefix="/api")
+app.include_router(tipo_cliente_router, prefix="/api")
+app.include_router(usuario_router, prefix="/api")
+app.include_router(cliente_router, prefix="/api")
+app.include_router(empleado_router, prefix="/api")
+app.include_router(proveedor_persona_router, prefix="/api")
+app.include_router(proveedor_sociedad_router, prefix="/api")

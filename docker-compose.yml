@@ -4,7 +4,7 @@ services:
   osiris-backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: osiris-backend
     env_file:
       - .env.development
@@ -19,6 +19,8 @@ services:
     image: postgres:15
     container_name: osiris-be_postgres
     restart: always
+    env_file:
+      - .env.development
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

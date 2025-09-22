@@ -1,57 +1,99 @@
+# tests/unit/test_tipo_cliente_unit.py
+from __future__ import annotations
+
+from unittest.mock import MagicMock
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
-from src.osiris.main import app
+from pydantic import ValidationError
 
-TIPO_CLIENTE_MOCK_INPUT = {
-    "nombre": "VIP",
-    "descuento": 10.00
-}
-
-TIPO_CLIENTE_MOCK_OUTPUT = {
-    "id": "8b79ee6b-4d08-4051-9375-59488afbba6b",
-    "nombre": "VIP",
-    "descuento": 10.00
-}
+from osiris.modules.common.tipo_cliente.models import (
+    TipoClienteCreate,
+    TipoClienteUpdate,
+)
+from osiris.modules.common.tipo_cliente.entity import TipoCliente
+from osiris.modules.common.tipo_cliente.service import TipoClienteService
+from osiris.modules.common.tipo_cliente.repository import TipoClienteRepository
 
 
-@pytest.mark.asyncio
-async def test_crear_tipo_cliente():
-    with patch("src.osiris.services.tipo_cliente_service.TipoClienteServicio.crear", new=AsyncMock(return_value=TIPO_CLIENTE_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.post("/tipos-cliente/", json=TIPO_CLIENTE_MOCK_INPUT)
+# ============================================================
+# DTOs: validaciones
+# ============================================================
 
-        assert response.status_code == 201
-        assert response.json()["nombre"] == TIPO_CLIENTE_MOCK_INPUT["nombre"]
-
-
-@pytest.mark.asyncio
-async def test_actualizar_tipo_cliente_completo():
-    with patch(
-        "src.osiris.services.tipo_cliente_service.TipoClienteServicio.actualizar",
-        new=AsyncMock(return_value=TIPO_CLIENTE_MOCK_OUTPUT)
-    ):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.put(
-                f"/tipos-cliente/{TIPO_CLIENTE_MOCK_OUTPUT['id']}",
-                json={"nombre": "VIP", "descuento": 15.00}
-            )
-
-        assert response.status_code == 200
-        assert response.json()["id"] == TIPO_CLIENTE_MOCK_OUTPUT["id"]
-        assert response.json()["descuento"] == 10.00  # <-- el mock sigue con 10.00
+def test_tipo_cliente_create_ok():
+    dto = TipoClienteCreate(
+        nombre="Preferente",
+        descuento=15,
+        usuario_auditoria="tester",
+    )
+    assert dto.descuento == 15
 
 
+@pytest.mark.parametrize("valor", [-1, 101, 50.5])
+def test_tipo_cliente_create_descuento_fuera_de_rango_falla(valor):
+    with pytest.raises(ValidationError):
+        TipoClienteCreate(
+            nombre="Invalido",
+            descuento=valor,
+            usuario_auditoria="tester",
+        )
 
-@pytest.mark.asyncio
-async def test_listar_tipos_cliente():
-    with patch("src.osiris.services.tipo_cliente_service.TipoClienteServicio.listar", new=AsyncMock(return_value=[TIPO_CLIENTE_MOCK_OUTPUT])):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get("/tipos-cliente/")
 
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert response.json()[0]["nombre"] == TIPO_CLIENTE_MOCK_OUTPUT["nombre"]
+def test_tipo_cliente_update_parcial_ok():
+    dto = TipoClienteUpdate(
+        descuento=0.0,
+        # si tu Update exige usuario_auditoria, descomenta:
+        # usuario_auditoria="tester",
+    )
+    assert dto.descuento == 0.0
+
+
+# ============================================================
+# Service: list_paginated (usa repo.list -> (items, total))
+# ============================================================
+
+def test_tipo_cliente_service_list_paginated_retorna_items_y_meta():
+    session = MagicMock()
+    service = TipoClienteService()
+    service.repo = MagicMock()
+    service.repo.list.return_value = (
+        [TipoCliente(nombre="A", descuento=10.0),
+         TipoCliente(nombre="B", descuento=5.0)],
+        7,  # total
+    )
+
+    items, meta = service.list_paginated(
+        session,
+        limit=2,
+        offset=0,
+        only_active=True,
+    )
+
+    assert len(items) == 2
+    assert isinstance(items[0], TipoCliente)
+    assert meta.total == 7
+    assert meta.limit == 2
+    assert meta.offset == 0
+    assert meta.has_more is True  # 7 > 2
+
+
+# ============================================================
+# Repository: delete lógico
+# ============================================================
+
+def test_tipo_cliente_repository_delete_logico():
+    session = MagicMock()
+    repo = TipoClienteRepository()
+
+    obj = TipoCliente(
+        nombre="Temporal",
+        descuento=10.0,
+        usuario_auditoria="tester",
+        activo=True,
+    )
+
+    ok = repo.delete(session, obj)
+
+    assert ok is True
+    assert obj.activo is False
+    session.add.assert_called_once_with(obj)
+    session.commit.assert_called_once()
+    session.refresh.assert_not_called()

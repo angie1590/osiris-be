@@ -1,66 +1,172 @@
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch
-from src.osiris.main import app
+from pydantic import BaseModel
 
-ROL_MOCK_INPUT = {
-    "nombre": "ADMIN",
-    "descripcion": "Rol administrador del sistema",
-    "usuario_auditoria": "admin"
-}
-
-ROL_MOCK_OUTPUT = {
-    **ROL_MOCK_INPUT,
-    "id": "f5d1e69e-1b84-42d4-97f5-8a8e2e54d842",
-    "activo": True,
-    "fecha_creacion": "2025-04-30T10:00:00",
-    "fecha_modificacion": "2025-04-30T10:00:00"
-}
+# Repositorio/Servicio reales (no tocan BD porque mockeamos Session / repo)
+from osiris.modules.common.rol.repository import RolRepository
+from osiris.modules.common.rol.service import RolService
+from osiris.modules.common.rol.entity import Rol
+from osiris.modules.common.rol.models import RolUpdate
 
 
-@pytest.mark.asyncio
-async def test_crear_rol():
-    with patch("src.osiris.services.rol_service.RolServicio.crear", new=AsyncMock(return_value=ROL_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.post("/roles/", json=ROL_MOCK_INPUT)
+# ---------------------------
+# Repositorio: create / update / delete (con Session mock)
+# ---------------------------
 
-        assert response.status_code == 201
-        assert response.json()["nombre"] == ROL_MOCK_INPUT["nombre"]
+def test_rol_repository_create_desde_dict_instancia_modelo_y_persiste():
+    session = MagicMock()
+    repo = RolRepository()
 
+    payload = {"nombre": f"Rol-{uuid4().hex[:8]}", "descripcion": "Desc", "usuario_auditoria": "tester"}
+    created = repo.create(session, payload)
 
-@pytest.mark.asyncio
-async def test_actualizar_rol():
-    with patch("src.osiris.services.rol_service.RolServicio.actualizar", new=AsyncMock(return_value=ROL_MOCK_OUTPUT)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.put(f"/roles/{ROL_MOCK_OUTPUT['id']}", json={
-                "descripcion": "Rol administrativo",
-                "usuario_auditoria": "admin"
-            })
-
-        assert response.status_code == 200
-        assert response.json()["id"] == ROL_MOCK_OUTPUT["id"]
+    assert isinstance(created, Rol)
+    assert created.nombre == payload["nombre"]
+    session.add.assert_called_once()            # se envía a la sesión
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once_with(created)
 
 
-@pytest.mark.asyncio
-async def test_eliminar_rol():
-    with patch("src.osiris.services.rol_service.RolServicio.eliminar", new=AsyncMock(return_value=None)):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.delete(f"/roles/{ROL_MOCK_OUTPUT['id']}?usuario=admin")
+def test_rol_repository_create_desde_pydantic_instancia_modelo():
+    session = MagicMock()
+    repo = RolRepository()
 
-        assert response.status_code == 200
-        assert response.json()["mensaje"] == "Rol eliminado correctamente."
+    class RolCreateDTO(BaseModel):
+        nombre: str
+        descripcion: str | None = None
+        usuario_auditoria: str | None = None
+
+    dto = RolCreateDTO(nombre=f"Rol-{uuid4().hex[:8]}", descripcion="X", usuario_auditoria="tester")
+    created = repo.create(session, dto)
+
+    assert isinstance(created, Rol)
+    assert created.nombre == dto.nombre
+    session.add.assert_called_once()
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_listar_roles():
-    with patch("src.osiris.services.rol_service.RolServicio.listar", new=AsyncMock(return_value=[ROL_MOCK_OUTPUT])):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            response = await ac.get("/roles/")
+def test_rol_repository_update_desde_dict_actualiza_campos():
+    session = MagicMock()
+    repo = RolRepository()
 
-        assert response.status_code == 200
-        assert len(response.json()) == 1
-        assert response.json()[0]["nombre"] == ROL_MOCK_INPUT["nombre"]
+    db_obj = Rol(nombre="Viejo", descripcion="d1", usuario_auditoria="tester")
+    data = {"nombre": "Nuevo", "descripcion": "d2"}
+
+    updated = repo.update(session, db_obj, data)
+
+    assert updated.nombre == "Nuevo"
+    assert updated.descripcion == "d2"
+    session.add.assert_called_once_with(db_obj)
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once_with(db_obj)
+
+
+def test_rol_repository_update_desde_pydantic_exclude_unset():
+    session = MagicMock()
+    repo = RolRepository()
+
+    db_obj = Rol(nombre="Original", descripcion=None, usuario_auditoria="tester")
+    dto = RolUpdate(descripcion="Actualizado")  # solo cambia descripcion
+
+    updated = repo.update(session, db_obj, dto)
+
+    assert updated.nombre == "Original"
+    assert updated.descripcion == "Actualizado"
+    session.commit.assert_called_once()
+
+
+def test_rol_repository_delete_logico_si_tiene_activo():
+    session = MagicMock()
+    repo = RolRepository()
+
+    db_obj = Rol(nombre="X", descripcion=None, usuario_auditoria="tester", activo=True)
+    ok = repo.delete(session, db_obj)
+
+    assert ok is True
+    assert db_obj.activo is False                 # borrado lógico
+    session.add.assert_called_once_with(db_obj)
+    session.delete.assert_not_called()
+    session.commit.assert_called_once()
+
+
+# ---------------------------
+# Servicio: update / list_paginated (mock de repo)
+# ---------------------------
+
+def test_rol_service_update_not_found_devuelve_none_y_no_actualiza():
+    repo = MagicMock()
+    repo.get.return_value = None
+
+    service = RolService()
+    service.repo = repo
+
+    out = service.update(MagicMock(), item_id=uuid4(), data={"nombre": "X"})
+    assert out is None
+    repo.update.assert_not_called()
+
+
+def test_rol_service_update_found_llama_repo_update():
+    repo = MagicMock()
+    repo.get.return_value = Rol(nombre="A", usuario_auditoria="tester")  # objeto existente
+    repo.update.return_value = "UPDATED"
+
+    service = RolService()
+    service.repo = repo
+
+    out = service.update(MagicMock(), item_id=uuid4(), data={"nombre": "B"})
+    assert out == "UPDATED"
+    repo.update.assert_called_once()
+
+
+def test_rol_service_list_paginated_retorna_items_y_meta():
+    repo = MagicMock()
+    repo.list.return_value = (["r1", "r2"], 10)
+
+    service = RolService()
+    service.repo = repo
+
+    items, meta = service.list_paginated(MagicMock(), limit=2, offset=4, only_active=True)
+
+    assert items == ["r1", "r2"]
+    assert meta.total == 10
+    assert meta.limit == 2
+    assert meta.offset == 4
+    # dependiendo del total, has_more podría ser True o False; con 10 y offset 4 + limit 2 => True
+    assert meta.has_more is True
+
+
+# ---------------------------
+# Verifica que update use model_dump(exclude_unset=True) cuando recibe Pydantic
+# (es decir, que no sobreescriba con None campos no enviados)
+# ---------------------------
+
+def test_rol_repository_update_no_sobrescribe_campos_no_enviados():
+    from unittest.mock import MagicMock
+    from osiris.modules.common.rol.repository import RolRepository
+    from osiris.modules.common.rol.entity import Rol
+    from osiris.modules.common.rol.models import RolUpdate
+
+    session = MagicMock()
+    repo = RolRepository()
+
+    # Estado inicial en DB
+    db_obj = Rol(nombre="Original", descripcion="d1", usuario_auditoria="tester")
+
+    # DTO que NO envía 'nombre' -> debe mantenerse
+    partial = RolUpdate(descripcion="nueva")
+
+    updated = repo.update(session, db_obj, partial)
+
+    # Comportamiento esperado: solo cambia 'descripcion'
+    assert updated.nombre == "Original"
+    assert updated.descripcion == "nueva"
+
+    # Persistencia llamada
+    session.add.assert_called_once_with(db_obj)
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once_with(db_obj)

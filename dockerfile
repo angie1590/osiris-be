@@ -1,24 +1,23 @@
-FROM python:3.10-slim
-
-ENV POETRY_VERSION=2.1.1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-RUN apt-get update && apt-get install -y build-essential curl libpq-dev && rm -rf /var/lib/apt/lists/*
-
-RUN curl -sSL https://install.python-poetry.org | python3 - && \
-    ln -s /root/.local/bin/poetry /usr/local/bin/poetry
-
+# build
+FROM python:3.10-slim AS build
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 POETRY_VERSION=2.1.1 POETRY_NO_INTERACTION=1 POETRY_VIRTUALENVS_IN_PROJECT=true
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN curl -sSL https://install.python-poetry.org | python3 - && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 WORKDIR /app
-
 COPY pyproject.toml poetry.lock* ./
 COPY lib ./lib
+RUN poetry install --only main --no-root
 COPY src ./src
 COPY conf ./conf
 
-RUN poetry config virtualenvs.create false && poetry install --no-root
-
-# Asegurar que el PYTHONPATH incluya la carpeta src
-ENV PYTHONPATH="/app/src"
-
-CMD ["poetry", "run", "uvicorn", "src.osiris.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# runtime
+FROM python:3.10-slim AS runtime
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PATH="/app/.venv/bin:$PATH"
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /app/.venv /app/.venv
+COPY --from=build /app/src /app/src
+COPY --from=build /app/conf /app/conf
+ENV PYTHONPATH=/app/src
+EXPOSE 8000
+CMD ["uvicorn","src.osiris.main:app","--host","0.0.0.0","--port","8000"]
