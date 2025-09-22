@@ -22,6 +22,7 @@ from osiris.modules.common.usuario import entity as usuario_entity  # noqa: F401
 from osiris.modules.common.cliente import entity as cliente_entity  # noqa: F401
 from osiris.modules.common.empleado import entity as empleado_entity  # noqa: F401
 from osiris.modules.common.proveedor_persona import entity as proveedor_persona  # noqa: F401
+from osiris.modules.common.proveedor_sociedad import entity as proveedor_sociedad  # noqa: F401
 
 
 # Config Alembic y logging
