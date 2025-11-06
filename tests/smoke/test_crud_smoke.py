@@ -26,7 +26,7 @@ def test_roles_crud():
         payload = {"nombre": "smoke-role", "descripcion": "smoke test", "usuario_auditoria": "ci"}
         r = client.post(f"{BASE}/roles", json=payload)
         assert r.status_code in (201, 409)
-        
+
         # Si ya existe, buscar por nombre
         if r.status_code == 409:
             r = client.get(f"{BASE}/roles?limit=50&offset=0")
@@ -51,7 +51,7 @@ def test_roles_crud():
         up = {"nombre": unique_name, "descripcion": "updated", "usuario_auditoria": "ci"}
         r = client.put(f"{BASE}/roles/{role_id}", json=up)
         assert r.status_code == 200
-        assert r.json().get("nombre") == unique_name        
+        assert r.json().get("nombre") == unique_name
 
         # Delete
         r = client.delete(f"{BASE}/roles/{role_id}")

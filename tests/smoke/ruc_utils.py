@@ -15,7 +15,7 @@ def generar_ruc_persona_natural():
     cuerpo = ''.join([str(random.randint(0,9)) for _ in range(6)])
     # establecimiento siempre 001
     establecimiento = "001"
-    
+
     # Módulo 10 usando coeficientes 2,1,2,1,2,1,2,1,2
     base = f"{provincia}{tercer_digito}{cuerpo}"
     coeficientes = [2,1,2,1,2,1,2,1,2]
@@ -26,7 +26,7 @@ def generar_ruc_persona_natural():
             valor -= 9
         suma += valor
     verificador = 0 if suma % 10 == 0 else 10 - (suma % 10)
-    
+
     return f"{provincia}{tercer_digito}{cuerpo}{verificador}{establecimiento}"
 
 def generar_ruc_empresa():
@@ -42,7 +42,7 @@ def generar_ruc_empresa():
     cuerpo = ''.join([str(random.randint(0,9)) for _ in range(6)])
     # establecimiento siempre 001
     establecimiento = "001"
-    
+
     # Calculamos dígito verificador posición 10 (coeficientes módulo 11)
     coeficientes_privada = [4,3,2,7,6,5,4,3,2]
     base = f"{provincia}{tercer_digito}{cuerpo}"
@@ -52,7 +52,7 @@ def generar_ruc_empresa():
         verificador = 0
     elif verificador == 10:
         verificador = 1
-        
+
     return f"{provincia}{tercer_digito}{cuerpo}{verificador}{establecimiento}"
 
 def validar_ruc_empresa(ruc):
@@ -95,7 +95,7 @@ def validar_ruc_persona_natural(ruc):
     provincia = int(ruc[0:2])
     if not 1 <= provincia <= 24:
         return False
-    
+
     # Verificar dígito usando algoritmo módulo 10
     base = ruc[:9]
     sum_pares = sum(int(base[i]) for i in range(0, len(base), 2))
@@ -107,5 +107,5 @@ def validar_ruc_persona_natural(ruc):
         sum_impares += num
     total = sum_pares + sum_impares
     verificador = (10 - (total % 10)) % 10
-    
+
     return str(verificador) == ruc[9] and ruc[10:] == "001"
