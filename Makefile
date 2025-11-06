@@ -1,7 +1,7 @@
 ENV_FILE ?= .env.development
 
 run:
-	docker-compose --env-file $(ENV_FILE) up --build
+	docker compose --env-file $(ENV_FILE) up --build -d
 
 stop:
 	docker compose --env-file $(ENV_FILE) down
@@ -11,22 +11,22 @@ lint:
 	poetry run mypy src
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 build:
-	docker-compose --env-file $(ENV_FILE) build
+	docker compose --env-file $(ENV_FILE) build
 
 shell:
-	docker-compose --env-file $(ENV_FILE) exec osiris-backend bash
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
 	poetry run pytest
 
 db-upgrade:
-	docker-compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
+	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
 
 db-makemigration:
-	docker-compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m '$(mensaje)'"
+	docker compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m '$(mensaje)'"
 	docker compose --env-file .env.development exec osiris-backend poetry run alembic upgrade head
 
 db-recreate:
@@ -78,3 +78,15 @@ db-reset:
 	# Verificación: la DB está vacía (sin tablas)
 	docker compose --env-file .env.development exec postgres bash -lc '\
 	  psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost -c "\dt" || true'
+
+smoke:
+	docker compose --env-file $(ENV_FILE) up -d --build
+	poetry run pytest -q tests/smoke
+	docker compose --env-file $(ENV_FILE) down
+
+smoke-ci:
+	# Levanta la pila (si necesitas que corra en CI; quitar --build si ya está en image cache)
+	docker compose --env-file $(ENV_FILE) up -d --build
+	# Ejecuta solo las pruebas list-only (seguras para CI)
+	poetry run pytest -q tests/smoke/test_list_only.py
+	docker compose --env-file $(ENV_FILE) down

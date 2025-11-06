@@ -27,8 +27,13 @@ osiris-be/
 │       ├── services/         # Lógica de negocio
 │       ├── utils/            # Validaciones generales
 │       └── main.py           # Punto de entrada
-├── tests/                    # Pruebas unitarias
-│   └── test_empresa.py
+├── tests/                    # Pruebas unitarias y smoke tests
+│   ├── smoke/               # Pruebas de integración y humo
+│   │   ├── test_all_endpoints.py
+│   │   ├── test_crud_smoke.py
+│   │   ├── test_list_only.py
+│   │   └── utils.py        # Utilidades para smoke tests
+│   └── test_empresa.py     # Pruebas unitarias
 ├── .env.development          # Variables de entorno (desarrollo)
 ├── .env.production           # Variables de entorno (producción)
 ├── pyproject.toml            # Configuración de Poetry
@@ -74,7 +79,11 @@ make clean      # Elimina volúmenes y contenedores
 make bash       # Acceso al contenedor
 make migrate    # Ejecuta las migraciones Alembic
 make test       # Ejecuta pruebas unitarias
+make smoke      # Ejecuta smoke tests completos
+make smoke-ci   # Ejecuta smoke tests seguros para CI (solo list)
 ```
+
+Nota: en instalaciones modernas de Docker el comando es el plugin `docker compose` (espacio). El `Makefile` ya usa `docker compose --env-file ...`, por lo que los objetivos `make build`/`make up` funcionarán con la CLI moderna. Si tu sistema aún requiere el binario legacy `docker-compose`, instala `docker-compose` o crea un alias local.
 
 ---
 
@@ -134,15 +143,48 @@ from fe_ec import GeneradorClaveAcceso, ManejadorXML
 
 ---
 
-## ✅ Pruebas Unitarias
+## ✅ Pruebas
 
-Las pruebas están en `tests/` y utilizan `pytest`:
+El proyecto incluye dos tipos de pruebas:
+
+### Pruebas Unitarias
+
+Las pruebas unitarias están en `tests/` (excluyendo `tests/smoke/`) y utilizan `pytest`:
 
 ```bash
 make test
 ```
 
-✅ Las pruebas usan mocks para evitar conexiones reales a la base de datos o al SRI.
+✅ Las pruebas unitarias usan mocks para evitar conexiones reales a la base de datos o al SRI.
+
+### Smoke Tests
+
+Los smoke tests están en `tests/smoke/` y validan la integración completa del sistema:
+
+- `test_all_endpoints.py`: Flujos completos empresa/sucursal/punto_emision
+- `test_crud_smoke.py`: Operaciones CRUD en endpoints principales
+- `test_list_only.py`: Pruebas seguras para CI (solo GET)
+
+Para ejecutar:
+
+```bash
+# Smoke tests completos (requiere sistema levantado)
+make smoke
+
+# Solo pruebas seguras para CI
+make smoke-ci
+```
+
+Los smoke tests incluyen:
+- Utilidades de retry y espera en `utils.py`
+- Cliente HTTP configurado con timeouts
+- Validación de RUC y datos empresariales
+- Limpieza automática de recursos creados
+
+⚠️ Requisitos para smoke tests:
+- Docker y servicios levantados
+- `.env.development` configurado
+- Base de datos migrada
 
 ---
 
@@ -155,6 +197,6 @@ make test
 
 ## 📞 Contacto
 
-**OpenLatina**  
-📱 0984228883  
+**OpenLatina**
+📱 0984228883
 📱 0995767370
