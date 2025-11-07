@@ -104,6 +104,93 @@ def test_persona_and_cliente_flow():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
+def test_inventory_categories_flow():
+    with httpx.Client(timeout=TIMEOUT) as client:
+        try:
+            # Create parent category
+            payload = {
+                "nombre": "Categoría Padre Test",
+                "es_padre": True,
+                "parent_id": None,
+                "usuario_auditoria": "ci"
+            }
+            r = client.post(f"{BASE}/categorias", json=payload)
+            assert r.status_code == 201
+            parent_id = r.json().get("id")
+            assert parent_id
+
+            # Create child category
+            child = {
+                "nombre": "Subcategoría Test",
+                "es_padre": False,
+                "parent_id": parent_id,
+                "usuario_auditoria": "ci"
+            }
+            r = client.post(f"{BASE}/categorias", json=child)
+            assert r.status_code == 201
+            child_id = r.json().get("id")
+            assert child_id
+
+            # Verify parent category
+            r = client.get(f"{BASE}/categorias/{parent_id}")
+            assert r.status_code == 200
+            assert r.json().get("es_padre") is True
+            assert r.json().get("parent_id") is None
+
+            # Verify child category
+            r = client.get(f"{BASE}/categorias/{child_id}")
+            assert r.status_code == 200
+            assert r.json().get("es_padre") is False
+            assert r.json().get("parent_id") == parent_id
+
+            # Update child category with unique name
+            unique_name = f"Subcategoría-{uuid.uuid4().hex[:8]}"
+            up = {"nombre": unique_name, "es_padre": False, "parent_id": parent_id, "usuario_auditoria": "ci"}
+            r = client.put(f"{BASE}/categorias/{child_id}", json=up)
+            assert r.status_code == 200
+            assert r.json().get("nombre") == unique_name
+
+            # Try to make parent category a child (should fail)
+            bad_update = {"nombre": "Test", "es_padre": False, "parent_id": child_id, "usuario_auditoria": "ci"}
+            r = client.put(f"{BASE}/categorias/{parent_id}", json=bad_update)
+            assert r.status_code in (400, 422)  # Debería fallar por ciclo o validación
+
+        finally:
+            # Cleanup: Intentar eliminar todas las categorías creadas en orden correcto
+            print("\nLimpiando categorías...")
+            
+            # 1. Obtener todas las categorías
+            r = client.get(f"{BASE}/categorias")
+            if r.status_code == 200:
+                cats = r.json().get("items", [])
+                
+                # 2. Primero eliminar todas las categorías hijas
+                for cat in cats:
+                    if not cat.get("es_padre"):
+                        print(f"Eliminando categoría hija: {cat.get('nombre')}")
+                        r = client.delete(f"{BASE}/categorias/{cat.get('id')}")
+                        if r.status_code != 204:
+                            print(f"Error al eliminar categoría hija {cat.get('id')}: {r.status_code}")
+                
+                # 3. Luego eliminar todas las categorías padre
+                for cat in cats:
+                    if cat.get("es_padre"):
+                        print(f"Eliminando categoría padre: {cat.get('nombre')}")
+                        r = client.delete(f"{BASE}/categorias/{cat.get('id')}")
+                        if r.status_code != 204:
+                            print(f"Error al eliminar categoría padre {cat.get('id')}: {r.status_code}")
+                
+                # 4. Verificar que no queden categorías
+                r = client.get(f"{BASE}/categorias")
+                assert r.status_code == 200
+                final_cats = r.json().get("items", [])
+                if len(final_cats) > 0:
+                    print(f"ADVERTENCIA: Quedaron {len(final_cats)} categorías sin eliminar")
+                else:
+                    print("Todas las categorías fueron eliminadas correctamente")
+
+
+@pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_users_employees_and_providers_flow():
     with httpx.Client(timeout=TIMEOUT) as client:
         # Create role for user/employee (or find existing)
@@ -195,10 +282,21 @@ def test_users_employees_and_providers_flow():
             "persona_contacto_id": persona_id,
             "usuario_auditoria": "ci"
         }
-        r = client.post(f"{BASE}/proveedores-sociedad", json=provs)
-        print(f"[Debug] Response: {r.text}")  # Imprime error si falla
-        assert r.status_code == 201
-        provs_id = r.json().get("id")
+        # Algunos RUC generados pueden fallar validación en el servidor; reintentar hasta 3 veces
+        provs_id = None
+        for attempt in range(3):
+            r = client.post(f"{BASE}/proveedores-sociedad", json=provs)
+            print(f"[Debug][attempt {attempt+1}] Response: {r.text}")
+            if r.status_code == 201:
+                provs_id = r.json().get("id")
+                break
+            # Si la respuesta indica RUC inválido, generar otro y reintentar
+            if r.status_code == 400 and "RUC no es válido" in r.text and attempt < 2:
+                from tests.smoke.ruc_utils import generar_ruc_empresa
+                provs["ruc"] = generar_ruc_empresa()
+                continue
+            # otro error: fallar
+            assert r.status_code == 201, f"Error creando proveedor sociedad: {r.text}"
 
         # Cleanup created resources (best-effort)
         client.delete(f"{BASE}/clientes/{cliente_id}")

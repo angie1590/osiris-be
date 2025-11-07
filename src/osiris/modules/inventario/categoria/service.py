@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+from fastapi import HTTPException
+from sqlmodel import Session
+
+from src.osiris.domain.service import BaseService
+from .entity import Categoria
+from .repository import CategoriaRepository
+
+
+class CategoriaService(BaseService):
+    repo = CategoriaRepository()
+
+    # Validar parent_id contra la misma tabla
+    fk_models = {
+        "parent_id": Categoria,
+    }
+
+    def validate_create(self, data: dict, session: Session) -> None:
+        """Reglas de negocio para create:
+        - parent_id es opcional; una categoría puede ser padre y al mismo tiempo hija
+        """
+        # parent_id is optional; if provided, validate the FK exists and is active
+        if "parent_id" in data and data.get("parent_id"):
+            # _check_fk_active_and_exists conoce fk_models y validará parent_id
+            self._check_fk_active_and_exists(session, data)
+
+    def _detect_cycle(self, session: Session, current_id: UUID, target_parent_id: UUID, visited: set = None) -> bool:
+        """Detecta si hay un ciclo en la jerarquía al establecer target_parent_id como padre de current_id.
+        
+        Args:
+            session: Sesión de DB
+            current_id: ID del nodo actual
+            target_parent_id: ID del nodo que se quiere establecer como padre
+            visited: Set de IDs ya visitados (para detección de ciclos)
+        
+        Returns:
+            bool: True si hay ciclo, False si no hay ciclo
+        """
+        if visited is None:
+            visited = set()
+
+        # Si el nodo actual ya fue visitado, hay ciclo
+        if current_id in visited:
+            return True
+        
+        # Si llegamos al nodo que queremos como padre, hay ciclo
+        if current_id == target_parent_id:
+            return True
+
+        # Marcar nodo actual como visitado
+        visited.add(current_id)
+
+        # Buscar hijos del nodo actual
+        children = session.query(Categoria).filter(
+            Categoria.parent_id == current_id,
+            Categoria.activo == True
+        ).all()
+
+        # Verificar recursivamente los hijos
+        for child in children:
+            if self._detect_cycle(session, child.id, target_parent_id, visited):
+                return True
+
+        return False
+
+    def update(self, session: Session, item_id: UUID, data: Any):
+        """Override para validar/update con contexto del objeto existente.
+        - si se marca es_padre=True se limpia parent_id automáticamente.
+        - si se marca es_padre=False se exige que exista parent_id (en data o en DB).
+        - evita self-referencia y ciclos en la jerarquía
+        """
+        data = self._ensure_dict(data)
+        db_obj = self.repo.get(session, item_id)
+        if not db_obj:
+            return None
+
+        # Evitar que parent_id apunte a sí mismo
+        if data.get("parent_id") and data.get("parent_id") == item_id:
+            raise HTTPException(status_code=400, detail="parent_id no puede referenciar al mismo registro")
+
+        # Detectar ciclos si se está cambiando el parent_id (cuando se proporciona uno nuevo)
+        new_parent_id = data.get("parent_id")
+        if new_parent_id and new_parent_id != getattr(db_obj, "parent_id", None):
+            if self._detect_cycle(session, item_id, new_parent_id):
+                # Obtener nombres para mejorar el detalle del error (si están disponibles)
+                try:
+                    parent_obj = session.get(Categoria, new_parent_id)
+                except Exception:
+                    parent_obj = None
+
+                parent_nombre = getattr(parent_obj, "nombre", str(new_parent_id))
+                item_nombre = getattr(db_obj, "nombre", str(item_id))
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"La actualización crearía un ciclo en la jerarquía: intentar establecer "
+                        f"parent '{parent_nombre}' (id={new_parent_id}) como padre de "
+                        f"'{item_nombre}' (id={item_id}) formaría un bucle"
+                    ),
+                )
+
+        # Validar FKs si vienen en data
+        if "parent_id" in data:
+            self._check_fk_active_and_exists(session, data)
+
+        return self.repo.update(session, db_obj, data)
