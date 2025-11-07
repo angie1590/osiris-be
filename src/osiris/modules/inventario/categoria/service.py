@@ -30,13 +30,13 @@ class CategoriaService(BaseService):
 
     def _detect_cycle(self, session: Session, current_id: UUID, target_parent_id: UUID, visited: set = None) -> bool:
         """Detecta si hay un ciclo en la jerarquía al establecer target_parent_id como padre de current_id.
-        
+
         Args:
             session: Sesión de DB
             current_id: ID del nodo actual
             target_parent_id: ID del nodo que se quiere establecer como padre
             visited: Set de IDs ya visitados (para detección de ciclos)
-        
+
         Returns:
             bool: True si hay ciclo, False si no hay ciclo
         """
@@ -46,7 +46,7 @@ class CategoriaService(BaseService):
         # Si el nodo actual ya fue visitado, hay ciclo
         if current_id in visited:
             return True
-        
+
         # Si llegamos al nodo que queremos como padre, hay ciclo
         if current_id == target_parent_id:
             return True

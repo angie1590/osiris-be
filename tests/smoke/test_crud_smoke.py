@@ -158,12 +158,12 @@ def test_inventory_categories_flow():
         finally:
             # Cleanup: Intentar eliminar todas las categorías creadas en orden correcto
             print("\nLimpiando categorías...")
-            
+
             # 1. Obtener todas las categorías
             r = client.get(f"{BASE}/categorias")
             if r.status_code == 200:
                 cats = r.json().get("items", [])
-                
+
                 # 2. Primero eliminar todas las categorías hijas
                 for cat in cats:
                     if not cat.get("es_padre"):
@@ -171,7 +171,7 @@ def test_inventory_categories_flow():
                         r = client.delete(f"{BASE}/categorias/{cat.get('id')}")
                         if r.status_code != 204:
                             print(f"Error al eliminar categoría hija {cat.get('id')}: {r.status_code}")
-                
+
                 # 3. Luego eliminar todas las categorías padre
                 for cat in cats:
                     if cat.get("es_padre"):
@@ -179,7 +179,7 @@ def test_inventory_categories_flow():
                         r = client.delete(f"{BASE}/categorias/{cat.get('id')}")
                         if r.status_code != 204:
                             print(f"Error al eliminar categoría padre {cat.get('id')}: {r.status_code}")
-                
+
                 # 4. Verificar que no queden categorías
                 r = client.get(f"{BASE}/categorias")
                 assert r.status_code == 200
