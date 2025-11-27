@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: osiris-backend
     env_file:
-      - ./.env.development
+      - .env.development
     volumes:
       - .:/app
     ports:
@@ -19,11 +19,7 @@ services:
     container_name: osiris-be_postgres
     restart: always
     env_file:
-      - ./.env.development
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      - .env.development
     ports:
       - "5432:5432"
     volumes:
