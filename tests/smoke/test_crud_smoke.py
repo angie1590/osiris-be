@@ -191,6 +191,46 @@ def test_inventory_categories_flow():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
+def test_casas_comerciales_crud():
+    with httpx.Client(timeout=TIMEOUT) as client:
+        # Clean list
+        r = client.get(f"{BASE}/casas-comerciales")
+        assert r.status_code == 200
+
+        # Create casa comercial with unique name
+        unique_name = f"Casa-{uuid.uuid4().hex[:8]}"
+        payload = {"nombre": unique_name, "usuario_auditoria": "ci"}
+        r = client.post(f"{BASE}/casas-comerciales", json=payload)
+        assert r.status_code == 201
+        data = r.json()
+        casa_id = data.get("id")
+        assert casa_id
+        assert data.get("nombre") == unique_name
+        assert data.get("activo") is True
+
+        # Get by id
+        r = client.get(f"{BASE}/casas-comerciales/{casa_id}")
+        assert r.status_code == 200
+        assert r.json().get("nombre") == unique_name
+
+        # Update with another unique name
+        updated_name = f"Casa-Updated-{uuid.uuid4().hex[:8]}"
+        up = {"nombre": updated_name, "usuario_auditoria": "ci"}
+        r = client.put(f"{BASE}/casas-comerciales/{casa_id}", json=up)
+        assert r.status_code == 200
+        assert r.json().get("nombre") == updated_name
+
+        # Delete
+        r = client.delete(f"{BASE}/casas-comerciales/{casa_id}")
+        assert r.status_code == 204
+
+        # Verify it's marked as inactive (soft delete)
+        r = client.get(f"{BASE}/casas-comerciales/{casa_id}")
+        assert r.status_code == 200
+        assert r.json().get("activo") is False
+
+
+@pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_users_employees_and_providers_flow():
     with httpx.Client(timeout=TIMEOUT) as client:
         # Create role for user/employee (or find existing)

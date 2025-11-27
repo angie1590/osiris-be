@@ -40,9 +40,9 @@ class PersonaCreate(PersonaBase):
     usuario_auditoria: str
 
     @model_validator(mode="after")
-    def validar_identificacion_por_tipo(cls, values: "PersonaCreate"):
-        tipo = values.tipo_identificacion
-        identificacion = values.identificacion
+    def validar_identificacion_por_tipo(self) -> "PersonaCreate":
+        tipo = self.tipo_identificacion
+        identificacion = self.identificacion
 
         if tipo == TipoIdentificacion.CEDULA:
             if not ValidacionCedulaRucService.es_cedula_valida(identificacion):
@@ -53,7 +53,7 @@ class PersonaCreate(PersonaBase):
         elif tipo == TipoIdentificacion.PASAPORTE:
             if not identificacion or len(identificacion.strip()) < 5:
                 raise ValueError("El pasaporte debe tener al menos 5 caracteres.")
-        return values
+        return self
 
 
 class PersonaUpdate(BaseOSModel):
@@ -69,9 +69,9 @@ class PersonaUpdate(BaseOSModel):
     activo: Optional[bool] = None
 
     @model_validator(mode="after")
-    def validar_identificacion_si_cambia(cls, values: "PersonaUpdate"):
-        tipo = values.tipo_identificacion
-        identificacion = values.identificacion
+    def validar_identificacion_si_cambia(self) -> "PersonaUpdate":
+        tipo = self.tipo_identificacion
+        identificacion = self.identificacion
 
         if identificacion and tipo:
             if tipo == TipoIdentificacion.CEDULA:
@@ -85,7 +85,7 @@ class PersonaUpdate(BaseOSModel):
                     raise ValueError("El pasaporte debe tener al menos 5 caracteres.")
         elif identificacion or tipo:
             raise ValueError("Si vas a actualizar la identificación, debes enviar también el tipo.")
-        return values
+        return self
 
 
 
