@@ -20,7 +20,7 @@ shell:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
-	poetry run pytest
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run pytest -v"
 
 db-upgrade:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
@@ -90,3 +90,9 @@ smoke-ci:
 	# Ejecuta solo las pruebas list-only (seguras para CI)
 	poetry run pytest -q tests/smoke/test_list_only.py
 	docker compose --env-file $(ENV_FILE) down
+
+seed:
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run python scripts/seed_sample_product.py"
+
+cleanup-test-data:
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run python scripts/cleanup_test_data.py"

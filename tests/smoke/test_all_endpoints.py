@@ -32,7 +32,7 @@ def test_empresa_sucursal_punto_emision_flow():
         r = create_empresa()
         assert r.status_code in (201, 409)
         empresa_id = r.json().get("id") if r.status_code == 201 else None
-        
+
         # Si no se creó ahora, intentar buscar una empresa con ese RUC: (list + filter simple)
         if not empresa_id:
             r = client.get(f"{BASE}/empresa?limit=10&offset=0&only_active=true")

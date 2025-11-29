@@ -6,7 +6,7 @@ from sqlmodel import SQLModel, Field, Column, Relationship  # Relationship no us
 from sqlalchemy import String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID as SA_UUID
 
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
 class ProveedorPersona(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

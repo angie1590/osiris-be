@@ -44,10 +44,12 @@ def generar_ruc_empresa():
     establecimiento = "001"
 
     # Calculamos dígito verificador posición 10 (coeficientes módulo 11)
+    # Los coeficientes se aplican a las posiciones 0-8 de la base (9 dígitos)
     coeficientes_privada = [4,3,2,7,6,5,4,3,2]
     base = f"{provincia}{tercer_digito}{cuerpo}"
     suma = sum(int(d) * c for d, c in zip(base, coeficientes_privada))
-    verificador = 11 - (suma % 11)
+    resto = suma % 11
+    verificador = 0 if resto == 0 else 11 - resto
     if verificador == 11:
         verificador = 0
     elif verificador == 10:

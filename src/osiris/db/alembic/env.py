@@ -12,6 +12,7 @@ from osiris.core.db import get_settings
 
 # IMPORTA tus modelos para que Alembic detecte las tablas
 from osiris.modules.aux.tipo_contribuyente import entity as tipo_contribuyente_entity
+from osiris.modules.aux.impuesto_catalogo import entity as impuesto_catalogo_entity  # noqa: F401
 from osiris.modules.common.rol import entity as rol_entity  # noqa: F401
 from osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
 from osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
@@ -25,6 +26,9 @@ from osiris.modules.common.proveedor_persona import entity as proveedor_persona 
 from osiris.modules.common.proveedor_sociedad import entity as proveedor_sociedad  # noqa: F401
 from osiris.modules.inventario.categoria import entity as categoria_entity  # noqa: F401
 from osiris.modules.inventario.casa_comercial import entity as casa_comercial_entity  # noqa: F401
+from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa: F401
+from osiris.modules.inventario.tipo_producto import entity as tipo_producto_entity  # noqa: F401
+from osiris.modules.inventario.producto import entity as producto_entity  # noqa: F401
 
 
 # Config Alembic y logging

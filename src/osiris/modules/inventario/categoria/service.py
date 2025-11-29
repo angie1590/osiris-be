@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlmodel import Session
 
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .entity import Categoria
 from .repository import CategoriaRepository
 

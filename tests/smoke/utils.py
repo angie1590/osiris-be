@@ -3,11 +3,15 @@ import time
 import functools
 import logging
 from typing import Callable
+import os
 
 import httpx
 
 BASE = "http://localhost:8000/api"
 TIMEOUT = 10.0
+
+# Flag para determinar si hacer hard delete (físico) o soft delete (a través de API)
+USE_HARD_DELETE = os.getenv("TEST_HARD_DELETE", "false").lower() == "true"
 
 
 def is_port_open(host: str, port: int) -> bool:
@@ -63,3 +67,137 @@ def retry_on_exception(retries: int = 3, backoff: float = 0.5):
 
 def get_client():
     return httpx.Client(timeout=TIMEOUT)
+
+
+def hard_delete_from_db(resource: str, resource_id: str) -> None:
+    """Elimina físicamente un recurso de la base de datos (hard delete)."""
+    from osiris.core.db import engine
+    from sqlalchemy import text
+
+    # Mapeo de recursos a tablas
+    table_map = {
+        "productos": "tbl_producto",
+        "atributos": "tbl_atributo",
+        "proveedores-persona": "tbl_proveedor_persona",
+        "proveedores-sociedad": "tbl_proveedor_sociedad",
+        "casas-comerciales": "tbl_casa_comercial",
+        "categorias": "tbl_categoria",
+        "personas": "tbl_persona",
+        "clientes": "tbl_cliente",
+        "empleados": "tbl_empleado",
+        "usuarios": "tbl_usuario",
+        "roles": "tbl_rol",
+        "tipos-cliente": "tbl_tipo_cliente",
+        "empresas": "tbl_empresa",
+        "sucursales": "tbl_sucursal",
+        "puntos-emision": "tbl_punto_emision",
+    }
+
+    table_name = table_map.get(resource)
+    if not table_name:
+        logging.warning("No se encontró mapeo para recurso %s, skip hard delete", resource)
+        return
+
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                text(f"DELETE FROM {table_name} WHERE id = :id"),
+                {"id": resource_id}
+            )
+            if result.rowcount > 0:
+                logging.debug("Hard delete %s/%s: %d registros eliminados", resource, resource_id, result.rowcount)
+    except Exception as exc:
+        logging.warning("Hard delete %s/%s failed: %s", resource, resource_id, exc)
+
+
+def safe_delete(client: httpx.Client, resource: str, resource_id: str) -> None:
+    """Elimina un recurso ignorando 404/204 diferencias.
+    resource: segmento del endpoint, ej: "productos".
+
+    Si USE_HARD_DELETE=true, hace eliminación física de la BD.
+    Si no, usa el endpoint DELETE (soft delete).
+    """
+    if USE_HARD_DELETE:
+        hard_delete_from_db(resource, resource_id)
+        return
+
+    try:
+        r = client.delete(f"{BASE}/{resource}/{resource_id}")
+        if r.status_code not in (204, 404):
+            logging.warning("DELETE %s/%s -> %s %s", resource, resource_id, r.status_code, r.text)
+    except Exception as exc:
+        logging.warning("DELETE %s/%s failed: %s", resource, resource_id, exc)
+
+
+def cleanup_product_relations(producto_id: str) -> None:
+    """Elimina las relaciones de un producto antes de eliminarlo (solo para hard delete)."""
+    if not USE_HARD_DELETE:
+        return
+
+    from osiris.core.db import engine
+    from sqlalchemy import text
+
+    try:
+        with engine.begin() as conn:
+            # Eliminar relaciones producto-categoria
+            conn.execute(
+                text("DELETE FROM tbl_producto_categoria WHERE producto_id = :id"),
+                {"id": producto_id}
+            )
+            # Eliminar relaciones producto-proveedor persona
+            conn.execute(
+                text("DELETE FROM tbl_producto_proveedor_persona WHERE producto_id = :id"),
+                {"id": producto_id}
+            )
+            # Eliminar relaciones producto-proveedor sociedad
+            conn.execute(
+                text("DELETE FROM tbl_producto_proveedor_sociedad WHERE producto_id = :id"),
+                {"id": producto_id}
+            )
+            # Eliminar tipo_producto (atributos asociados)
+            conn.execute(
+                text("DELETE FROM tbl_tipo_producto WHERE producto_id = :id"),
+                {"id": producto_id}
+            )
+            # Eliminar producto-impuesto
+            conn.execute(
+                text("DELETE FROM tbl_producto_impuesto WHERE producto_id = :id"),
+                {"id": producto_id}
+            )
+    except Exception as exc:
+        logging.warning("Error eliminando relaciones de producto %s: %s", producto_id, exc)
+
+
+def cleanup_product_scenario(
+    client: httpx.Client,
+    *,
+    producto_id: str | None = None,
+    casa_id: str | None = None,
+    categoria_ids: list[str] | None = None,
+    atributo_ids: list[str] | None = None,
+    proveedor_persona_id: str | None = None,
+    proveedor_sociedad_id: str | None = None,
+) -> None:
+    """Limpia entidades típicas creadas en smoke alrededor de Producto.
+    Elimina en orden seguro: producto -> atributos -> proveedores -> casa -> categorías (hoja→padre→raíz).
+
+    Si USE_HARD_DELETE=true (env TEST_HARD_DELETE=true), hace eliminación física de la BD.
+    """
+    if producto_id:
+        # Si es hard delete, eliminar primero las relaciones
+        if USE_HARD_DELETE:
+            cleanup_product_relations(producto_id)
+        safe_delete(client, "productos", producto_id)
+    if atributo_ids:
+        for aid in atributo_ids:
+            safe_delete(client, "atributos", aid)
+    if proveedor_persona_id:
+        safe_delete(client, "proveedores-persona", proveedor_persona_id)
+    if proveedor_sociedad_id:
+        safe_delete(client, "proveedores-sociedad", proveedor_sociedad_id)
+    if casa_id:
+        safe_delete(client, "casas-comerciales", casa_id)
+    if categoria_ids:
+        # eliminar en orden provisto (idealmente hoja → padre → raíz)
+        for cid in categoria_ids:
+            safe_delete(client, "categorias", cid)

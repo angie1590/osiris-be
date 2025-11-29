@@ -5,8 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Path, Body, HTTPException, status
 from sqlmodel import Session
 
-from src.osiris.core.db import get_session
-from src.osiris.domain.schemas import PaginatedResponse  # items + meta
+from osiris.core.db import get_session
+from osiris.domain.schemas import PaginatedResponse  # items + meta
 
 
 def register_crud_routes(

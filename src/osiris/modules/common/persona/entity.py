@@ -8,7 +8,7 @@ from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from sqlmodel import Field, SQLModel
 
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
 class TipoIdentificacion(str, Enum):

@@ -3,8 +3,8 @@ from typing import Any, Dict, Generic, Type, TypeVar, Union, Tuple
 from sqlmodel import Session, select, SQLModel
 from fastapi import HTTPException
 from .repository import BaseRepository
-from src.osiris.core.errors import NotFoundError
-from src.osiris.utils.pagination import build_pagination_meta, PaginationMeta
+from osiris.core.errors import NotFoundError
+from osiris.utils.pagination import build_pagination_meta, PaginationMeta
 
 ModelT = TypeVar("ModelT")
 # Tipos aceptados para declarar FKs en cada service:
