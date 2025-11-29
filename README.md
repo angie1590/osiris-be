@@ -106,6 +106,35 @@ http://localhost:8000/docs
 
 ---
 
+## 🧾 Catálogo de Impuestos
+
+Endpoint: `GET /api/impuestos/catalogo`
+
+- Paginación: acepta `limit` (int) y `offset` (int).
+- Filtro por tipo de impuesto: `tipo_impuesto` opcional (`IVA`, `ICE`, `IRBPNR`).
+- Respuesta:
+	- `items`: lista de impuestos vigentes (`codigo_sri`, `descripcion`, `tipo_impuesto`, `porcentaje`, `vigente_desde`, `vigente_hasta`).
+	- `meta`: `{ total, limit, offset, page, page_count }`.
+- Notas:
+	- Con `tipo_impuesto`, la `meta` se calcula sobre los resultados filtrados.
+	- Solo se listan impuestos vigentes.
+
+## 🛒 Productos e Impuestos
+
+- `ProductoCreate` requiere `impuesto_catalogo_ids: List[UUID]` al crear.
+- Reglas de negocio:
+	- Máximo un impuesto por tipo (IVA, ICE, IRBPNR) por producto.
+	- IVA obligatorio en todos los productos.
+	- Asignar un IVA nuevo reemplaza el anterior automáticamente.
+	- El IVA no puede eliminarse (solo reemplazarse).
+- Endpoints relevantes:
+	- `POST /api/productos` — crear producto (enviar `impuesto_catalogo_ids`).
+	- `GET /api/productos/{producto_id}` — detalle con impuestos asociados.
+	- `POST /api/productos/{producto_id}/impuestos` — asigna impuestos; si el tipo ya existe, reemplaza.
+	- `DELETE /api/productos/{producto_id}/impuestos/{producto_impuesto_id}` — elimina impuestos no-IVA; eliminar IVA es rechazado.
+
+---
+
 ## 🌐 Documentación Swagger
 
 Disponible automáticamente al levantar el sistema en:

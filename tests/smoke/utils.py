@@ -201,3 +201,42 @@ def cleanup_product_scenario(
         # eliminar en orden provisto (idealmente hoja → padre → raíz)
         for cid in categoria_ids:
             safe_delete(client, "categorias", cid)
+
+
+def get_or_create_iva_for_tests(client: httpx.Client) -> str:
+    """Busca un IVA activo (código '2') o crea uno temporal directamente en DB.
+    Retorna el ID del impuesto IVA para usar en tests.
+    """
+    from datetime import date
+    from sqlmodel import Session, select
+    from osiris.core.db import engine
+    from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto, AplicaA, ClasificacionIVA
+    from decimal import Decimal
+
+    with Session(engine) as session:
+        # Buscar IVA existente (código SRI '2')
+        stmt = select(ImpuestoCatalogo).where(
+            ImpuestoCatalogo.codigo_sri == "2",
+            ImpuestoCatalogo.activo == True
+        )
+        impuesto = session.exec(stmt).first()
+
+        if impuesto:
+            return str(impuesto.id)
+
+        # Si no existe, crear uno temporal para tests
+        iva = ImpuestoCatalogo(
+            tipo_impuesto=TipoImpuesto.IVA,
+            codigo_sri="2",
+            descripcion="IVA 0% Test",
+            vigente_desde=date.today(),
+            vigente_hasta=None,
+            aplica_a=AplicaA.AMBOS,
+            porcentaje_iva=Decimal("0"),
+            clasificacion_iva=ClasificacionIVA.GRAVADO,
+            usuario_auditoria="test",
+        )
+        session.add(iva)
+        session.commit()
+        session.refresh(iva)
+        return str(iva.id)

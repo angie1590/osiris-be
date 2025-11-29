@@ -47,13 +47,22 @@ class ProductoImpuestoService(BaseService):
         # 4. Validar compatibilidad tipo producto vs aplica_a del impuesto
         self._validar_compatibilidad_tipo(producto.tipo, impuesto.aplica_a)
 
-        # 5. Validar que no se duplique la asignación
+        # 5. Validar que no se duplique la asignación exacta (mismo impuesto)
         self.repo.validar_duplicado(session, producto_id, impuesto_catalogo_id)
 
-        # 6. Validar máximo de impuestos por tipo (1 IVA, 1 ICE)
-        self.repo.validar_maximo_por_tipo(session, producto_id, impuesto.tipo_impuesto)
+        # 6. Si ya existe un impuesto del mismo tipo, eliminarlo primero (actualización)
+        # Esto permite cambiar IVA 0% -> IVA 15%, o actualizar ICE, etc.
+        impuestos_existentes = self.list_by_producto(session, producto_id)
+        for pi in impuestos_existentes:
+            imp_existente = session.get(ImpuestoCatalogo, pi.impuesto_catalogo_id)
+            if imp_existente and imp_existente.tipo_impuesto == impuesto.tipo_impuesto:
+                # Marcar como inactivo (soft delete)
+                pi.activo = False
+                session.add(pi)
 
-        # 7. Crear la asignación
+        session.commit()
+
+        # 7. Crear la nueva asignación
         producto_impuesto = ProductoImpuesto(
             producto_id=producto_id,
             impuesto_catalogo_id=impuesto_catalogo_id,
@@ -86,7 +95,28 @@ class ProductoImpuestoService(BaseService):
         return self.repo.list_by_producto(session, producto_id)
 
     def eliminar_impuesto(self, session: Session, producto_impuesto_id: UUID) -> bool:
-        """Elimina (soft delete) una asignación de impuesto."""
+        """
+        Elimina (soft delete) una asignación de impuesto.
+        NO se puede eliminar el impuesto IVA ya que es obligatorio (requerimiento SRI).
+        Para cambiar el IVA, usar asignar_impuesto que reemplaza automáticamente.
+        """
+        from osiris.modules.aux.impuesto_catalogo.entity import TipoImpuesto
+
+        # Obtener la asignación a eliminar
+        producto_impuesto = session.get(ProductoImpuesto, producto_impuesto_id)
+        if not producto_impuesto or not producto_impuesto.activo:
+            raise HTTPException(status_code=404, detail="Asignación de impuesto no encontrada")
+
+        # Obtener el impuesto para verificar si es IVA
+        impuesto = session.get(ImpuestoCatalogo, producto_impuesto.impuesto_catalogo_id)
+
+        # No se puede eliminar IVA - solo se puede actualizar/reemplazar
+        if impuesto and impuesto.tipo_impuesto == TipoImpuesto.IVA:
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede eliminar el impuesto IVA. El IVA es obligatorio para todos los productos (requerimiento SRI). Para cambiar el IVA, asigne un nuevo IVA que reemplazará automáticamente el anterior."
+            )
+
         return self.repo.delete_by_id(session, producto_impuesto_id)
 
     def get_impuestos_completos(self, session: Session, producto_id: UUID) -> List[ImpuestoCatalogo]:

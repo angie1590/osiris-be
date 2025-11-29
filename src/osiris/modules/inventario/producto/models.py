@@ -54,6 +54,7 @@ class ProductoCreate(BaseOSModel):
     proveedor_persona_ids: Optional[List[UUID]] = None
     proveedor_sociedad_ids: Optional[List[UUID]] = None
     atributo_ids: Optional[List[UUID]] = None  # vía TipoProducto
+    impuesto_catalogo_ids: List[UUID]  # OBLIGATORIO: al menos un impuesto IVA
     usuario_auditoria: Optional[str] = None
 
     @field_validator("pvp")

@@ -28,8 +28,8 @@ from osiris.modules.aux.impuesto_catalogo.entity import (
     UnidadBase,
 )
 from osiris.modules.aux.tipo_contribuyente.entity import TipoContribuyente
-from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 from osiris.modules.inventario.producto.service import ProductoService
+from osiris.modules.inventario.producto.models import ProductoCreate
 
 USUARIO = "seed"
 
@@ -144,19 +144,54 @@ def seed():
             )
             atributo_ids.append((atributo.id, valor))
 
-        # Producto principal
-        producto, created = get_or_create(
+        # Impuestos catálogo (crear primero para incluir en producto)
+        iva, _ = get_or_create(
             session,
-            Producto,
+            ImpuestoCatalogo,
             {
-                "nombre": "Laptop Gamer X Pro",
-                "tipo": "BIEN",
-                "pvp": Decimal("2999.00"),
-                "casa_comercial_id": casa.id,
+                "tipo_impuesto": TipoImpuesto.IVA,
+                "descripcion": "IVA 15%",
+                "vigente_desde": date.today(),
+                "vigente_hasta": None,
+                "aplica_a": AplicaA.AMBOS,
+                "porcentaje_iva": Decimal("15"),
+                "clasificacion_iva": ClasificacionIVA.GRAVADO,
                 "usuario_auditoria": USUARIO,
             },
-            nombre="Laptop Gamer X Pro",
+            codigo_sri="2",
         )
+        ice, _ = get_or_create(
+            session,
+            ImpuestoCatalogo,
+            {
+                "tipo_impuesto": TipoImpuesto.ICE,
+                "descripcion": "ICE 10%",
+                "vigente_desde": date.today(),
+                "vigente_hasta": None,
+                "aplica_a": AplicaA.BIEN,
+                "tarifa_ad_valorem": Decimal("10"),
+                "modo_calculo_ice": ModoCalculoICE.AD_VALOREM,
+                "unidad_base": UnidadBase.UNIDAD,
+                "usuario_auditoria": USUARIO,
+            },
+            codigo_sri="3",
+        )
+
+        session.commit()
+
+        # Producto principal (verificar si existe o crearlo con servicio)
+        producto = session.exec(select(Producto).where(Producto.nombre == "Laptop Gamer X Pro")).first()
+        if not producto:
+            prod_service = ProductoService()
+            producto_data = ProductoCreate(
+                nombre="Laptop Gamer X Pro",
+                tipo="BIEN",
+                pvp=Decimal("2999.00"),
+                casa_comercial_id=casa.id,
+                impuesto_catalogo_ids=[iva.id, ice.id],  # OBLIGATORIO: incluir impuestos
+            )
+            producto = prod_service.create(session, producto_data, USUARIO)
+        created = producto is not None
 
         # Asociaciones categorías (solo laptop hoja)
         if not session.exec(
@@ -204,53 +239,9 @@ def seed():
                 tp.valor = valor
         session.commit()
 
-        # Impuestos catálogo
-        iva, _ = get_or_create(
-            session,
-            ImpuestoCatalogo,
-            {
-                "tipo_impuesto": TipoImpuesto.IVA,
-                "descripcion": "IVA 15%",
-                "vigente_desde": date.today(),
-                "vigente_hasta": None,
-                "aplica_a": AplicaA.AMBOS,
-                "porcentaje_iva": Decimal("15"),
-                "clasificacion_iva": ClasificacionIVA.GRAVADO,
-                "usuario_auditoria": USUARIO,
-            },
-            codigo_sri="2",
-        )
-        ice, _ = get_or_create(
-            session,
-            ImpuestoCatalogo,
-            {
-                "tipo_impuesto": TipoImpuesto.ICE,
-                "descripcion": "ICE 10%",
-                "vigente_desde": date.today(),
-                "vigente_hasta": None,
-                "aplica_a": AplicaA.BIEN,
-                "tarifa_ad_valorem": Decimal("10"),
-                "modo_calculo_ice": ModoCalculoICE.AD_VALOREM,
-                "unidad_base": UnidadBase.UNIDAD,
-                "usuario_auditoria": USUARIO,
-            },
-            codigo_sri="3",
-        )
-
-        session.commit()
-
-        # Asignar impuestos al producto (usa servicio para validaciones)
-        imp_service = ProductoImpuestoService()
-        for impuesto in [iva, ice]:
-            try:
-                imp_service.asignar_impuesto(session, producto.id, impuesto.id, USUARIO)
-            except Exception:
-                # Si ya está asignado lo ignoramos
-                session.rollback()
-        session.commit()
-
         # Construir salida usando el servicio principal
-        prod_service = ProductoService()
+        if 'prod_service' not in locals():
+            prod_service = ProductoService()
         resultado = prod_service.get_producto_completo(session, producto.id)
 
         print("=== Producto completo seed ===")

@@ -11,6 +11,7 @@ from osiris.modules.inventario.categoria.entity import Categoria  # existente
 from osiris.modules.inventario.tipo_producto.entity import TipoProducto
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
+from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo
 from fastapi import HTTPException
 from .repository import ProductoRepository
 from .entity import (
@@ -18,6 +19,7 @@ from .entity import (
     ProductoCategoria,
     ProductoProveedorPersona,
     ProductoProveedorSociedad,
+    ProductoImpuesto,
 )
 
 class ProductoService(BaseService):
@@ -37,6 +39,49 @@ class ProductoService(BaseService):
             if has_children:
                 raise HTTPException(status_code=400, detail="Solo se permiten categorías hoja (sin hijos) para el producto.")
 
+    def _validate_impuestos(self, session: Session, impuesto_ids: Iterable[UUID], tipo_producto) -> None:
+        """
+        Valida que:
+        1. Solo haya un impuesto de cada tipo (IVA, ICE, IRBPNR)
+        2. Al menos un IVA esté presente (obligatorio según SRI)
+        3. Los impuestos existan y estén activos
+        4. Sean compatibles con el tipo de producto
+        """
+        if not impuesto_ids:
+            raise HTTPException(status_code=400, detail="Debe incluir al menos un impuesto IVA.")
+
+        tipos_vistos = set()
+        tiene_iva = False
+
+        for imp_id in impuesto_ids:
+            # Verificar que el impuesto existe y está activo
+            impuesto = session.get(ImpuestoCatalogo, imp_id)
+            if not impuesto or not impuesto.activo:
+                raise HTTPException(status_code=400, detail=f"El impuesto {imp_id} no existe o está inactivo.")
+
+            # Validar que no se repita el tipo de impuesto
+            tipo_impuesto = impuesto.tipo_impuesto
+            if tipo_impuesto in tipos_vistos:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Solo se permite un impuesto de tipo {tipo_impuesto.value} por producto."
+                )
+            tipos_vistos.add(tipo_impuesto)
+
+            # Verificar que hay al menos un IVA (comparar con el enum directamente)
+            from osiris.modules.aux.impuesto_catalogo.entity import TipoImpuesto
+            if tipo_impuesto == TipoImpuesto.IVA:
+                tiene_iva = True
+
+            # Validar compatibilidad con tipo de producto
+            ProductoImpuestoService()._validar_compatibilidad_tipo(tipo_producto, impuesto.aplica_a)
+
+        if not tiene_iva:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe incluir exactamente un impuesto de tipo IVA. Los productos siempre deben tener IVA."
+            )
+
     def create(self, session: Session, data):
         def _val(obj, key):
             if obj is None:
@@ -50,6 +95,13 @@ class ProductoService(BaseService):
 
         categoria_ids: Optional[Iterable[UUID]] = _val(data, "categoria_ids")
         self._validate_leaf_categories(session, categoria_ids or [])
+
+        # Validar impuestos antes de crear el producto
+        impuesto_ids: Optional[Iterable[UUID]] = _val(data, "impuesto_catalogo_ids")
+        tipo_producto = _val(data, "tipo")
+        if impuesto_ids:
+            self._validate_impuestos(session, impuesto_ids, tipo_producto)
+
         prod = super().create(session, data)
         pid = prod.id
 
@@ -70,6 +122,18 @@ class ProductoService(BaseService):
             for aid in attr_ids:
                 session.add(TipoProducto(producto_id=pid, atributo_id=aid, usuario_auditoria=usuario_auditoria))
             session.commit()
+
+        # Asociar impuestos automáticamente
+        if impuesto_ids:
+            for imp_id in impuesto_ids:
+                producto_impuesto = ProductoImpuesto(
+                    producto_id=pid,
+                    impuesto_catalogo_id=imp_id,
+                    usuario_auditoria=usuario_auditoria
+                )
+                session.add(producto_impuesto)
+            session.commit()
+
         return prod
 
     def update(self, session: Session, item_id: UUID, data):

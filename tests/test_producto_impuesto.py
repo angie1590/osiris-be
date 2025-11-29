@@ -144,3 +144,99 @@ def test_service_validar_compatibilidad_tipo_servicio_con_impuesto_solo_bien():
         service._validar_compatibilidad_tipo(TipoProducto.SERVICIO, AplicaA.BIEN)
     assert exc_info.value.status_code == 400
     assert "no aplica" in exc_info.value.detail.lower()
+
+
+def test_service_eliminar_iva_siempre_rechazado():
+    """No se puede eliminar IVA - es obligatorio (requerimiento SRI)"""
+    service = ProductoImpuestoService()
+    session = MagicMock()
+
+    producto_id = uuid4()
+    impuesto_id = uuid4()
+    producto_impuesto_id = uuid4()
+
+    # Mock: ProductoImpuesto existe y es IVA
+    producto_impuesto = ProductoImpuesto(
+        id=producto_impuesto_id,
+        producto_id=producto_id,
+        impuesto_catalogo_id=impuesto_id,
+        activo=True,
+        usuario_auditoria="test"
+    )
+
+    impuesto_iva = ImpuestoCatalogo(
+        id=impuesto_id,
+        tipo_impuesto=TipoImpuesto.IVA,
+        codigo_sri="2",
+        descripcion="IVA 0%",
+        vigente_desde=date.today(),
+        aplica_a=AplicaA.AMBOS,
+        activo=True,
+        usuario_auditoria="test"
+    )
+
+    # Mock session.get para devolver producto_impuesto e impuesto
+    def mock_get(model, id):
+        if id == producto_impuesto_id:
+            return producto_impuesto
+        if id == impuesto_id:
+            return impuesto_iva
+        return None
+
+    session.get = mock_get
+
+    # Intentar eliminar IVA debe fallar siempre
+    with pytest.raises(HTTPException) as exc_info:
+        service.eliminar_impuesto(session, producto_impuesto_id)
+
+    assert exc_info.value.status_code == 400
+    assert "obligatorio" in exc_info.value.detail.lower()
+    assert "iva" in exc_info.value.detail.lower()
+
+
+def test_service_eliminar_ice_ok():
+    """Se puede eliminar ICE u otros impuestos que no sean IVA"""
+    service = ProductoImpuestoService()
+    session = MagicMock()
+
+    producto_id = uuid4()
+    impuesto_id = uuid4()
+    producto_impuesto_id = uuid4()
+
+    # Mock: ProductoImpuesto con ICE
+    producto_impuesto = ProductoImpuesto(
+        id=producto_impuesto_id,
+        producto_id=producto_id,
+        impuesto_catalogo_id=impuesto_id,
+        activo=True,
+        usuario_auditoria="test"
+    )
+
+    impuesto_ice = ImpuestoCatalogo(
+        id=impuesto_id,
+        tipo_impuesto=TipoImpuesto.ICE,
+        codigo_sri="3",
+        descripcion="ICE 10%",
+        vigente_desde=date.today(),
+        aplica_a=AplicaA.BIEN,
+        activo=True,
+        usuario_auditoria="test"
+    )
+
+    # Mock session.get
+    def mock_get(model, id):
+        if id == producto_impuesto_id:
+            return producto_impuesto
+        if id == impuesto_id:
+            return impuesto_ice
+        return None
+
+    session.get = mock_get
+
+    # Mock delete_by_id
+    service.repo.delete_by_id = MagicMock(return_value=True)
+
+    # Eliminar ICE debe ser exitoso
+    result = service.eliminar_impuesto(session, producto_impuesto_id)
+    assert result is True
+    service.repo.delete_by_id.assert_called_once_with(session, producto_impuesto_id)

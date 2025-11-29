@@ -38,11 +38,18 @@ def listar_catalogo_impuestos(
         total = len(items)
         items = items[offset : offset + limit]
     else:
-        items, total = service.list_paginated(session, limit=limit, offset=offset)
+        items, meta = service.list_paginated(session, limit=limit, offset=offset)
+
+    # Cuando se usa list_paginated del service, ya devuelve meta listo
+    if tipo_impuesto:
+        # Para el caso filtrado por tipo, construimos meta manualmente
+        computed_meta = build_pagination_meta(total, limit, offset)
+    else:
+        computed_meta = meta
 
     return PaginatedResponse(
         items=[ImpuestoCatalogoRead.model_validate(item) for item in items],
-        meta=build_pagination_meta(total, limit, offset),
+        meta=computed_meta,
     )
 
 

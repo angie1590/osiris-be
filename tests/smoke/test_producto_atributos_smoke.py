@@ -86,12 +86,17 @@ def test_producto_con_atributos():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # 4. Crear producto
         producto_data = {
             "nombre": f"Yogurt_Fresa_{unique_suffix}",
             "tipo": "BIEN",
             "pvp": 2.50,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=producto_data)
@@ -185,12 +190,17 @@ def test_asociar_atributo_inexistente():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # Crear producto
         producto_data = {
             "nombre": f"Producto_Test_Atributo_{unique_suffix}",
             "tipo": "BIEN",
             "pvp": 100.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=producto_data)

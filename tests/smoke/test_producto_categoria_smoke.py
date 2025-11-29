@@ -81,12 +81,17 @@ def test_producto_con_categoria_hoja_y_casa_comercial():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # 3. Crear producto válido con categoría hoja
         producto_data = {
             "nombre": f"Laptop_Gamer_X_{unique_suffix}",
             "tipo": "BIEN",
             "pvp": 1500.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=producto_data)
@@ -149,6 +154,10 @@ def test_producto_categoria_no_hoja_debe_fallar():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # Intentar crear producto con categoría no hoja
         # Nota: Si la API actual no tiene ProductoCategoria implementado,
         # este test simplemente creará el producto sin categorías
@@ -157,6 +166,7 @@ def test_producto_categoria_no_hoja_debe_fallar():
             "tipo": "BIEN",
             "pvp": 1000.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
 

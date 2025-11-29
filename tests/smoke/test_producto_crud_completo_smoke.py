@@ -43,6 +43,10 @@ def test_producto_crud_completo():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # 2. Crear múltiples productos
         productos_nombres = [
             f"Laptop_Gamer_X_{unique_suffix}",
@@ -57,6 +61,7 @@ def test_producto_crud_completo():
                 "tipo": "BIEN",
                 "pvp": 100.00,
                 "casa_comercial_id": casa_id,
+                "impuesto_catalogo_ids": [iva_id],  # Obligatorio
                 "usuario_auditoria": "smoke_test"
             }
             r = client.post(f"{BASE}/productos", json=producto_data)
@@ -147,12 +152,17 @@ def test_producto_get_completo_con_impuestos():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # Crear producto
         producto_data = {
             "nombre": f"Producto_Completo_{unique_suffix}",
             "tipo": "BIEN",
             "pvp": 200.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=producto_data)
@@ -217,12 +227,17 @@ def test_producto_tipos_bien_y_servicio():
         assert r.status_code == 201
         casa_id = r.json()["id"]
 
+        # Obtener IVA para productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # Producto tipo BIEN
         bien_data = {
             "nombre": f"Laptop_BIEN_{unique_suffix}",
             "tipo": "BIEN",
             "pvp": 1000.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=bien_data)
@@ -235,6 +250,7 @@ def test_producto_tipos_bien_y_servicio():
             "tipo": "SERVICIO",
             "pvp": 500.00,
             "casa_comercial_id": casa_id,
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio
             "usuario_auditoria": "smoke_test"
         }
         r = client.post(f"{BASE}/productos", json=servicio_data)

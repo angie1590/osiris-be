@@ -114,6 +114,10 @@ def test_producto_flow_with_leaf_categories_and_relations():
         assert r.status_code == 201, r.text
         attr2_id = r.json()["id"]
 
+        # Obtener IVA para incluir en productos (obligatorio)
+        from tests.smoke.utils import get_or_create_iva_for_tests
+        iva_id = get_or_create_iva_for_tests(client)
+
         # 5) Intentar crear producto con categoría NO hoja (debe fallar)
         prod_bad = {
             "nombre": f"Prod-{uuid.uuid4().hex[:6]}",
@@ -122,6 +126,7 @@ def test_producto_flow_with_leaf_categories_and_relations():
             "proveedor_persona_ids": [provp_id],
             "proveedor_sociedad_ids": [provs_id],
             "atributo_ids": [attr1_id, attr2_id],
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio: incluir al menos un IVA
             "usuario_auditoria": "ci",
         }
         r = client.post(f"{BASE}/productos", json=prod_bad)
@@ -135,6 +140,7 @@ def test_producto_flow_with_leaf_categories_and_relations():
             "proveedor_persona_ids": [provp_id],
             "proveedor_sociedad_ids": [provs_id],
             "atributo_ids": [attr1_id, attr2_id],
+            "impuesto_catalogo_ids": [iva_id],  # Obligatorio: incluir al menos un IVA
             "usuario_auditoria": "ci",
             "pvp": 10.99,
         }
