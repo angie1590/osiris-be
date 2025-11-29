@@ -28,6 +28,7 @@ def test_repo_es_vigente_con_vigente_hasta_null():
     impuesto = ImpuestoCatalogo(
         id=uuid4(),
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2",
         descripcion="IVA 15%",
         vigente_desde=date.today() - timedelta(days=365),
@@ -51,6 +52,7 @@ def test_repo_es_vigente_expirado():
     impuesto = ImpuestoCatalogo(
         id=uuid4(),
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2_OLD",
         descripcion="IVA 12% (expirado)",
         vigente_desde=date.today() - timedelta(days=730),
@@ -76,6 +78,7 @@ def test_repo_validar_duplicado_codigo_sri_detecta_duplicado():
     mock_exec.first.return_value = ImpuestoCatalogo(
         id=uuid4(),
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2",
         descripcion="IVA 15%",
         vigente_desde=date.today(),
@@ -113,6 +116,7 @@ def test_service_create_iva_sin_porcentaje_falla():
     with pytest.raises(ValueError) as exc_info:
         ImpuestoCatalogoCreate(
             tipo_impuesto=TipoImpuesto.IVA,
+            codigo_tipo_impuesto="2",
             codigo_sri="IVA_INVALID",
             descripcion="IVA sin porcentaje",
             vigente_desde=date.today(),
@@ -137,6 +141,7 @@ def test_service_create_codigo_sri_duplicado_falla():
 
     dto = ImpuestoCatalogoCreate(
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2",
         descripcion="IVA duplicado",
         vigente_desde=date.today(),
@@ -159,6 +164,7 @@ def test_service_validar_vigencia_expirado_falla():
     impuesto = ImpuestoCatalogo(
         id=uuid4(),
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2_OLD",
         descripcion="IVA 12% (expirado)",
         vigente_desde=date.today() - timedelta(days=730),
@@ -184,6 +190,7 @@ def test_service_validar_vigencia_vigente_ok():
     impuesto = ImpuestoCatalogo(
         id=uuid4(),
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2",
         descripcion="IVA 15%",
         vigente_desde=date.today() - timedelta(days=365),

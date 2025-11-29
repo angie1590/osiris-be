@@ -144,38 +144,26 @@ def seed():
             )
             atributo_ids.append((atributo.id, valor))
 
-        # Impuestos catálogo (crear primero para incluir en producto)
-        iva, _ = get_or_create(
-            session,
-            ImpuestoCatalogo,
-            {
-                "tipo_impuesto": TipoImpuesto.IVA,
-                "descripcion": "IVA 15%",
-                "vigente_desde": date.today(),
-                "vigente_hasta": None,
-                "aplica_a": AplicaA.AMBOS,
-                "porcentaje_iva": Decimal("15"),
-                "clasificacion_iva": ClasificacionIVA.GRAVADO,
-                "usuario_auditoria": USUARIO,
-            },
-            codigo_sri="2",
-        )
-        ice, _ = get_or_create(
-            session,
-            ImpuestoCatalogo,
-            {
-                "tipo_impuesto": TipoImpuesto.ICE,
-                "descripcion": "ICE 10%",
-                "vigente_desde": date.today(),
-                "vigente_hasta": None,
-                "aplica_a": AplicaA.BIEN,
-                "tarifa_ad_valorem": Decimal("10"),
-                "modo_calculo_ice": ModoCalculoICE.AD_VALOREM,
-                "unidad_base": UnidadBase.UNIDAD,
-                "usuario_auditoria": USUARIO,
-            },
-            codigo_sri="3",
-        )
+        # Obtener impuestos del catálogo SRI ya insertados por migración
+        # IVA 15% (codigo_sri="4")
+        iva = session.exec(
+            select(ImpuestoCatalogo).where(
+                ImpuestoCatalogo.codigo_sri == "4",
+                ImpuestoCatalogo.tipo_impuesto == TipoImpuesto.IVA
+            )
+        ).first()
+        if not iva:
+            raise RuntimeError("No se encontró IVA 15% (codigo_sri=4) en el catálogo. Ejecutar migraciones primero.")
+
+        # ICE ejemplo: Cigarrillos Rubios (codigo_sri="3011")
+        ice = session.exec(
+            select(ImpuestoCatalogo).where(
+                ImpuestoCatalogo.codigo_sri == "3011",
+                ImpuestoCatalogo.tipo_impuesto == TipoImpuesto.ICE
+            )
+        ).first()
+        if not ice:
+            raise RuntimeError("No se encontró ICE (codigo_sri=3011) en el catálogo. Ejecutar migraciones primero.")
 
         session.commit()
 

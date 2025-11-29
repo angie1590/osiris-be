@@ -227,6 +227,7 @@ def get_or_create_iva_for_tests(client: httpx.Client) -> str:
         # Si no existe, crear uno temporal para tests
         iva = ImpuestoCatalogo(
             tipo_impuesto=TipoImpuesto.IVA,
+            codigo_tipo_impuesto="2",
             codigo_sri="2",
             descripcion="IVA 0% Test",
             vigente_desde=date.today(),

@@ -167,6 +167,7 @@ def test_service_eliminar_iva_siempre_rechazado():
     impuesto_iva = ImpuestoCatalogo(
         id=impuesto_id,
         tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
         codigo_sri="2",
         descripcion="IVA 0%",
         vigente_desde=date.today(),
@@ -215,6 +216,7 @@ def test_service_eliminar_ice_ok():
     impuesto_ice = ImpuestoCatalogo(
         id=impuesto_id,
         tipo_impuesto=TipoImpuesto.ICE,
+        codigo_tipo_impuesto="3",
         codigo_sri="3",
         descripcion="ICE 10%",
         vigente_desde=date.today(),

@@ -18,6 +18,7 @@ from osiris.modules.aux.impuesto_catalogo.entity import (
 
 class ImpuestoCatalogoCreate(BaseOSModel):
     tipo_impuesto: TipoImpuesto
+    codigo_tipo_impuesto: str  # 2=IVA, 3=ICE, 5=IRBPNR
     codigo_sri: str
     descripcion: str
     vigente_desde: date
@@ -39,6 +40,13 @@ class ImpuestoCatalogoCreate(BaseOSModel):
     @model_validator(mode="after")
     def validate_impuesto_fields(self):
         """Valida que los campos obligatorios estén presentes según el tipo de impuesto."""
+        # Validar código de tipo de impuesto según tabla SRI
+        codigos_validos = {"IVA": "2", "ICE": "3", "IRBPNR": "5"}
+        if self.codigo_tipo_impuesto != codigos_validos[self.tipo_impuesto.value]:
+            raise ValueError(
+                f"codigo_tipo_impuesto debe ser '{codigos_validos[self.tipo_impuesto.value]}' para {self.tipo_impuesto.value}"
+            )
+
         if self.tipo_impuesto == TipoImpuesto.IVA:
             if self.porcentaje_iva is None:
                 raise ValueError("porcentaje_iva es obligatorio para IVA")
@@ -52,6 +60,13 @@ class ImpuestoCatalogoCreate(BaseOSModel):
                 raise ValueError("modo_calculo_ice es obligatorio para ICE")
             if self.unidad_base is None:
                 raise ValueError("unidad_base es obligatorio para ICE")
+
+        elif self.tipo_impuesto == TipoImpuesto.IRBPNR:
+            # IRBPNR se maneja con tarifa específica por unidad
+            if self.tarifa_especifica is None:
+                raise ValueError("tarifa_especifica es obligatoria para IRBPNR")
+            if self.unidad_base is None:
+                raise ValueError("unidad_base es obligatorio para IRBPNR")
 
         # Validar vigencia
         if self.vigente_hasta is not None and self.vigente_hasta < self.vigente_desde:
@@ -81,6 +96,7 @@ class ImpuestoCatalogoUpdate(BaseOSModel):
 class ImpuestoCatalogoRead(BaseOSModel):
     id: UUID
     tipo_impuesto: TipoImpuesto
+    codigo_tipo_impuesto: str
     codigo_sri: str
     descripcion: str
     vigente_desde: date

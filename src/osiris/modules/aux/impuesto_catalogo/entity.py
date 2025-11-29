@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Optional
 from datetime import date
 from decimal import Decimal
+import sqlalchemy as sa
 from sqlmodel import Field, Column, Numeric
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
@@ -11,6 +12,7 @@ from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 class TipoImpuesto(str, Enum):
     IVA = "IVA"
     ICE = "ICE"
+    IRBPNR = "IRBPNR"
 
 
 class ClasificacionIVA(str, Enum):
@@ -43,9 +45,13 @@ class AplicaA(str, Enum):
 
 class ImpuestoCatalogo(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "aux_impuesto_catalogo"
+    __table_args__ = (
+        sa.UniqueConstraint('codigo_sri', 'descripcion', name='uq_impuesto_codigo_descripcion'),
+    )
 
     tipo_impuesto: TipoImpuesto = Field(nullable=False, index=True)
-    codigo_sri: str = Field(nullable=False, max_length=50, index=True, unique=True)
+    codigo_tipo_impuesto: str = Field(nullable=False, max_length=10, index=True)  # 2=IVA, 3=ICE, 5=IRBPNR
+    codigo_sri: str = Field(nullable=False, max_length=50, index=True)
     descripcion: str = Field(nullable=False, max_length=500)
     vigente_desde: date = Field(nullable=False, index=True)
     vigente_hasta: Optional[date] = Field(default=None, index=True)
