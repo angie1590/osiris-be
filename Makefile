@@ -20,13 +20,13 @@ shell:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run pytest -v"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest -v
 
 db-upgrade:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
 
 db-makemigration:
-	docker compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m '$(mensaje)'"
+	docker compose --env-file .env.development exec -e ENVIRONMENT=development osiris-backend poetry run alembic revision --autogenerate -m "$(mensaje)"
 	docker compose --env-file .env.development exec osiris-backend poetry run alembic upgrade head
 
 db-recreate:
@@ -92,7 +92,11 @@ smoke-ci:
 	docker compose --env-file $(ENV_FILE) down
 
 seed:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run python scripts/seed_sample_product.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/seed_sample_product.py
 
 cleanup-test-data:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "export PYTHONPATH=src:. && poetry run python scripts/cleanup_test_data.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/cleanup_test_data.py
+
+validate:
+	@echo "Validando configuración del proyecto..."
+	@python3 scripts/validate_setup.py || bash scripts/validate_setup.sh

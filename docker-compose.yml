@@ -15,7 +15,6 @@ services:
 
   postgres:
     image: postgres:15
-    platform: linux/arm64
     container_name: osiris-be_postgres
     restart: always
     env_file:

@@ -1,8 +1,49 @@
 # Scripts de Utilidad
 
-Este directorio contiene scripts de utilidad para gestionar datos en la base de datos del proyecto Osiris.
+Este directorio contiene scripts de utilidad para gestionar datos en la base de datos del proyecto Osiris y validar la configuración del entorno.
 
 ## Scripts Disponibles
+
+### 0. validate_setup.py / validate_setup.sh
+
+**Propósito**: Validar la configuración del entorno de desarrollo antes de ejecutar el proyecto (compatible Mac/Windows/Linux).
+
+**Uso**:
+```bash
+# Validación completa con Python
+python3 scripts/validate_setup.py
+
+# Validación rápida con Bash
+bash scripts/validate_setup.sh
+
+# Desde Makefile (recomendado)
+make validate
+```
+
+**Validaciones que realiza**:
+- ✓ Sistema operativo detectado (Mac/Windows/Linux)
+- ✓ Docker instalado y corriendo
+- ✓ Docker Compose disponible (plugin moderno o legacy)
+- ✓ WSL2 activo (solo en Windows)
+- ✓ Archivo `.env.development` existe y completo
+- ✓ Variables de entorno requeridas presentes
+- ✓ Line endings correctos en `.env` (LF no CRLF en Windows)
+- ✓ Archivos del proyecto presentes (pyproject.toml, Dockerfile, etc.)
+- ✓ PYTHONPATH=/app/src en Dockerfile
+- ✓ CMD usa `osiris.main:app` (no `src.osiris.main:app`)
+- ✓ docker-compose.yml sin `platform: linux/arm64` (multiplataforma)
+
+**Salida**:
+- Exit code 0: Entorno listo ✅
+- Exit code 1: Hay errores que corregir ❌
+
+**Cuándo ejecutarlo**:
+- Primera vez que configuras el proyecto
+- Después de cambiar de sistema operativo
+- Si encuentras errores 500 o ModuleNotFoundError
+- Antes de reportar un bug
+
+---
 
 ### 1. seed_sample_product.py
 

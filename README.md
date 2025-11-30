@@ -75,7 +75,8 @@ DATABASE_URL=postgresql+psycopg2://postgres:dev_password@postgres/osiris_db
 DB_URL_ALEMBIC=postgresql+psycopg2://postgres:dev_password@postgres/osiris_db
 
 # Facturación Electrónica Ecuador
-FEEC_P12_PATH=./conf/firma.p12
+# Rutas relativas al directorio /app dentro del contenedor
+FEEC_P12_PATH=conf/firma.p12
 FEEC_P12_PASSWORD=clave123
 FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd
 FEEC_AMBIENTE=pruebas
@@ -111,15 +112,58 @@ make smoke-ci           # Ejecuta smoke tests seguros para CI (solo GET)
 make lint               # Ejecuta linters (ruff + mypy)
 make seed               # Carga datos de ejemplo (producto con impuestos)
 make cleanup-test-data  # Limpia datos de prueba
+make validate           # Valida configuración del entorno (multiplataforma)
 ```
 
 Nota: en instalaciones modernas de Docker el comando es el plugin `docker compose` (espacio). El `Makefile` ya usa `docker compose --env-file ...`, por lo que los objetivos `make build`/`make up` funcionarán con la CLI moderna. Si tu sistema aún requiere el binario legacy `docker-compose`, instala `docker-compose` o crea un alias local.
+
+### 🖥️ Compatibilidad Multiplataforma (Mac/Windows/Linux)
+
+El proyecto está configurado para funcionar en **Mac, Windows 11 y Linux** sin cambios:
+
+✅ **Cambios aplicados para compatibilidad:**
+- Docker detecta automáticamente la arquitectura (ARM64/AMD64)
+- Variables de entorno se pasan con `-e` (compatible con todos los sistemas)
+- El PYTHONPATH se define en el Dockerfile (no se redefine en comandos)
+- Rutas de archivos usan formato Linux dentro del contenedor
+
+⚠️ **Requisitos por sistema operativo:**
+- **Windows**: Docker Desktop con WSL2 habilitado
+- **Mac**: Docker Desktop (Intel o Apple Silicon)
+- **Linux**: Docker Engine + Docker Compose plugin
+
+💡 **Si usas Windows y tienes errores:**
+- Asegúrate de que WSL2 esté activo: `wsl --status`
+- Verifica Docker Desktop en modo Linux containers
+- Los archivos `.env.development` deben tener line endings LF (no CRLF)
+
+### 🔍 Script de Validación
+
+Antes de iniciar el proyecto, puedes validar tu configuración:
+
+```bash
+# Validación completa (Python)
+python3 scripts/validate_setup.py
+
+# Validación rápida (Bash)
+bash scripts/validate_setup.sh
+```
+
+El script verifica:
+- ✓ Docker y Docker Compose instalados
+- ✓ WSL2 activo (Windows)
+- ✓ Archivo `.env.development` presente y completo
+- ✓ Configuración correcta de PYTHONPATH
+- ✓ Compatibilidad multiplataforma (sin platform hardcodeado)
 
 ---
 
 ## 🐳 Levantar el Proyecto desde Cero
 
 ```bash
+# 0. (Recomendado) Validar configuración
+make validate
+
 # 1. Instalar dependencias localmente (opcional, útil para IDE)
 poetry install
 
@@ -131,7 +175,9 @@ make run
 make db-upgrade
 
 # 4. (Opcional) Seed de datos de ejemplo
-docker compose --env-file .env.development exec osiris-backend bash -c "PYTHONPATH=src poetry run python scripts/seed_sample_product.py"
+make seed
+# O manualmente:
+# docker compose --env-file .env.development exec osiris-backend poetry run python scripts/seed_sample_product.py
 
 # 5. Ver la documentación Swagger
 http://localhost:8000/docs
@@ -214,8 +260,8 @@ Disponible automáticamente al levantar el sistema en:
 ## 🧱 Migraciones Alembic
 
 ```bash
-# Crear una nueva revisión basada en los modelos
-PYTHONPATH=src ENVIRONMENT=development poetry run alembic revision --autogenerate -m "mensaje"
+# Crear una nueva revisión basada en los modelos (desde dentro del contenedor)
+docker compose --env-file .env.development exec -e ENVIRONMENT=development osiris-backend poetry run alembic revision --autogenerate -m "mensaje"
 # O usar el alias:
 make db-makemigration mensaje="descripción de la migración"
 
@@ -223,10 +269,10 @@ make db-makemigration mensaje="descripción de la migración"
 make db-upgrade
 
 # Revertir última migración
-PYTHONPATH=src ENVIRONMENT=development poetry run alembic downgrade -1
+docker compose --env-file .env.development exec osiris-backend poetry run alembic downgrade -1
 
 # Ver historial de migraciones
-PYTHONPATH=src ENVIRONMENT=development poetry run alembic history
+docker compose --env-file .env.development exec osiris-backend poetry run alembic history
 ```
 
 ⚠️ **Migraciones existentes:**
