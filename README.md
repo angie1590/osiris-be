@@ -142,11 +142,15 @@ El proyecto está configurado para funcionar en **Mac, Windows 11 y Linux** sin 
 Antes de iniciar el proyecto, puedes validar tu configuración:
 
 ```bash
-# Validación completa (Python)
+# Recomendado: Usar Makefile (funciona en Mac/Windows/Linux)
+make validate
+
+# O manualmente con Python:
+# Mac/Linux:
 python3 scripts/validate_setup.py
 
-# Validación rápida (Bash)
-bash scripts/validate_setup.sh
+# Windows PowerShell:
+python scripts/validate_setup.py
 ```
 
 El script verifica:

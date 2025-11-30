@@ -99,4 +99,4 @@ cleanup-test-data:
 
 validate:
 	@echo "Validando configuración del proyecto..."
-	@python3 scripts/validate_setup.py || bash scripts/validate_setup.sh
+	@python scripts/validate_setup.py || python3 scripts/validate_setup.py

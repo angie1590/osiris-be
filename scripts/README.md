@@ -8,16 +8,20 @@ Este directorio contiene scripts de utilidad para gestionar datos en la base de 
 
 **Propósito**: Validar la configuración del entorno de desarrollo antes de ejecutar el proyecto (compatible Mac/Windows/Linux).
 
-**Uso**:
+**Uso:**
 ```bash
-# Validación completa con Python
+# Desde Makefile (recomendado - multiplataforma)
+make validate
+
+# O manualmente con Python:
+# Mac/Linux:
 python3 scripts/validate_setup.py
 
-# Validación rápida con Bash
-bash scripts/validate_setup.sh
+# Windows PowerShell:
+python scripts/validate_setup.py
 
-# Desde Makefile (recomendado)
-make validate
+# Linux/Mac con Bash (alternativa ligera):
+bash scripts/validate_setup.sh
 ```
 
 **Validaciones que realiza**:
