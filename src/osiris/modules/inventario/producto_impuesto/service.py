@@ -9,8 +9,8 @@ from fastapi import HTTPException
 from osiris.domain.service import BaseService
 from osiris.modules.inventario.producto_impuesto.repository import ProductoImpuestoRepository
 from osiris.modules.inventario.producto.entity import ProductoImpuesto, Producto, TipoProducto
-from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo, AplicaA
-from osiris.modules.aux.impuesto_catalogo.repository import ImpuestoCatalogoRepository
+from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo, AplicaA
+from osiris.modules.sri.impuesto_catalogo.repository import ImpuestoCatalogoRepository
 
 
 class ProductoImpuestoService(BaseService):
@@ -100,7 +100,7 @@ class ProductoImpuestoService(BaseService):
         NO se puede eliminar el impuesto IVA ya que es obligatorio (requerimiento SRI).
         Para cambiar el IVA, usar asignar_impuesto que reemplaza automáticamente.
         """
-        from osiris.modules.aux.impuesto_catalogo.entity import TipoImpuesto
+        from osiris.modules.sri.impuesto_catalogo.entity import TipoImpuesto
 
         # Obtener la asignación a eliminar
         producto_impuesto = session.get(ProductoImpuesto, producto_impuesto_id)

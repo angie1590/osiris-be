@@ -12,7 +12,7 @@ from .repository import ProveedorPersonaRepository
 from .entity import ProveedorPersona
 
 from osiris.modules.common.persona.entity import Persona, TipoIdentificacion
-from osiris.modules.aux.tipo_contribuyente.entity import TipoContribuyente
+from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 
 

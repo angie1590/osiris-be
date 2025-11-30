@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from fastapi import HTTPException
 
 from osiris.domain.repository import BaseRepository
-from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto
+from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto
 
 
 class ImpuestoCatalogoRepository(BaseRepository):

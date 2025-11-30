@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from osiris.domain.base_models import BaseOSModel
-from osiris.modules.aux.impuesto_catalogo.models import ImpuestoCatalogoRead
+from osiris.modules.sri.impuesto_catalogo.models import ImpuestoCatalogoRead
 
 
 class ProductoImpuestoCreate(BaseOSModel):

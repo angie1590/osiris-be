@@ -18,7 +18,7 @@ from osiris.modules.inventario.atributo.router import router as atributo_router
 from osiris.modules.inventario.tipo_producto.router import router as tipo_producto_router
 from osiris.modules.inventario.producto.router import router as producto_router
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
-from osiris.modules.aux.impuesto_catalogo.router import router as impuesto_catalogo_router
+from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catalogo_router
 
 app = FastAPI(
     title="Osiris API",

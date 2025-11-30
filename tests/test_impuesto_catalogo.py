@@ -7,15 +7,15 @@ from uuid import uuid4
 from unittest.mock import MagicMock
 from fastapi import HTTPException
 
-from osiris.modules.aux.impuesto_catalogo.entity import (
+from osiris.modules.sri.impuesto_catalogo.entity import (
     ImpuestoCatalogo,
     TipoImpuesto,
     ClasificacionIVA,
     AplicaA
 )
-from osiris.modules.aux.impuesto_catalogo.models import ImpuestoCatalogoCreate
-from osiris.modules.aux.impuesto_catalogo.repository import ImpuestoCatalogoRepository
-from osiris.modules.aux.impuesto_catalogo.service import ImpuestoCatalogoService
+from osiris.modules.sri.impuesto_catalogo.models import ImpuestoCatalogoCreate
+from osiris.modules.sri.impuesto_catalogo.repository import ImpuestoCatalogoRepository
+from osiris.modules.sri.impuesto_catalogo.service import ImpuestoCatalogoService
 
 
 # ==================== REPOSITORY TESTS ====================

@@ -8,7 +8,7 @@ from datetime import datetime
 from osiris.modules.common.proveedor_persona.service import ProveedorPersonaService
 from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
 from osiris.modules.common.persona.entity import Persona, TipoIdentificacion
-from osiris.modules.aux.tipo_contribuyente.entity import TipoContribuyente
+from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
 
 # -------------------- helpers --------------------

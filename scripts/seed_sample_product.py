@@ -19,7 +19,7 @@ from osiris.modules.inventario.producto.entity import (
     ProductoProveedorSociedad,
 )
 from osiris.modules.inventario.tipo_producto.entity import TipoProducto
-from osiris.modules.aux.impuesto_catalogo.entity import (
+from osiris.modules.sri.impuesto_catalogo.entity import (
     ImpuestoCatalogo,
     TipoImpuesto,
     AplicaA,
@@ -27,7 +27,7 @@ from osiris.modules.aux.impuesto_catalogo.entity import (
     ModoCalculoICE,
     UnidadBase,
 )
-from osiris.modules.aux.tipo_contribuyente.entity import TipoContribuyente
+from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.modules.inventario.producto.service import ProductoService
 from osiris.modules.inventario.producto.models import ProductoCreate
 

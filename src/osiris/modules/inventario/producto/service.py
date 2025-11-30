@@ -11,7 +11,7 @@ from osiris.modules.inventario.categoria.entity import Categoria  # existente
 from osiris.modules.inventario.tipo_producto.entity import TipoProducto
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
-from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo
+from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from fastapi import HTTPException
 from .repository import ProductoRepository
 from .entity import (
@@ -69,7 +69,7 @@ class ProductoService(BaseService):
             tipos_vistos.add(tipo_impuesto)
 
             # Verificar que hay al menos un IVA (comparar con el enum directamente)
-            from osiris.modules.aux.impuesto_catalogo.entity import TipoImpuesto
+            from osiris.modules.sri.impuesto_catalogo.entity import TipoImpuesto
             if tipo_impuesto == TipoImpuesto.IVA:
                 tiene_iva = True
 

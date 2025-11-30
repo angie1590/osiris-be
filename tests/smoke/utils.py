@@ -210,7 +210,7 @@ def get_or_create_iva_for_tests(client: httpx.Client) -> str:
     from datetime import date
     from sqlmodel import Session, select
     from osiris.core.db import engine
-    from osiris.modules.aux.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto, AplicaA, ClasificacionIVA
+    from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto, AplicaA, ClasificacionIVA
     from decimal import Decimal
 
     with Session(engine) as session:

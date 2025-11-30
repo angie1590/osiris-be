@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import field_validator, model_validator
 
 from osiris.domain.base_models import BaseOSModel
-from osiris.modules.aux.impuesto_catalogo.entity import (
+from osiris.modules.sri.impuesto_catalogo.entity import (
     TipoImpuesto,
     ClasificacionIVA,
     ModoCalculoICE,

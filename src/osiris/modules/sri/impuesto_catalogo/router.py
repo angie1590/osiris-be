@@ -7,13 +7,13 @@ from sqlmodel import Session
 from uuid import UUID
 
 from osiris.core.db import get_session
-from osiris.modules.aux.impuesto_catalogo.models import (
+from osiris.modules.sri.impuesto_catalogo.models import (
     ImpuestoCatalogoCreate,
     ImpuestoCatalogoUpdate,
     ImpuestoCatalogoRead,
 )
-from osiris.modules.aux.impuesto_catalogo.service import ImpuestoCatalogoService
-from osiris.modules.aux.impuesto_catalogo.entity import TipoImpuesto
+from osiris.modules.sri.impuesto_catalogo.service import ImpuestoCatalogoService
+from osiris.modules.sri.impuesto_catalogo.entity import TipoImpuesto
 from osiris.domain.schemas import PaginatedResponse
 from osiris.utils.pagination import build_pagination_meta
 

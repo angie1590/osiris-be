@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
-from osiris.modules.aux.impuesto_catalogo.entity import (
+from osiris.modules.sri.impuesto_catalogo.entity import (
     ImpuestoCatalogo,
     TipoImpuesto,
     ClasificacionIVA,

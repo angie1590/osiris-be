@@ -11,7 +11,7 @@ from osiris.modules.inventario.producto_impuesto.models import (
     ProductoImpuestoRead,
 )
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
-from osiris.modules.aux.impuesto_catalogo.models import ImpuestoCatalogoRead
+from osiris.modules.sri.impuesto_catalogo.models import ImpuestoCatalogoRead
 
 router = APIRouter()
 service = ProductoImpuestoService()
