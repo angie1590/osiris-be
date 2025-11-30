@@ -98,5 +98,4 @@ cleanup-test-data:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/cleanup_test_data.py
 
 validate:
-	@echo "Validando configuración del proyecto..."
-	@python scripts/validate_setup.py || python3 scripts/validate_setup.py
+	python scripts/validate_setup.py

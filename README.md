@@ -133,32 +133,51 @@ El proyecto está configurado para funcionar en **Mac, Windows 11 y Linux** sin 
 - **Linux**: Docker Engine + Docker Compose plugin
 
 💡 **Si usas Windows y tienes errores:**
-- Asegúrate de que WSL2 esté activo: `wsl --status`
-- Verifica Docker Desktop en modo Linux containers
-- Los archivos `.env.development` deben tener line endings LF (no CRLF)
+
+**WSL2:**
+- Verifica instalación: `wsl --list --verbose` en PowerShell
+- Si WSL2 no responde pero Docker Desktop funciona, ignora el warning
+- Instalar WSL2: `wsl --install` (requiere reinicio)
+- Configurar como v2: `wsl --set-default-version 2`
+
+**Docker Desktop:**
+- Debe estar en modo "Use WSL 2 based engine" (Settings > General)
+- Backend WSL2 debe estar habilitado (Settings > Resources > WSL Integration)
+
+**Archivos:**
+- `.env.development` debe tener line endings LF (no CRLF)
+- Convertir si es necesario: En VS Code, click "CRLF" en la barra inferior y selecciona "LF"
 
 ### 🔍 Script de Validación
 
 Antes de iniciar el proyecto, puedes validar tu configuración:
 
 ```bash
-# Recomendado: Usar Makefile (funciona en Mac/Windows/Linux)
+# Mac/Linux: Usar Makefile
 make validate
+
+# Windows: Script batch dedicado (recomendado)
+validate.bat
 
 # O manualmente con Python:
 # Mac/Linux:
 python3 scripts/validate_setup.py
 
-# Windows PowerShell:
-python scripts/validate_setup.py
+# Windows PowerShell/CMD:
+python scripts\validate_setup.py
 ```
 
 El script verifica:
 - ✓ Docker y Docker Compose instalados
-- ✓ WSL2 activo (Windows)
+- ✓ WSL2 activo (Windows - warning si no responde pero Docker funciona)
 - ✓ Archivo `.env.development` presente y completo
 - ✓ Configuración correcta de PYTHONPATH
 - ✓ Compatibilidad multiplataforma (sin platform hardcodeado)
+
+**Nota Windows:** Si `make validate` da error, ejecuta directamente:
+```powershell
+python scripts\validate_setup.py
+```
 
 ---
 

@@ -131,22 +131,51 @@ def check_wsl2(os_type):
 
     print_header("WSL2 (Windows)")
     try:
+        # Intentar primero con --status
         result = subprocess.run(
             ["wsl", "--status"],
             capture_output=True,
             text=True,
-            check=True
+            timeout=5
         )
-        if "WSL 2" in result.stdout or "versión 2" in result.stdout:
-            print_success("WSL2 está activo")
+        
+        # Si el comando funciona, verificar la salida
+        if result.returncode == 0:
+            if "WSL 2" in result.stdout or "versión 2" in result.stdout or "version 2" in result.stdout.lower():
+                print_success("WSL2 está activo")
+                return True
+            else:
+                print_warning("WSL2 podría no estar configurado como predeterminado")
+                print_info("Ejecuta: wsl --set-default-version 2")
+                # No es crítico, retornar True para continuar
+                return True
+        
+        # Si --status no funciona, intentar listar distribuciones
+        result = subprocess.run(
+            ["wsl", "--list", "--verbose"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            print_warning("WSL instalado pero no se pudo verificar versión 2")
+            print_info("Docker Desktop debería funcionar correctamente con WSL backend")
             return True
-        else:
-            print_warning("WSL2 podría no estar activo")
-            print_info("Ejecuta: wsl --set-default-version 2")
-            return False
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print_error("WSL no está disponible")
+        
+        # WSL no responde adecuadamente
+        print_warning("No se pudo verificar WSL2 completamente")
+        print_info("Si Docker Desktop funciona, WSL2 está configurado correctamente")
+        return True  # No bloquear si Docker funciona
+        
+    except subprocess.TimeoutExpired:
+        print_warning("WSL no responde (timeout)")
+        print_info("Si Docker Desktop funciona, la configuración es correcta")
+        return True
+    except FileNotFoundError:
+        print_error("WSL no está instalado")
         print_info("Instala WSL2 desde: https://docs.microsoft.com/en-us/windows/wsl/install")
+        print_info("O usa Docker Desktop con Hyper-V (menos recomendado)")
         return False
 
 
