@@ -16,9 +16,10 @@ class ImpuestoCatalogoService(BaseService):
 
     def create(self, session: Session, data):
         """Crea un nuevo impuesto en el catálogo con validaciones."""
-        # Validar código SRI único
+        # Validar combinación código SRI + descripción única
         codigo_sri = getattr(data, "codigo_sri", None) or data.get("codigo_sri")
-        self.repo.validar_duplicado_codigo(session, codigo_sri)
+        descripcion = getattr(data, "descripcion", None) or data.get("descripcion")
+        self.repo.validar_duplicado_codigo_descripcion(session, codigo_sri, descripcion)
 
         # Crear el impuesto
         return super().create(session, data)
@@ -29,10 +30,17 @@ class ImpuestoCatalogoService(BaseService):
         if not impuesto:
             raise HTTPException(status_code=404, detail="Impuesto no encontrado")
 
-        # Si se intenta cambiar el código SRI, validar que no exista
+        # Si se intenta cambiar código SRI o descripción, validar que la combinación no exista
         codigo_sri = getattr(data, "codigo_sri", None) or data.get("codigo_sri")
-        if codigo_sri and codigo_sri != impuesto.codigo_sri:
-            self.repo.validar_duplicado_codigo(session, codigo_sri, exclude_id=item_id)
+        descripcion = getattr(data, "descripcion", None) or data.get("descripcion")
+
+        # Usar valores actuales si no se proporcionan nuevos
+        codigo_sri_final = codigo_sri if codigo_sri else impuesto.codigo_sri
+        descripcion_final = descripcion if descripcion else impuesto.descripcion
+
+        # Validar si cambió alguno de los dos campos
+        if (codigo_sri and codigo_sri != impuesto.codigo_sri) or (descripcion and descripcion != impuesto.descripcion):
+            self.repo.validar_duplicado_codigo_descripcion(session, codigo_sri_final, descripcion_final, exclude_id=item_id)
 
         return super().update(session, item_id, data)
 

@@ -69,11 +69,11 @@ def test_repo_es_vigente_expirado():
 
 
 def test_repo_validar_duplicado_codigo_sri_detecta_duplicado():
-    """Debe lanzar HTTPException cuando el codigo_sri ya existe"""
+    """Debe lanzar HTTPException cuando la combinación codigo_sri + descripcion ya existe"""
     repo = ImpuestoCatalogoRepository()
     session = MagicMock()
 
-    # Mock que simula que existe un registro con ese codigo_sri
+    # Mock que simula que existe un registro con ese codigo_sri + descripcion
     mock_exec = MagicMock()
     mock_exec.first.return_value = ImpuestoCatalogo(
         id=uuid4(),
@@ -91,12 +91,12 @@ def test_repo_validar_duplicado_codigo_sri_detecta_duplicado():
     session.exec.return_value = mock_exec
 
     with pytest.raises(HTTPException) as exc_info:
-        repo.validar_duplicado_codigo(session, codigo_sri="2")
+        repo.validar_duplicado_codigo_descripcion(session, codigo_sri="2", descripcion="IVA 15%")
     assert exc_info.value.status_code == 409
 
 
 def test_repo_validar_duplicado_codigo_sri_no_duplicado():
-    """No debe lanzar excepción cuando el codigo_sri no existe"""
+    """No debe lanzar excepción cuando la combinación codigo_sri + descripcion no existe"""
     repo = ImpuestoCatalogoRepository()
     session = MagicMock()
 
@@ -105,8 +105,8 @@ def test_repo_validar_duplicado_codigo_sri_no_duplicado():
     mock_exec.first.return_value = None
     session.exec.return_value = mock_exec
 
-    # No debe lanzar excepción
-    repo.validar_duplicado_codigo(session, codigo_sri="2_NEW")
+    # No debe lanzar excepción (mismo código pero distinta descripción)
+    repo.validar_duplicado_codigo_descripcion(session, codigo_sri="2", descripcion="IVA 0%")
 
 
 # ==================== SERVICE TESTS ====================
@@ -128,15 +128,15 @@ def test_service_create_iva_sin_porcentaje_falla():
 
 
 def test_service_create_codigo_sri_duplicado_falla():
-    """Crear impuesto con codigo_sri duplicado debe fallar"""
+    """Crear impuesto con codigo_sri + descripcion duplicados debe fallar"""
     service = ImpuestoCatalogoService()
     session = MagicMock()
 
     # Mock repo que lanza HTTPException para duplicado
     service.repo = MagicMock()
-    service.repo.validar_duplicado_codigo.side_effect = HTTPException(
+    service.repo.validar_duplicado_codigo_descripcion.side_effect = HTTPException(
         status_code=409,
-        detail="El codigo_sri ya existe"
+        detail="La combinación codigo_sri + descripcion ya existe"
     )
 
     dto = ImpuestoCatalogoCreate(

@@ -77,9 +77,18 @@ class ImpuestoCatalogoRepository(BaseRepository):
 
         return True
 
-    def validar_duplicado_codigo(self, session: Session, codigo_sri: str, exclude_id: Optional[UUID] = None) -> None:
-        """Valida que no exista otro impuesto con el mismo código SRI."""
-        stmt = select(ImpuestoCatalogo).where(ImpuestoCatalogo.codigo_sri == codigo_sri)
+    def validar_duplicado_codigo_descripcion(
+        self,
+        session: Session,
+        codigo_sri: str,
+        descripcion: str,
+        exclude_id: Optional[UUID] = None
+    ) -> None:
+        """Valida que no exista otro impuesto con la misma combinación de código SRI y descripción."""
+        stmt = select(ImpuestoCatalogo).where(
+            ImpuestoCatalogo.codigo_sri == codigo_sri,
+            ImpuestoCatalogo.descripcion == descripcion
+        )
 
         if exclude_id:
             stmt = stmt.where(ImpuestoCatalogo.id != exclude_id)
@@ -88,5 +97,5 @@ class ImpuestoCatalogoRepository(BaseRepository):
         if existente:
             raise HTTPException(
                 status_code=409,
-                detail=f"Ya existe un impuesto con código SRI '{codigo_sri}'"
+                detail=f"Ya existe un impuesto con código SRI '{codigo_sri}' y descripción '{descripcion}'"
             )
