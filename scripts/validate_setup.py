@@ -138,7 +138,7 @@ def check_wsl2(os_type):
             text=True,
             timeout=5
         )
-        
+
         # Si el comando funciona, verificar la salida
         if result.returncode == 0:
             if "WSL 2" in result.stdout or "versión 2" in result.stdout or "version 2" in result.stdout.lower():
@@ -149,7 +149,7 @@ def check_wsl2(os_type):
                 print_info("Ejecuta: wsl --set-default-version 2")
                 # No es crítico, retornar True para continuar
                 return True
-        
+
         # Si --status no funciona, intentar listar distribuciones
         result = subprocess.run(
             ["wsl", "--list", "--verbose"],
@@ -157,17 +157,17 @@ def check_wsl2(os_type):
             text=True,
             timeout=5
         )
-        
+
         if result.returncode == 0 and result.stdout:
             print_warning("WSL instalado pero no se pudo verificar versión 2")
             print_info("Docker Desktop debería funcionar correctamente con WSL backend")
             return True
-        
+
         # WSL no responde adecuadamente
         print_warning("No se pudo verificar WSL2 completamente")
         print_info("Si Docker Desktop funciona, WSL2 está configurado correctamente")
         return True  # No bloquear si Docker funciona
-        
+
     except subprocess.TimeoutExpired:
         print_warning("WSL no responde (timeout)")
         print_info("Si Docker Desktop funciona, la configuración es correcta")
