@@ -14,6 +14,7 @@ from osiris.modules.common.persona.entity import Persona
 from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.inventario.atributo.entity import Atributo
+from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
 from osiris.modules.inventario.producto.entity import (
     Producto,
     ProductoCategoria,
@@ -145,6 +146,30 @@ def seed():
                 nombre=nombre,
             )
             atributo_ids.append((atributo.id, valor))
+
+        # Asignar atributos por categoría (herencia):
+        # - Computadoras: color_principal, memoria_ram
+        # - Laptop: tamano_pantalla
+        # Evitar duplicados si ya existen
+        def ensure_cat_attr(cat_id, attr_id):
+            exists = session.exec(
+                select(CategoriaAtributo).where(
+                    CategoriaAtributo.categoria_id == cat_id,
+                    CategoriaAtributo.atributo_id == attr_id,
+                )
+            ).first()
+            if not exists:
+                session.add(CategoriaAtributo(categoria_id=cat_id, atributo_id=attr_id, usuario_auditoria=USUARIO))
+
+        # Mapear por nombre para legibilidad
+        nombre_to_id = {session.get(Atributo, aid).nombre: aid for aid, _ in atributo_ids}
+        if "color_principal" in nombre_to_id:
+            ensure_cat_attr(comp.id, nombre_to_id["color_principal"])
+        if "memoria_ram" in nombre_to_id:
+            ensure_cat_attr(comp.id, nombre_to_id["memoria_ram"])
+        if "tamano_pantalla" in nombre_to_id:
+            ensure_cat_attr(laptop.id, nombre_to_id["tamano_pantalla"])
+        session.commit()
 
         # Asegurar catálogo SRI cargado (si falta, cargar desde conf/aux_impuesto_catalogo.json)
         def ensure_impuesto_catalogo_loaded() -> None:
@@ -353,7 +378,7 @@ def seed():
 
         session.commit()
 
-        # Asociar atributos (TipoProducto con valor)
+        # Asociar valores de atributos al producto (TipoProducto.valor)
         for atributo_id, valor in atributo_ids:
             tp = session.exec(
                 select(TipoProducto).where(

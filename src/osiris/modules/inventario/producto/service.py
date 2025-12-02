@@ -108,14 +108,7 @@ class ProductoService(BaseService):
         # asociaciones
         if categoria_ids:
             self.repo.set_categorias(session, pid, categoria_ids)
-        attr_ids = _val(data, "atributo_ids")
         usuario_auditoria = _val(data, "usuario_auditoria")
-        if attr_ids:
-            # reset tipo_producto para producto
-            session.query(TipoProducto).filter(TipoProducto.producto_id == pid).delete()
-            for aid in attr_ids:
-                session.add(TipoProducto(producto_id=pid, atributo_id=aid, usuario_auditoria=usuario_auditoria))
-            session.commit()
 
         # Asociar impuestos automáticamente
         if impuesto_ids:
@@ -151,13 +144,7 @@ class ProductoService(BaseService):
         # asociaciones
         if categoria_ids is not None:
             self.repo.set_categorias(session, item_id, categoria_ids)
-        attr_ids = _val(data, "atributo_ids")
         usuario_auditoria = _val(data, "usuario_auditoria")
-        if attr_ids is not None:
-            session.query(TipoProducto).filter(TipoProducto.producto_id == item_id).delete()
-            for aid in attr_ids:
-                session.add(TipoProducto(producto_id=item_id, atributo_id=aid, usuario_auditoria=usuario_auditoria))
-            session.commit()
         return prod
 
     def get(self, session: Session, item_id: UUID):
@@ -204,6 +191,7 @@ class ProductoService(BaseService):
         from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
         from osiris.modules.common.persona.entity import Persona
         from osiris.modules.inventario.atributo.entity import Atributo
+        from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
         from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 
         producto = self.get(session, producto_id)
@@ -260,22 +248,42 @@ class ProductoService(BaseService):
                     "nombre_comercial": getattr(prov, "nombre_comercial", None)
                 })
 
-        # Atributos con valores
+        # Atributos efectivos por categoría (herencia padre->hijo) + valores del producto (si existen)
         atributos = []
-        tipo_prods = session.exec(
-            select(TipoProducto, Atributo)
-            .join(Atributo, Atributo.id == TipoProducto.atributo_id)
+        # 1) Recolectar categorías del producto y sus ancestros
+        categorias_ids = set(cat_ids)
+        to_visit = list(cat_ids)
+        while to_visit:
+            current = to_visit.pop()
+            cat = session.get(Categoria, current)
+            if cat and cat.parent_id and cat.parent_id not in categorias_ids:
+                categorias_ids.add(cat.parent_id)
+                to_visit.append(cat.parent_id)
+
+        # 2) Mapear atributos definidos en categorías (incluyendo ancestros)
+        cat_attrs = session.exec(
+            select(CategoriaAtributo, Atributo)
+            .join(Atributo, Atributo.id == CategoriaAtributo.atributo_id)
+            .where(CategoriaAtributo.categoria_id.in_(list(categorias_ids)))
+        ).all()
+
+        # 3) Cargar valores existentes para el producto
+        valores = session.exec(
+            select(TipoProducto)
             .where(TipoProducto.producto_id == producto_id)
         ).all()
-        for tipo_prod, atributo in tipo_prods:
-            # Stringificar el valor según tipo_dato (ya almacenado como string/decimal)
-            valor = tipo_prod.valor
-            if valor is not None:
-                valor = str(valor)
+        valor_por_atributo = {tp.atributo_id: tp.valor for tp in valores}
+
+        # 4) Unificar por atributo (evitar duplicados si viene de múltiples categorías)
+        vistos = set()
+        for ca, atributo in cat_attrs:
+            if atributo.id in vistos:
+                continue
+            vistos.add(atributo.id)
+            valor = valor_por_atributo.get(atributo.id)
+            valor = str(valor) if valor is not None else None
             atributos.append({
-                "atributo": {
-                    "nombre": atributo.nombre,
-                },
+                "atributo": {"nombre": atributo.nombre},
                 "valor": valor,
             })
 
