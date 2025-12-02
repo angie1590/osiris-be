@@ -189,3 +189,62 @@ def test_empresa_service_list_paginated_retorna_items_y_meta():
     assert meta.limit == 2
     assert meta.offset == 4
     assert meta.has_more is True
+
+
+def test_empresa_create_con_logo_opcional():
+    """Verifica que el campo logo sea opcional y acepte valores válidos"""
+    with patch(
+        "osiris.modules.common.empresa.models.ValidacionCedulaRucService.es_identificacion_valida",
+        return_value=True,
+    ):
+        # Sin logo
+        dto_sin_logo = EmpresaCreate(
+            razon_social="Empresa Sin Logo",
+            nombre_comercial="Sin Logo SA",
+            ruc="1104680138001",
+            direccion_matriz="Calle Principal 456",
+            telefono="0987654321",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+        )
+        assert dto_sin_logo.logo is None
+
+        # Con logo (URL o path)
+        dto_con_logo = EmpresaCreate(
+            razon_social="Empresa Con Logo",
+            nombre_comercial="Con Logo SA",
+            ruc="1104680138001",
+            direccion_matriz="Calle Principal 456",
+            telefono="0987654321",
+            logo="https://ejemplo.com/logo.png",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+        )
+        assert dto_con_logo.logo == "https://ejemplo.com/logo.png"
+
+
+def test_empresa_update_puede_actualizar_logo():
+    """Verifica que el logo se pueda actualizar parcialmente"""
+    session = MagicMock()
+    repo = EmpresaRepository()
+
+    db_obj = Empresa(
+        razon_social="Empresa Test",
+        nombre_comercial="Test SA",
+        ruc="1104680138001",
+        direccion_matriz="Dir Test",
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+        logo=None,  # Sin logo inicialmente
+    )
+
+    # Actualizar solo el logo
+    partial = EmpresaUpdate(logo="https://nuevo-logo.com/logo.jpg")
+    updated = repo.update(session, db_obj, partial)
+
+    assert updated.logo == "https://nuevo-logo.com/logo.jpg"
+    assert updated.razon_social == "Empresa Test"  # otros campos se mantienen
+    
+    session.add.assert_called_once_with(db_obj)
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once_with(db_obj)

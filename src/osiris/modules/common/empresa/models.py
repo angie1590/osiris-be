@@ -22,6 +22,7 @@ class EmpresaBase(BaseModel):
     ruc: RUC
     direccion_matriz: str
     telefono: Optional[Telefono] = None
+    logo: Optional[str] = None
     codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: bool = False
     tipo_contribuyente_id: TipoContribuyenteID
@@ -45,6 +46,7 @@ class EmpresaUpdate(BaseModel):
     ruc: Optional[RUC] = None
     direccion_matriz: Optional[str] = None
     telefono: Optional[Telefono] = None
+    logo: Optional[str] = None
     codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: Optional[bool] = None
     tipo_contribuyente_id: Optional[TipoContribuyenteID] = None

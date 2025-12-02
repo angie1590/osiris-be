@@ -16,6 +16,7 @@ class Empresa(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
     direccion_matriz: str = Field(nullable=False, max_length=255)
     telefono: Optional[str] = Field(default=None, max_length=15)
+    logo: Optional[str] = Field(default=None, max_length=500)
 
     # Algunas implantaciones manejan esto a nivel Empresa; si no aplica, déjalo tal cual
     codigo_establecimiento: Optional[str] = Field(default=None, max_length=3)
