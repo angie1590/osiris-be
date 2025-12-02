@@ -30,6 +30,7 @@ from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa
 # tipo_producto eliminado: ya no se importa en autogenerate
 from osiris.modules.inventario.producto import entity as producto_entity  # noqa: F401
 from osiris.modules.inventario.categoria_atributo import entity as categoria_atributo_entity  # noqa: F401
+from osiris.modules.inventario.bodega import entity as bodega_entity  # noqa: F401
 
 
 # Config Alembic y logging

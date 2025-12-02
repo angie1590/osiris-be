@@ -25,7 +25,7 @@ class AtributoRead(BaseModel):
 
 class CategoriaAtributoRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     categoria_id: UUID
     atributo_id: UUID

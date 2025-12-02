@@ -16,6 +16,7 @@ from osiris.modules.inventario.categoria.router import router as categoria_route
 from osiris.modules.inventario.casa_comercial.router import router as casa_comercial_router
 from osiris.modules.inventario.atributo.router import router as atributo_router
 from osiris.modules.inventario.categoria_atributo.router import router as categoria_atributo_router
+from osiris.modules.inventario.bodega.router import router as bodega_router
 from osiris.modules.inventario.producto.router import router as producto_router
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
 from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catalogo_router
@@ -48,6 +49,7 @@ app.include_router(categoria_router, prefix="/api")
 app.include_router(casa_comercial_router, prefix="/api")
 app.include_router(atributo_router, prefix="/api")
 app.include_router(categoria_atributo_router, prefix="/api")
+app.include_router(bodega_router, prefix="/api")
 app.include_router(producto_router, prefix="/api")
 app.include_router(producto_impuesto_router, prefix="/api/productos")
 app.include_router(impuesto_catalogo_router, prefix="/api/impuestos")
