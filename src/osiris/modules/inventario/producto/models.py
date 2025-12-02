@@ -91,6 +91,7 @@ class ProductoRead(BaseOSModel):
     nombre: str
     tipo: TipoProductoEnum
     pvp: Decimal
+    cantidad: int
     casa_comercial_id: Optional[UUID] = None
     activo: bool
 
@@ -101,6 +102,7 @@ class ProductoCompletoRead(BaseOSModel):
     nombre: str
     tipo: TipoProductoEnum
     pvp: Decimal
+    cantidad: int
     casa_comercial: Optional[CasaComercialNested] = None
     categorias: List[CategoriaNested] = []
     proveedores_persona: List[ProveedorPersonaNested] = []

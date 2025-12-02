@@ -316,6 +316,7 @@ class ProductoService(BaseService):
             "nombre": producto.nombre,
             "tipo": producto.tipo,
             "pvp": producto.pvp,
+            "cantidad": producto.cantidad,
             "casa_comercial": casa_comercial,
             "categorias": categorias,
             "proveedores_persona": proveedores_persona,

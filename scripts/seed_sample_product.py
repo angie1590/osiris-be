@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
+import json
 from decimal import Decimal
 
 from sqlmodel import Session, select
@@ -144,7 +146,145 @@ def seed():
             )
             atributo_ids.append((atributo.id, valor))
 
-        # Obtener impuestos del catálogo SRI ya insertados por migración
+        # Asegurar catálogo SRI cargado (si falta, cargar desde conf/aux_impuesto_catalogo.json)
+        def ensure_impuesto_catalogo_loaded() -> None:
+            iva_check = session.exec(
+                select(ImpuestoCatalogo).where(
+                    ImpuestoCatalogo.codigo_sri == "4",
+                    ImpuestoCatalogo.tipo_impuesto == TipoImpuesto.IVA,
+                )
+            ).first()
+            ice_check = session.exec(
+                select(ImpuestoCatalogo).where(
+                    ImpuestoCatalogo.codigo_sri == "3011",
+                    ImpuestoCatalogo.tipo_impuesto == TipoImpuesto.ICE,
+                )
+            ).first()
+            if iva_check and ice_check:
+                return
+
+            catalog_path = Path("conf/aux_impuesto_catalogo.json")
+            if not catalog_path.exists():
+                raise RuntimeError("No se encontró conf/aux_impuesto_catalogo.json para cargar el catálogo SRI.")
+
+            # Normalizaciones conocidas
+            modo_map = {"ESPECIFICA": "ESPECIFICO", "MIXTA": "MIXTO"}
+
+            with catalog_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            for item in data:
+                try:
+                    tipo_impuesto = TipoImpuesto(item["tipo_impuesto"])  # IVA/ICE/IRBPNR
+                except Exception:
+                    # Saltar registros desconocidos
+                    continue
+
+                codigo_tipo_impuesto = str(item.get("codigo_tipo_impuesto", "")).strip()
+                codigo_sri = str(item.get("codigo_sri", "")).strip()
+                descripcion = str(item.get("descripcion", "")).strip()
+                if not codigo_sri or not descripcion:
+                    continue
+
+                aplica_a_val = item.get("aplica_a") or "AMBOS"
+                try:
+                    aplica_a = AplicaA(aplica_a_val)
+                except Exception:
+                    aplica_a = AplicaA.AMBOS
+
+                # Fechas por defecto: vigente_desde 2023-02-01 si falta
+                vd_raw = item.get("vigente_desde")
+                if vd_raw:
+                    try:
+                        yyyy, mm, dd = map(int, str(vd_raw).split("-")[:3])
+                        vigente_desde = date(yyyy, mm, dd)
+                    except Exception:
+                        vigente_desde = date(2023, 2, 1)
+                else:
+                    vigente_desde = date(2023, 2, 1)
+
+                vh_raw = item.get("vigente_hasta")
+                vigente_hasta = None
+                if vh_raw:
+                    try:
+                        yyyy, mm, dd = map(int, str(vh_raw).split("-")[:3])
+                        vigente_hasta = date(yyyy, mm, dd)
+                    except Exception:
+                        vigente_hasta = None
+
+                porcentaje_iva = item.get("porcentaje_iva")
+                tarifa_ad_valorem = item.get("tarifa_ad_valorem")
+                tarifa_especifica = item.get("tarifa_especifica")
+
+                clasificacion_iva = item.get("clasificacion_iva")
+                clasificacion_iva = clasificacion_iva if clasificacion_iva else None
+                if clasificacion_iva:
+                    try:
+                        clasificacion_iva = ClasificacionIVA(clasificacion_iva)
+                    except Exception:
+                        clasificacion_iva = None
+
+                modo_calculo_ice = item.get("modo_calculo_ice")
+                if modo_calculo_ice:
+                    modo_calculo_ice = modo_map.get(modo_calculo_ice, modo_calculo_ice)
+                    try:
+                        modo_calculo_ice = ModoCalculoICE(modo_calculo_ice)
+                    except Exception:
+                        modo_calculo_ice = None
+                else:
+                    modo_calculo_ice = None
+
+                unidad_base = item.get("unidad_base")
+                if not unidad_base or unidad_base == "VALOR":
+                    unidad_base = "UNIDAD"
+                try:
+                    unidad_base_enum = UnidadBase(unidad_base)
+                except Exception:
+                    unidad_base_enum = None
+
+                # Upsert por (codigo_sri, descripcion)
+                existente = session.exec(
+                    select(ImpuestoCatalogo).where(
+                        ImpuestoCatalogo.codigo_sri == codigo_sri,
+                        ImpuestoCatalogo.descripcion == descripcion,
+                    )
+                ).first()
+                if existente:
+                    existente.tipo_impuesto = tipo_impuesto
+                    existente.codigo_tipo_impuesto = codigo_tipo_impuesto
+                    existente.vigente_desde = vigente_desde
+                    existente.vigente_hasta = vigente_hasta
+                    existente.aplica_a = aplica_a
+                    existente.porcentaje_iva = Decimal(str(porcentaje_iva)) if porcentaje_iva is not None else None
+                    existente.clasificacion_iva = clasificacion_iva
+                    existente.tarifa_ad_valorem = Decimal(str(tarifa_ad_valorem)) if tarifa_ad_valorem is not None else None
+                    existente.tarifa_especifica = Decimal(str(tarifa_especifica)) if tarifa_especifica is not None else None
+                    existente.modo_calculo_ice = modo_calculo_ice
+                    existente.unidad_base = unidad_base_enum
+                else:
+                    session.add(
+                        ImpuestoCatalogo(
+                            tipo_impuesto=tipo_impuesto,
+                            codigo_tipo_impuesto=codigo_tipo_impuesto,
+                            codigo_sri=codigo_sri,
+                            descripcion=descripcion,
+                            vigente_desde=vigente_desde,
+                            vigente_hasta=vigente_hasta,
+                            aplica_a=aplica_a,
+                            porcentaje_iva=Decimal(str(porcentaje_iva)) if porcentaje_iva is not None else None,
+                            clasificacion_iva=clasificacion_iva,
+                            tarifa_ad_valorem=Decimal(str(tarifa_ad_valorem)) if tarifa_ad_valorem is not None else None,
+                            tarifa_especifica=Decimal(str(tarifa_especifica)) if tarifa_especifica is not None else None,
+                            modo_calculo_ice=modo_calculo_ice,
+                            unidad_base=unidad_base_enum,
+                            usuario_auditoria=USUARIO,
+                        )
+                    )
+            session.commit()
+
+        ensure_impuesto_catalogo_loaded()
+
+        # Obtener impuestos del catálogo SRI ya insertados
         # IVA 15% (codigo_sri="4")
         iva = session.exec(
             select(ImpuestoCatalogo).where(
@@ -153,7 +293,7 @@ def seed():
             )
         ).first()
         if not iva:
-            raise RuntimeError("No se encontró IVA 15% (codigo_sri=4) en el catálogo. Ejecutar migraciones primero.")
+            raise RuntimeError("No se encontró IVA 15% (codigo_sri=4) en el catálogo incluso después de cargarlo.")
 
         # ICE ejemplo: Cigarrillos Rubios (codigo_sri="3011")
         ice = session.exec(
@@ -163,7 +303,7 @@ def seed():
             )
         ).first()
         if not ice:
-            raise RuntimeError("No se encontró ICE (codigo_sri=3011) en el catálogo. Ejecutar migraciones primero.")
+            raise RuntimeError("No se encontró ICE (codigo_sri=3011) en el catálogo incluso después de cargarlo.")
 
         session.commit()
 
@@ -177,8 +317,9 @@ def seed():
                 pvp=Decimal("2999.00"),
                 casa_comercial_id=casa.id,
                 impuesto_catalogo_ids=[iva.id, ice.id],  # OBLIGATORIO: incluir impuestos
+                usuario_auditoria=USUARIO,
             )
-            producto = prod_service.create(session, producto_data, USUARIO)
+            producto = prod_service.create(session, producto_data)
         created = producto is not None
 
         # Asociaciones categorías (solo laptop hoja)
@@ -242,6 +383,11 @@ def seed():
             from fastapi.encoders import jsonable_encoder
             payload = jsonable_encoder(resultado)
         print(dumps(payload, indent=2, ensure_ascii=False))
+        # Visibilidad explícita de la cantidad inicial
+        try:
+            print("Cantidad inicial:", payload.get("cantidad", "(no disponible)"))
+        except Exception:
+            pass
         print("ID del producto:", producto.id)
         print("Ejemplo de uso: GET /api/productos/", producto.id)
 

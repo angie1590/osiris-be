@@ -101,7 +101,7 @@ make logs               # Ver logs en tiempo real
 # Base de datos
 make db-upgrade         # Ejecuta migraciones Alembic
 make db-makemigration   # Crea nueva migración autogenerada (requiere mensaje="...")
-make db-recreate        # Recrea base de datos desde cero (⚠️ destruye datos)
+make db-recreate        # DROP/CREATE DB + alembic upgrade (no toca migrations)
 
 # Testing
 make test               # Ejecuta pruebas unitarias (169 tests)
@@ -116,6 +116,26 @@ make validate           # Valida configuración del entorno (multiplataforma)
 ```
 
 Nota: en instalaciones modernas de Docker el comando es el plugin `docker compose` (espacio). El `Makefile` ya usa `docker compose --env-file ...`, por lo que los objetivos `make build`/`make up` funcionarán con la CLI moderna. Si tu sistema aún requiere el binario legacy `docker-compose`, instala `docker-compose` o crea un alias local.
+
+### 🧯 Reseteo seguro de base de datos
+
+Para reconstruir la base sin comprometer el historial de migraciones:
+
+```bash
+# Opción recomendada
+make db-reset && make db-upgrade
+
+# (Opcional) Cargar datos de ejemplo
+make seed
+
+# Alternativa equivalente en un paso
+make db-recreate  # hace DROP/CREATE y luego alembic upgrade head
+```
+
+Buenas prácticas:
+- No borrar `src/osiris/db/alembic/versions/*`.
+- No "re-inicializar" migraciones autogenerando una única migración inicial.
+- Preservar la historia asegura coherencia entre ambientes y en CI.
 
 ### 🖥️ Compatibilidad Multiplataforma (Mac/Windows/Linux)
 
@@ -241,6 +261,7 @@ El sistema incluye el catálogo oficial de impuestos del SRI (Servicio de Rentas
 - **IVA no eliminable**: El IVA solo puede reemplazarse, no eliminarse directamente
 - **Compatibilidad tipo**: Los impuestos validan compatibilidad con el tipo de producto (BIEN/SERVICIO)
 - **Vigencia**: Solo se pueden asignar impuestos vigentes
+- **Cantidad (inventario)**: Nuevo atributo `cantidad` (int). Se inicializa automáticamente en `0` y no lo envía el usuario en la creación/actualización del producto. Se incluye en las respuestas.
 
 ### Endpoints de Productos
 
@@ -268,6 +289,7 @@ Al crear un producto mediante `POST /api/productos`:
 2. El producto se crea sin impuestos
 3. Se asignan impuestos después mediante `POST /{producto_id}/impuestos`
 4. El primer impuesto debe ser un IVA (obligatorio)
+5. El campo `cantidad` se establece automáticamente en `0` y aparece en las respuestas del API.
 
 ---
 

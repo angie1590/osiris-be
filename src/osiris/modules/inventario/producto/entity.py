@@ -22,6 +22,8 @@ class Producto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
         sa_column=Column(Numeric(10, 2), nullable=False),
         default=Decimal("0.00")
     )
+    # Nueva columna: cantidad en inventario. Se inicializa a 0 y no la ingresa el usuario en la creación
+    cantidad: int = Field(default=0, nullable=False)
     casa_comercial_id: UUID | None = Field(default=None, foreign_key="tbl_casa_comercial.id")
 
     # Relaciones M:N se materializan con tablas puente externas (no se declaran aquí para reducir acoplamiento)

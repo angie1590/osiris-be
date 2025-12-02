@@ -45,9 +45,6 @@ db-recreate:
 	  else \
 	    echo \"DB $$POSTGRES_DB ya existe, skip CREATE\"; \
 	  fi'
-	rm -rf src/osiris/db/alembic/versions/*
-	docker compose --env-file .env.development exec osiris-backend bash -lc 'set -euo pipefail; poetry run alembic stamp base'
-	docker compose --env-file .env.development exec osiris-backend bash -lc 'set -euo pipefail; poetry run alembic revision --autogenerate -m "initial schema (sqlmodel)"'
 	docker compose --env-file .env.development exec osiris-backend bash -lc 'set -euo pipefail; poetry run alembic upgrade head'
 	docker compose --env-file .env.development exec postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost -c "\dt"'
 	docker compose --env-file .env.development exec postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost -c "select * from alembic_version;"'
