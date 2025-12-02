@@ -154,11 +154,6 @@ def cleanup_product_relations(producto_id: str) -> None:
                 text("DELETE FROM tbl_producto_proveedor_sociedad WHERE producto_id = :id"),
                 {"id": producto_id}
             )
-            # Eliminar tipo_producto (atributos asociados)
-            conn.execute(
-                text("DELETE FROM tbl_tipo_producto WHERE producto_id = :id"),
-                {"id": producto_id}
-            )
             # Eliminar producto-impuesto
             conn.execute(
                 text("DELETE FROM tbl_producto_impuesto WHERE producto_id = :id"),
