@@ -110,7 +110,10 @@ make smoke-ci           # Ejecuta smoke tests seguros para CI (solo GET)
 
 # Utilidades
 make lint               # Ejecuta linters (ruff + mypy)
-make seed               # Carga datos de ejemplo (producto con impuestos)
+make seed               # Carga datos completos de prueba (empresa, productos, bodegas, etc.)
+make seed-sample        # Carga solo un producto de ejemplo (seed antiguo)
+make verify-seed        # Verifica datos cargados por el seed
+make verify-relations   # Verifica relaciones de productos (categorías, impuestos, bodegas)
 make cleanup-test-data  # Limpia datos de prueba
 make validate           # Valida configuración del entorno (multiplataforma)
 ```
@@ -217,16 +220,106 @@ make run
 # 3. Migrar la base de datos
 make db-upgrade
 
-# 4. (Opcional) Seed de datos de ejemplo
+# 4. (Opcional) Seed de datos completos de prueba
 make seed
-# O manualmente:
-# docker compose --env-file .env.development exec osiris-backend poetry run python scripts/seed_sample_product.py
+# Esto carga: 1 empresa, 2 sucursales, 4 puntos emisión, 3 bodegas,
+# 10 categorías, 19 productos con impuestos y stock
+
+# Verificar datos cargados
+make verify-seed
 
 # 5. Ver la documentación Swagger
 http://localhost:8000/docs
 ```
 
 ---
+
+## 🌱 Datos de Prueba (Seed)
+
+El sistema incluye un script completo de seed para poblar la base de datos con datos de prueba realistas:
+
+```bash
+make seed              # Carga datos completos
+make verify-seed       # Verifica datos cargados
+make verify-relations  # Verifica relaciones de productos
+```
+
+### Contenido del Seed
+
+El seed carga una estructura completa de datos de prueba basada en el archivo `scripts/seed_data_structure.yaml`:
+
+**Datos empresariales:**
+- 1 empresa (OpenLatina - RUC: 0103523908001)
+- 2 sucursales (Centro, Norte)
+- 4 puntos de emisión (2 matriz, 2 sucursales)
+- 3 bodegas (1 matriz, 2 sucursales)
+
+**Catálogos:**
+- 10 categorías (jerarquía: Tecnología → Computadoras/Periféricos → subcategorías)
+- 12 atributos (Procesador, RAM, DPI, Conectividad, etc.)
+- 5 casas comerciales (HP, Dell, Logitech, Razer, Sony)
+
+**Proveedores:**
+- 2 proveedores persona natural
+- 2 proveedores sociedad (ImportaTech, GlobalDist)
+
+**Productos (19 total):**
+- 4 Laptops (HP Pavilion, Dell Inspiron, HP EliteBook, Dell Educación)
+- 3 All-in-One (HP, Dell, HP Envy)
+- 3 Mouse (Logitech MX Master, Razer DeathAdder, Logitech G305)
+- 3 Teclados (Logitech MX Keys, Razer BlackWidow, HP K500F)
+- 6 Audífonos: 3 Earbuds + 3 Diadema (Sony, Razer, Logitech, HP)
+
+Cada producto incluye:
+- Descripción detallada (campo `descripcion`)
+- Código de barras único (campo `codigo_barras`)
+- Precio de venta (PVP)
+- Categoría asignada (solo nodos hoja)
+- Impuestos aplicados (IVA 15%, IVA 0%, ICE según corresponda)
+- Stock distribuido en las 3 bodegas
+- Atributos informativos según categoría
+- Casa comercial asociada
+
+### Estructura del Seed
+
+El sistema de seed se compone de:
+
+1. **`scripts/seed_data_structure.yaml`** (643 líneas)
+   - Archivo YAML declarativo con toda la estructura de datos
+   - Fácil de modificar para personalizar datos de prueba
+   - Incluye comentarios explicativos
+
+2. **`scripts/seed_complete_data.py`** (571 líneas)
+   - Script Python que lee el YAML y crea todas las entidades
+   - Maneja dependencias y relaciones automáticamente
+   - Evita duplicados (ejecutable múltiples veces)
+   - Muestra progreso con indicadores ✓
+
+3. **Scripts de verificación:**
+   - `check_seed_data.py`: Resumen de tablas y primeros registros
+   - `check_producto_relations.py`: Verifica relaciones completas de un producto
+
+### Personalizar Datos
+
+Para modificar los datos de prueba, edita `scripts/seed_data_structure.yaml`:
+
+```yaml
+# Ejemplo: Agregar un nuevo producto
+productos:
+  - nombre: "Mi Nuevo Producto"
+    codigo_barras: "PROD-001"
+    descripcion: "Descripción del producto"
+    precio: 150.00
+    tipo: "BIEN"
+    casa_comercial: "HP"
+    categorias: ["Laptop"]  # Solo categorías hoja
+    impuestos: ["4"]  # Código SRI (4 = IVA 15%)
+    bodegas:
+      - codigo: "BOD-MATRIZ"
+        cantidad: 10
+```
+
+Luego ejecuta `make seed` para aplicar los cambios.
 
 ## 🧾 Catálogo de Impuestos SRI
 

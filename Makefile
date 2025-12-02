@@ -89,7 +89,16 @@ smoke-ci:
 	docker compose --env-file $(ENV_FILE) down
 
 seed:
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/seed_complete_data.py"
+
+seed-sample:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/seed_sample_product.py
+
+verify-seed:
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/check_seed_data.py"
+
+verify-relations:
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/check_producto_relations.py"
 
 cleanup-test-data:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/cleanup_test_data.py
