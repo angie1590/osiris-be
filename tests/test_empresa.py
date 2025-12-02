@@ -244,7 +244,7 @@ def test_empresa_update_puede_actualizar_logo():
 
     assert updated.logo == "https://nuevo-logo.com/logo.jpg"
     assert updated.razon_social == "Empresa Test"  # otros campos se mantienen
-    
+
     session.add.assert_called_once_with(db_obj)
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(db_obj)
