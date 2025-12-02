@@ -288,7 +288,7 @@ def test_empleado_create_empresa_id_es_obligatorio():
             ),
             usuario_auditoria="tester",
         )
-    
+
     # Verifica que el error menciona empresa_id
     errors = exc.value.errors()
     assert any(e["loc"] == ("empresa_id",) for e in errors), "Falta validación de empresa_id obligatorio"
@@ -297,36 +297,36 @@ def test_empleado_create_empresa_id_es_obligatorio():
 def test_empleado_create_valida_empresa_existe(monkeypatch):
     """Verifica que el servicio valida que empresa_id existe en BD"""
     session = _mk_session()
-    
+
     # Mock strategy para que pase validación de rol y cree usuario
     fake_user = MagicMock()
     fake_user.id = uuid4()
-    
+
     strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
     strategy.create_user_for_persona = MagicMock(return_value=fake_user)
-    
+
     svc = EmpleadoService(strategy=strategy)
-    
+
     # Mock para que BaseService.create llame _validate_fks y falle en empresa_id
     from osiris.modules.common.empresa.entity import Empresa
     from osiris.modules.common.persona.entity import Persona
-    
+
     def mock_exec(stmt):
         # Simular que Persona existe pero Empresa no
         stmt_str = str(stmt)
         cursor = MagicMock()
-        
+
         if "tbl_persona" in stmt_str or "Persona" in stmt_str:
             cursor.first.return_value = MagicMock(id=uuid4())  # Persona existe
         elif "tbl_empresa" in stmt_str or "Empresa" in stmt_str:
             cursor.first.return_value = None  # Empresa NO existe
         else:
             cursor.first.return_value = MagicMock()
-        
+
         return cursor
-    
+
     session.exec.side_effect = mock_exec
-    
+
     payload = {
         "persona_id": str(uuid4()),
         "empresa_id": str(uuid4()),  # UUID que no existe
@@ -339,10 +339,10 @@ def test_empleado_create_valida_empresa_existe(monkeypatch):
         },
         "usuario_auditoria": "tester",
     }
-    
+
     # Debe lanzar HTTPException 404 por FK no encontrada
     with pytest.raises(HTTPException) as exc:
         svc.create(session, payload)
-    
+
     assert exc.value.status_code == 404
     assert "empresa" in exc.value.detail.lower()

@@ -59,7 +59,7 @@ def test_bodega_crud_completo():
                 continue
             else:
                 assert False, f"Error inesperado: {r.status_code} - {r.text}"
-        
+
         assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # 2. Crear sucursal
@@ -170,7 +170,7 @@ def test_bodega_sin_sucursal():
                 continue
             else:
                 assert False, f"Error inesperado: {r.status_code} - {r.text}"
-        
+
         assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # Crear bodega sin sucursal
@@ -232,7 +232,7 @@ def test_bodega_filtro_por_sucursal():
                 continue
             else:
                 assert False, f"Error inesperado: {r.status_code} - {r.text}"
-        
+
         assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # Crear dos sucursales
