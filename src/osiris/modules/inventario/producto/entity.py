@@ -59,3 +59,15 @@ class ProductoImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
     # Restricción única: un impuesto específico solo se puede asignar una vez a un producto
     # Se implementará en la migración como UNIQUE(producto_id, impuesto_catalogo_id)
+
+
+# Puente: Producto-Bodega
+class ProductoBodega(BaseTable, table=True):
+    __tablename__ = "tbl_producto_bodega"
+
+    producto_id: UUID = Field(foreign_key="tbl_producto.id", index=True, nullable=False)
+    bodega_id: UUID = Field(foreign_key="tbl_bodega.id", index=True, nullable=False)
+    cantidad: int = Field(default=0, nullable=False)  # Cantidad del producto en esta bodega específica
+
+    # Restricción única: un producto solo puede estar una vez en una bodega
+    # Se implementará en la migración como UNIQUE(producto_id, bodega_id)

@@ -303,6 +303,26 @@ class ProductoService(BaseService):
         except Exception:
             impuestos = []
 
+        # Bodegas (relación producto-bodega)
+        from osiris.modules.inventario.producto.entity import ProductoBodega
+        from osiris.modules.inventario.bodega.entity import Bodega
+        
+        bodegas = []
+        try:
+            bodega_ids = session.exec(
+                select(ProductoBodega.bodega_id)
+                .where(ProductoBodega.producto_id == producto_id)
+            ).all()
+            for bodega_id in bodega_ids:
+                bodega = session.get(Bodega, bodega_id)
+                if bodega:
+                    bodegas.append({
+                        "codigo_bodega": bodega.codigo_bodega,
+                        "nombre_bodega": bodega.nombre_bodega,
+                    })
+        except Exception:
+            bodegas = []
+
         return {
             "id": producto.id,
             "nombre": producto.nombre,
@@ -315,6 +335,7 @@ class ProductoService(BaseService):
             "proveedores_sociedad": proveedores_sociedad,
             "atributos": atributos,
             "impuestos": impuestos,
+            "bodegas": bodegas,
         }
 
     def list_paginated_completo(self, session: Session, only_active: bool = True, limit: int = 50, offset: int = 0):

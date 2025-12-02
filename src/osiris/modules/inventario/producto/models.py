@@ -46,6 +46,11 @@ class ImpuestoNested(BaseOSModel):
     porcentaje: float
 
 
+class BodegaNested(BaseOSModel):
+    codigo_bodega: str
+    nombre_bodega: str
+
+
 class ProductoCreate(BaseOSModel):
     nombre: str
     tipo: TipoProductoEnum = TipoProductoEnum.BIEN
@@ -107,3 +112,4 @@ class ProductoCompletoRead(BaseOSModel):
     proveedores_sociedad: List[ProveedorSociedadNested] = []
     atributos: List[AtributoValorNested] = []
     impuestos: List[ImpuestoNested] = []
+    bodegas: List[BodegaNested] = []
