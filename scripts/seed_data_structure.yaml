@@ -6,7 +6,7 @@ persona_empresa:
   identificacion: "0103523908001"
   tipo_identificacion: "RUC"
   nombre: "DANIEL FERNANDO PINEDA ALVAREZ"
-  apellido: ""
+  apellido: "PINEDA ALVAREZ"
   email: "dpineda@openlatina.com"
   telefono: "0999123456"
 
@@ -16,7 +16,7 @@ empresa:
   razon_social: "PINEDA ALVAREZ DANIEL FERNANDO"
   ruc: "0103523908001"  # mismo que persona
   direccion: "Av. Principal 123"
-  telefono: "07-1234567"
+  telefono: "071234567"
   email: "contacto@openlatina.com"
   logo: "https://openlatina.com/logo.png"
   tipo_contribuyente_id: "01"  # RISE o Contribuyente Especial
@@ -26,12 +26,12 @@ sucursales:
   - codigo: "001"
     nombre: "Sucursal Centro"
     direccion: "Av. Principal 123 - Centro"
-    telefono: "07-1234567"
+    telefono: "071234567"
 
   - codigo: "002"
     nombre: "Sucursal Norte"
     direccion: "Av. Norte 456"
-    telefono: "07-7654321"
+    telefono: "077654321"
 
 # 4. PUNTOS DE EMISIÓN (matriz sin sucursal, resto con sucursal)
 puntos_emision:
@@ -182,7 +182,7 @@ proveedores_sociedad:
     razon_social: "IMPORTADORA TECH S.A."
     nombre_comercial: "ImportaTech"
     direccion: "Av. Américas 789"
-    telefono: "04-2345678"
+    telefono: "042345678"
     email: "ventas@importatech.com"
     tipo_contribuyente_id: "02"  # Contribuyente Especial
     persona_contacto: "0104815956001"  # Juan Martínez
@@ -191,7 +191,7 @@ proveedores_sociedad:
     razon_social: "DISTRIBUIDORA GLOBAL CIA. LTDA."
     nombre_comercial: "GlobalDist"
     direccion: "Av. Eloy Alfaro 456"
-    telefono: "02-3456789"
+    telefono: "023456789"
     email: "info@globaldist.com"
     tipo_contribuyente_id: "02"
     persona_contacto: "0152131330001"  # María Rodríguez
