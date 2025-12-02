@@ -49,15 +49,11 @@ def test_producto_service_create_ok_y_asocia_multiples():
     repo.create.return_value = created_obj
 
     categorias = [uuid4(), uuid4()]
-    provp = [uuid4(), uuid4()]
-    provs = [uuid4(), uuid4()]
     attrs = [uuid4(), uuid4()]
 
     data = {
         "nombre": f"Prod-{uuid4().hex[:8]}",
         "categoria_ids": categorias,
-        "proveedor_persona_ids": provp,
-        "proveedor_sociedad_ids": provs,
         "atributo_ids": attrs,
     }
 
@@ -65,8 +61,7 @@ def test_producto_service_create_ok_y_asocia_multiples():
 
     assert out is created_obj
     repo.set_categorias.assert_called_once()
-    repo.set_proveedores_persona.assert_called_once()
-    repo.set_proveedores_sociedad.assert_called_once()
+    # Proveedores se gestionan vía triggers post-compra; no se setean aquí
 
 
 def test_producto_service_update_valida_hoja():
