@@ -34,6 +34,7 @@ class UsuarioInlineCreate(BaseOSModel):
 
 class EmpleadoCreate(BaseOSModel):
     persona_id: UUID
+    empresa_id: UUID
     salario: SalarioType
     fecha_ingreso: date
     fecha_nacimiento: Optional[date] = None
@@ -66,6 +67,7 @@ class EmpleadoCreate(BaseOSModel):
 
 class EmpleadoUpdate(BaseOSModel):
     # persona_id NO se puede cambiar
+    empresa_id: Optional[UUID] = None
     salario: Optional[SalarioType] = None
     fecha_ingreso: Optional[date] = None
     fecha_nacimiento: Optional[date] = None
@@ -86,6 +88,7 @@ class EmpleadoUpdate(BaseOSModel):
 class EmpleadoRead(BaseOSModel):
     id: UUID
     persona_id: UUID
+    empresa_id: UUID
     salario: Decimal
     fecha_ingreso: date
     fecha_nacimiento: Optional[date] = None

@@ -284,10 +284,36 @@ def test_users_employees_and_providers_flow():
         assert r.status_code == 201
         cliente_id = r.json().get("id")
 
+        # Create empresa for empleado
+        from tests.smoke.ruc_utils import generar_ruc_empresa
+        empresa_payload = {
+            "ruc": generar_ruc_empresa(),
+            "razon_social": "Empresa de Pruebas SmokeTest",
+            "nombre_comercial": f"EmpTest{uuid.uuid4().hex[:8]}",
+            "direccion_matriz": "Av Principal 123",
+            "telefono": "0987654321",
+            "tipo_contribuyente_id": "01",
+            "usuario_auditoria": "ci"
+        }
+        # Reintentar hasta 3 veces si el RUC generado no es válido
+        empresa_id = None
+        for attempt in range(3):
+            r = client.post(f"{BASE}/empresa", json=empresa_payload)
+            if r.status_code == 201:
+                empresa_id = r.json().get("id")
+                break
+            # Si el RUC no es válido, generar otro
+            if r.status_code in (400, 422) and attempt < 2:
+                empresa_payload["ruc"] = generar_ruc_empresa()
+                continue
+            assert r.status_code == 201, f"Error creando empresa: {r.text}"
+        assert empresa_id, "No se pudo crear la empresa"
+
         # Create empleado with unique username
         unique_emp = f"smoke_emp_{uuid.uuid4().hex[:8]}"
         empleado_payload = {
             "persona_id": persona_id,
+            "empresa_id": empresa_id,
             "salario": "1000.00",
             "fecha_ingreso": "2024-01-01",
             "fecha_nacimiento": "1990-01-01",
@@ -342,4 +368,5 @@ def test_users_employees_and_providers_flow():
         client.delete(f"{BASE}/clientes/{cliente_id}")
         client.delete(f"{BASE}/proveedores-persona/{provp_id}")
         client.delete(f"{BASE}/proveedores-sociedad/{provs_id}")
+        client.delete(f"{BASE}/empresa/{empresa_id}")
         client.delete(f"{BASE}/roles/{role_id}")

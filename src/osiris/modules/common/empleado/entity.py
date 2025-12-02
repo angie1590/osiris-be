@@ -17,6 +17,7 @@ class Empleado(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
     # FKs (sin relationships)
     persona_id: UUID = Field(foreign_key="tbl_persona.id", index=True, unique=True, nullable=False)
+    empresa_id: UUID = Field(foreign_key="tbl_empresa.id", index=True, nullable=False)
 
     # Campos de negocio solicitados
     salario: float = Field(sa_column=Column(Numeric(10, 2), nullable=False))

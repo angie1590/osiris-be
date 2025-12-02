@@ -35,21 +35,32 @@ def test_bodega_crud_completo():
     with httpx.Client(timeout=TIMEOUT) as client:
         unique_suffix = uuid.uuid4().hex[:6]
 
-        # 1. Crear empresa
+        # 1. Crear empresa (con reintento si falla validación RUC)
         from tests.smoke.ruc_utils import generar_ruc_empresa
-        empresa_data = {
-            "razon_social": "Empresa Test Bodega SRL",
-            "nombre_comercial": f"Comercial Bod-{unique_suffix}",
-            "ruc": generar_ruc_empresa(),
-            "direccion_matriz": "Calle Test 123",
-            "telefono": "0987654321",
-            "obligado_contabilidad": True,
-            "tipo_contribuyente_id": "01",
-            "usuario_auditoria": "smoke_test"
-        }
-        r = client.post(f"{BASE}/empresa", json=empresa_data)
-        assert r.status_code in (201, 409), f"Failed to create empresa: {r.text}"
-        empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+        empresa_id = None
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            empresa_data = {
+                "razon_social": "Empresa Test Bodega SRL",
+                "nombre_comercial": f"Comercial Bod-{unique_suffix}",
+                "ruc": generar_ruc_empresa(),
+                "direccion_matriz": "Calle Test 123",
+                "telefono": "0987654321",
+                "obligado_contabilidad": True,
+                "tipo_contribuyente_id": "01",
+                "usuario_auditoria": "smoke_test"
+            }
+            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            if r.status_code in (201, 409):
+                empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+                break
+            elif r.status_code == 422:
+                # RUC inválido, reintentar
+                continue
+            else:
+                assert False, f"Error inesperado: {r.status_code} - {r.text}"
+        
+        assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # 2. Crear sucursal
         sucursal_data = {
@@ -135,21 +146,32 @@ def test_bodega_sin_sucursal():
     with httpx.Client(timeout=TIMEOUT) as client:
         unique_suffix = uuid.uuid4().hex[:6]
 
-        # Crear empresa
+        # Crear empresa (con reintento si falla validación RUC)
         from tests.smoke.ruc_utils import generar_ruc_empresa
-        empresa_data = {
-            "razon_social": "Empresa Matriz Bodega SA",
-            "nombre_comercial": f"Comercial Mat-{unique_suffix}",
-            "ruc": generar_ruc_empresa(),
-            "direccion_matriz": "Calle Matriz 789",
-            "telefono": "0987654323",
-            "obligado_contabilidad": False,
-            "tipo_contribuyente_id": "01",
-            "usuario_auditoria": "smoke_test"
-        }
-        r = client.post(f"{BASE}/empresa", json=empresa_data)
-        assert r.status_code in (201, 409), f"Failed to create empresa: {r.text}"
-        empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+        empresa_id = None
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            empresa_data = {
+                "razon_social": "Empresa Matriz Bodega SA",
+                "nombre_comercial": f"Comercial Mat-{unique_suffix}",
+                "ruc": generar_ruc_empresa(),
+                "direccion_matriz": "Calle Matriz 789",
+                "telefono": "0987654323",
+                "obligado_contabilidad": False,
+                "tipo_contribuyente_id": "01",
+                "usuario_auditoria": "smoke_test"
+            }
+            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            if r.status_code in (201, 409):
+                empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+                break
+            elif r.status_code == 422:
+                # RUC inválido, reintentar
+                continue
+            else:
+                assert False, f"Error inesperado: {r.status_code} - {r.text}"
+        
+        assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # Crear bodega sin sucursal
         bodega_data = {
@@ -186,21 +208,32 @@ def test_bodega_filtro_por_sucursal():
     with httpx.Client(timeout=TIMEOUT) as client:
         unique_suffix = uuid.uuid4().hex[:6]
 
-        # Crear empresa
+        # Crear empresa (con reintento si falla validación RUC)
         from tests.smoke.ruc_utils import generar_ruc_empresa
-        empresa_data = {
-            "razon_social": "Empresa Filtro Bodega CIA",
-            "nombre_comercial": f"Comercial Fil-{unique_suffix}",
-            "ruc": generar_ruc_empresa(),
-            "direccion_matriz": "Calle Filtro 321",
-            "telefono": "0987654324",
-            "obligado_contabilidad": True,
-            "tipo_contribuyente_id": "01",
-            "usuario_auditoria": "smoke_test"
-        }
-        r = client.post(f"{BASE}/empresa", json=empresa_data)
-        assert r.status_code in (201, 409)
-        empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+        empresa_id = None
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            empresa_data = {
+                "razon_social": "Empresa Filtro Bodega CIA",
+                "nombre_comercial": f"Comercial Fil-{unique_suffix}",
+                "ruc": generar_ruc_empresa(),
+                "direccion_matriz": "Calle Filtro 321",
+                "telefono": "0987654324",
+                "obligado_contabilidad": True,
+                "tipo_contribuyente_id": "01",
+                "usuario_auditoria": "smoke_test"
+            }
+            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            if r.status_code in (201, 409):
+                empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
+                break
+            elif r.status_code == 422:
+                # RUC inválido, reintentar
+                continue
+            else:
+                assert False, f"Error inesperado: {r.status_code} - {r.text}"
+        
+        assert empresa_id is not None, "No se pudo crear empresa después de varios intentos"
 
         # Crear dos sucursales
         sucursal1_data = {

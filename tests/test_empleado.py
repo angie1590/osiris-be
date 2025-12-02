@@ -51,14 +51,17 @@ def test_empleado_create_crea_usuario_y_empleado(monkeypatch):
     svc.repo = MagicMock()
     svc.repo.create = MagicMock(return_value=Empleado(
         persona_id=uuid4(),
+        empresa_id=uuid4(),
         salario=1000.00,
         fecha_ingreso=date(2024, 1, 1),
         usuario_auditoria="tester",
     ))
 
     persona_id = uuid4()
+    empresa_id = uuid4()
     payload = {
         "persona_id": persona_id,
+        "empresa_id": empresa_id,
         "salario": "1200.00",
         "fecha_ingreso": "2024-01-01",
         "usuario": {
@@ -97,6 +100,7 @@ def test_empleado_create_valida_edad_minima_por_env(monkeypatch):
     with pytest.raises(ValidationError) as exc:
         EmpleadoCreate(
             persona_id=uuid4(),
+            empresa_id=uuid4(),
             salario="1000.00",
             fecha_ingreso=hoy,
             fecha_nacimiento=menor_17,
@@ -116,6 +120,7 @@ def test_empleado_create_valida_fecha_salida_posterior():
     with pytest.raises(ValidationError) as exc:
         EmpleadoCreate(
             persona_id=uuid4(),
+            empresa_id=uuid4(),
             salario="1000.00",
             fecha_ingreso=hoy,
             fecha_salida=hoy,  # igual que ingreso
@@ -135,6 +140,7 @@ def test_empleado_update_no_cambia_persona_id(monkeypatch):
     # Objeto actual
     current = Empleado(
         persona_id=uuid4(),
+        empresa_id=uuid4(),
         salario=1500.0,
         fecha_ingreso=date(2024, 1, 1),
         usuario_auditoria="current",
@@ -173,6 +179,7 @@ def test_empleado_update_valida_fecha_salida_vs_ingreso():
 
     current = Empleado(
         persona_id=uuid4(),
+        empresa_id=uuid4(),
         salario=1500.0,
         fecha_ingreso=date(2024, 1, 10),
         usuario_auditoria="current",
@@ -202,6 +209,7 @@ def test_empleado_create_valida_rol_en_strategy(monkeypatch):
 
     payload = {
         "persona_id": str(uuid4()),
+        "empresa_id": str(uuid4()),
         "salario": "1000.00",
         "fecha_ingreso": str(date.today()),
         "usuario": {
@@ -249,6 +257,7 @@ def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
 
     payload = {
         "persona_id": str(uuid4()),
+        "empresa_id": str(uuid4()),
         "salario": "1000.00",
         "fecha_ingreso": str(date.today()),
         "usuario": {"username": "jdoe", "password": "secret123", "rol_id": str(uuid4())},
@@ -259,3 +268,81 @@ def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
         svc.create(session, payload)
 
     assert called["deleted"] is True
+
+
+# --------------------------
+# Validación de empresa_id obligatorio
+# --------------------------
+def test_empleado_create_empresa_id_es_obligatorio():
+    """Verifica que empresa_id es obligatorio en EmpleadoCreate"""
+    with pytest.raises(ValidationError) as exc:
+        EmpleadoCreate(
+            persona_id=uuid4(),
+            # empresa_id omitido intencionalmente
+            salario="1000.00",
+            fecha_ingreso=date.today(),
+            usuario=UsuarioInlineCreate(
+                username="jdoe",
+                password="secret123",
+                rol_id=uuid4(),
+            ),
+            usuario_auditoria="tester",
+        )
+    
+    # Verifica que el error menciona empresa_id
+    errors = exc.value.errors()
+    assert any(e["loc"] == ("empresa_id",) for e in errors), "Falta validación de empresa_id obligatorio"
+
+
+def test_empleado_create_valida_empresa_existe(monkeypatch):
+    """Verifica que el servicio valida que empresa_id existe en BD"""
+    session = _mk_session()
+    
+    # Mock strategy para que pase validación de rol y cree usuario
+    fake_user = MagicMock()
+    fake_user.id = uuid4()
+    
+    strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
+    strategy.create_user_for_persona = MagicMock(return_value=fake_user)
+    
+    svc = EmpleadoService(strategy=strategy)
+    
+    # Mock para que BaseService.create llame _validate_fks y falle en empresa_id
+    from osiris.modules.common.empresa.entity import Empresa
+    from osiris.modules.common.persona.entity import Persona
+    
+    def mock_exec(stmt):
+        # Simular que Persona existe pero Empresa no
+        stmt_str = str(stmt)
+        cursor = MagicMock()
+        
+        if "tbl_persona" in stmt_str or "Persona" in stmt_str:
+            cursor.first.return_value = MagicMock(id=uuid4())  # Persona existe
+        elif "tbl_empresa" in stmt_str or "Empresa" in stmt_str:
+            cursor.first.return_value = None  # Empresa NO existe
+        else:
+            cursor.first.return_value = MagicMock()
+        
+        return cursor
+    
+    session.exec.side_effect = mock_exec
+    
+    payload = {
+        "persona_id": str(uuid4()),
+        "empresa_id": str(uuid4()),  # UUID que no existe
+        "salario": "1000.00",
+        "fecha_ingreso": str(date.today()),
+        "usuario": {
+            "username": "jdoe",
+            "password": "secret123",
+            "rol_id": str(uuid4()),
+        },
+        "usuario_auditoria": "tester",
+    }
+    
+    # Debe lanzar HTTPException 404 por FK no encontrada
+    with pytest.raises(HTTPException) as exc:
+        svc.create(session, payload)
+    
+    assert exc.value.status_code == 404
+    assert "empresa" in exc.value.detail.lower()

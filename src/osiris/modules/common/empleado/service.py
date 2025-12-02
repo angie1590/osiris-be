@@ -11,6 +11,7 @@ from .repository import EmpleadoRepository
 from .entity import Empleado
 
 from osiris.modules.common.persona.entity import Persona
+from osiris.modules.common.empresa.entity import Empresa
 from .strategy import EmpleadoCrearUsuarioStrategy
 
 
@@ -25,6 +26,7 @@ class EmpleadoService(BaseService):
     repo = EmpleadoRepository()
     fk_models = {
         "persona_id": Persona,
+        "empresa_id": Empresa,
     }
 
     def __init__(self, strategy: EmpleadoCrearUsuarioStrategy | None = None) -> None:
