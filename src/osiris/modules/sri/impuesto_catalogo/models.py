@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from pydantic import field_validator, model_validator
@@ -103,6 +103,9 @@ class ImpuestoCatalogoRead(BaseOSModel):
     vigente_hasta: Optional[date] = None
     aplica_a: AplicaA
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None
 
     # Campos IVA
     porcentaje_iva: Optional[Decimal] = None

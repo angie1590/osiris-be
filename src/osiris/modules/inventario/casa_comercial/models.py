@@ -1,4 +1,5 @@
 # src/osiris/modules/inventario/casa_comercial/models.py
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from src.osiris.domain.base_models import BaseOSModel
@@ -16,3 +17,6 @@ class CasaComercialRead(BaseOSModel):
     id: UUID
     nombre: str
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None

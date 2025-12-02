@@ -1,4 +1,5 @@
 # src/modules/common/rol/models.py
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from sqlmodel import Field
@@ -20,3 +21,6 @@ class RolRead(BaseOSModel):
     nombre: str
     descripcion: Optional[str] = None
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None

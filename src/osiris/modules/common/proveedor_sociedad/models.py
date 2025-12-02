@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import field_validator
@@ -55,3 +56,5 @@ class ProveedorSociedadRead(BaseOSModel):
     persona_contacto_id: UUID
     usuario_auditoria: str
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime

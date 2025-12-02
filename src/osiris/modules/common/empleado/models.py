@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
 from uuid import UUID
@@ -91,3 +91,6 @@ class EmpleadoRead(BaseOSModel):
     fecha_nacimiento: Optional[date] = None
     fecha_salida: Optional[date] = None
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None

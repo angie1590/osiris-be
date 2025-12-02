@@ -1,6 +1,7 @@
 # src/osiris/modules/inventario/atributo/models.py
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -22,3 +23,6 @@ class AtributoRead(BaseOSModel):
     nombre: str
     tipo_dato: TipoDato
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None

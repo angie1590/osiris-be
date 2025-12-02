@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -18,4 +19,7 @@ class ProductoImpuestoRead(BaseOSModel):
     producto_id: UUID
     impuesto_catalogo_id: UUID
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None
     impuesto: Optional[ImpuestoCatalogoRead] = None  # Datos completos del impuesto

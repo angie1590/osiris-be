@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -24,3 +25,7 @@ class TipoClienteUpdate(BaseOSModel):
 
 class TipoClienteRead(TipoClienteBase):
     id: UUID
+    activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: str

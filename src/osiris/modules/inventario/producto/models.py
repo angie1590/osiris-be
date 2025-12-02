@@ -1,6 +1,7 @@
 # src/osiris/modules/inventario/producto/models.py
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
@@ -88,6 +89,9 @@ class ProductoRead(BaseOSModel):
     cantidad: int
     casa_comercial_id: Optional[UUID] = None
     activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None
 
 
 class ProductoCompletoRead(BaseOSModel):
