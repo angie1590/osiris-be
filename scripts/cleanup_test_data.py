@@ -72,16 +72,6 @@ def cleanup_test_data():
         """))
         print(f"   - tbl_producto_proveedor_sociedad: {result.rowcount} registros")
 
-        # Tipo Producto (atributos)
-        result = conn.execute(text(f"""
-            DELETE FROM tbl_tipo_producto
-            WHERE producto_id IN (
-                SELECT id FROM tbl_producto
-                WHERE usuario_auditoria IN {test_users}
-            )
-        """))
-        print(f"   - tbl_tipo_producto: {result.rowcount} registros")
-
         # Producto-Impuesto
         result = conn.execute(text(f"""
             DELETE FROM tbl_producto_impuesto
@@ -91,6 +81,16 @@ def cleanup_test_data():
             )
         """))
         print(f"   - tbl_producto_impuesto: {result.rowcount} registros")
+
+        # Producto-Bodega
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_producto_bodega
+            WHERE producto_id IN (
+                SELECT id FROM tbl_producto
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_producto_bodega: {result.rowcount} registros")
 
         # 3. Eliminar productos de test
         print("\n🗑️  Eliminando productos de test...")
@@ -102,6 +102,15 @@ def cleanup_test_data():
 
         # 4. Eliminar atributos de test
         print("\n🗑️  Eliminando atributos de test...")
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_categoria_atributo
+            WHERE atributo_id IN (
+                SELECT id FROM tbl_atributo
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_categoria_atributo: {result.rowcount} registros")
+
         result = conn.execute(text(f"""
             DELETE FROM tbl_atributo
             WHERE usuario_auditoria IN {test_users}
@@ -133,18 +142,27 @@ def cleanup_test_data():
         # 7. Eliminar categorías de test
         print("\n🗑️  Eliminando categorías de test...")
         result = conn.execute(text(f"""
+            DELETE FROM tbl_categoria_atributo
+            WHERE categoria_id IN (
+                SELECT id FROM tbl_categoria
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_categoria_atributo (por categoría): {result.rowcount} registros")
+
+        result = conn.execute(text(f"""
             DELETE FROM tbl_categoria
             WHERE usuario_auditoria IN {test_users}
         """))
         print(f"   - tbl_categoria: {result.rowcount} registros")
 
-        # 8. Eliminar impuestos de test (si aplica)
-        print("\n🗑️  Eliminando impuestos de test...")
-        result = conn.execute(text(f"""
-            DELETE FROM aux_impuesto_catalogo
-            WHERE usuario_auditoria IN {test_users}
-        """))
-        print(f"   - aux_impuesto_catalogo: {result.rowcount} registros")
+        # 8. NO eliminar impuestos del catálogo (son datos compartidos del sistema)
+        # print("\n🗑️  Eliminando impuestos de test...")
+        # result = conn.execute(text(f"""
+        #     DELETE FROM aux_impuesto_catalogo
+        #     WHERE usuario_auditoria IN {test_users}
+        # """))
+        # print(f"   - aux_impuesto_catalogo: {result.rowcount} registros")
 
         # 9. Otras entidades comunes (orden: dependientes primero)
         print("\n🗑️  Eliminando otras entidades de test...")
@@ -192,12 +210,38 @@ def cleanup_test_data():
         """))
         print(f"   - tbl_tipo_cliente: {result.rowcount} registros")
 
-        # Empresas, Sucursales, Puntos de Emisión
+        # Empresas, Sucursales, Puntos de Emisión, Bodegas
         result = conn.execute(text(f"""
             DELETE FROM tbl_punto_emision
             WHERE usuario_auditoria IN {test_users}
         """))
         print(f"   - tbl_punto_emision: {result.rowcount} registros")
+
+        # Eliminar bodegas que referencian sucursales de test (incluso si son del seed)
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_bodega
+            WHERE sucursal_id IN (
+                SELECT id FROM tbl_sucursal
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_bodega (por sucursal de test): {result.rowcount} registros")
+
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_bodega
+            WHERE usuario_auditoria IN {test_users}
+        """))
+        print(f"   - tbl_bodega: {result.rowcount} registros")
+
+        # Eliminar bodegas que referencian empresas de test (por FK empresa_id)
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_bodega
+            WHERE empresa_id IN (
+                SELECT id FROM tbl_empresa
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_bodega (por empresa de test): {result.rowcount} registros")
 
         result = conn.execute(text(f"""
             DELETE FROM tbl_sucursal

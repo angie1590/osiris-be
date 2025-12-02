@@ -101,7 +101,7 @@ verify-relations:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/check_producto_relations.py"
 
 cleanup-test-data:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/cleanup_test_data.py
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
 
 validate:
 	python scripts/validate_setup.py

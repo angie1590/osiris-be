@@ -607,6 +607,62 @@ roles:
     descripcion: "Gestión de inventario"
   - nombre: "CONTADOR"
     descripcion: "Contabilidad y finanzas"
+  - nombre: "Administrador"
+    descripcion: "Rol de administrador general"
+  - nombre: "Vendedor"
+    descripcion: "Rol de vendedor"
+  - nombre: "Jefe de Almacén"
+    descripcion: "Rol de jefe de almacén"
+
+# 14.1. EMPLEADOS (3 empleados con roles asignados)
+empleados:
+  - persona:
+      identificacion: "0105841035"
+      tipo_identificacion: "CEDULA"
+      nombre: "JUAN PABLO"
+      apellido: "SANCHEZ TORRES"
+      email: "jsanchez@openlatina.com"
+      telefono: "0987654321"
+    empleado:
+      salario: 2500.00
+      fecha_ingreso: "2024-01-15"
+      fecha_nacimiento: "1990-05-20"
+      usuario:
+        username: "jsanchez"
+        password: "Test1234"
+        rol: "Administrador"
+
+  - persona:
+      identificacion: "0103511606"
+      tipo_identificacion: "CEDULA"
+      nombre: "MARIA JOSE"
+      apellido: "RAMIREZ LOPEZ"
+      email: "mramirez@openlatina.com"
+      telefono: "0991234567"
+    empleado:
+      salario: 1800.00
+      fecha_ingreso: "2024-02-20"
+      fecha_nacimiento: "1992-08-15"
+      usuario:
+        username: "mramirez"
+        password: "Test1234"
+        rol: "Vendedor"
+
+  - persona:
+      identificacion: "0103605408"
+      tipo_identificacion: "CEDULA"
+      nombre: "CARLOS EDUARDO"
+      apellido: "MARTINEZ GARCIA"
+      email: "cmartinez@openlatina.com"
+      telefono: "0998765432"
+    empleado:
+      salario: 2000.00
+      fecha_ingreso: "2024-03-10"
+      fecha_nacimiento: "1988-11-30"
+      usuario:
+        username: "cmartinez"
+        password: "Test1234"
+        rol: "Jefe de Almacén"
 
 # 15. CLIENTES (opcional, algunos clientes de prueba)
 clientes:

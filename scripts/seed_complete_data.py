@@ -35,6 +35,8 @@ from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.cliente.entity import Cliente
+from osiris.modules.common.empleado.entity import Empleado
+from osiris.core.security import hash_password
 
 
 AUDIT_USER = "seed_script"
@@ -477,6 +479,90 @@ def crear_productos(session: Session, productos_data: list, categorias_map: dict
         session.commit()
 
 
+def crear_roles(session: Session, roles_data: list) -> dict:
+    """Crea roles y retorna un mapa {nombre: id}."""
+    roles_map = {}
+
+    for rol_data in roles_data:
+        stmt = select(Rol).where(Rol.nombre == rol_data["nombre"])
+        rol = session.exec(stmt).first()
+
+        if rol:
+            print(f"  ✓ Rol ya existe: {rol_data['nombre']}")
+            roles_map[rol_data["nombre"]] = rol.id
+            continue
+
+        rol = Rol(
+            nombre=rol_data["nombre"],
+            descripcion=rol_data.get("descripcion", ""),
+            usuario_auditoria=AUDIT_USER
+        )
+        session.add(rol)
+        session.commit()
+        session.refresh(rol)
+        roles_map[rol_data["nombre"]] = rol.id
+        print(f"  ✓ Rol creado: {rol_data['nombre']}")
+
+    return roles_map
+
+
+def crear_empleados(session: Session, empleados_data: list, empresa_id: UUID, roles_map: dict):
+    """Crea empleados con sus usuarios."""
+    for emp_data in empleados_data:
+        # Crear o recuperar persona
+        persona_data = emp_data["persona"]
+        persona = crear_persona(session, persona_data)
+
+        # Verificar si ya existe empleado para esta persona
+        stmt = select(Empleado).where(Empleado.persona_id == persona.id)
+        empleado = session.exec(stmt).first()
+
+        if empleado:
+            print(f"  ✓ Empleado ya existe: {persona.nombre} {persona.apellido}")
+            continue
+
+        # Obtener rol_id
+        rol_nombre = emp_data["empleado"]["usuario"]["rol"]
+        rol_id = roles_map.get(rol_nombre)
+        if not rol_id:
+            print(f"  ✗ Rol no encontrado: {rol_nombre}")
+            continue
+
+        # Crear usuario primero
+        usuario_data = emp_data["empleado"]["usuario"]
+        stmt = select(Usuario).where(Usuario.username == usuario_data["username"])
+        usuario = session.exec(stmt).first()
+
+        if not usuario:
+            password_hash = hash_password(usuario_data["password"])
+            usuario = Usuario(
+                persona_id=persona.id,
+                username=usuario_data["username"],
+                password_hash=password_hash,
+                rol_id=rol_id,
+                activo=True,
+                usuario_auditoria=AUDIT_USER
+            )
+            session.add(usuario)
+            session.commit()
+            session.refresh(usuario)
+            print(f"    → Usuario creado: {usuario_data['username']}")
+
+        # Crear empleado
+        empleado = Empleado(
+            persona_id=persona.id,
+            empresa_id=empresa_id,
+            salario=Decimal(str(emp_data["empleado"]["salario"])),
+            fecha_ingreso=emp_data["empleado"]["fecha_ingreso"],
+            fecha_nacimiento=emp_data["empleado"].get("fecha_nacimiento"),
+            usuario_auditoria=AUDIT_USER
+        )
+        session.add(empleado)
+        session.commit()
+        session.refresh(empleado)
+        print(f"  ✓ Empleado creado: {persona.nombre} {persona.apellido} - {rol_nombre}")
+
+
 def main():
     """Función principal."""
     print("=" * 80)
@@ -549,6 +635,15 @@ def main():
             bodegas_map
         )
 
+        # 14. Roles
+        print("\n14. Creando roles...")
+        roles_map = crear_roles(session, data.get("roles", []))
+
+        # 15. Empleados
+        if "empleados" in data and data["empleados"]:
+            print("\n15. Creando empleados...")
+            crear_empleados(session, data["empleados"], empresa.id, roles_map)
+
         print("\n" + "=" * 80)
         print("✓ SEED COMPLETADO EXITOSAMENTE")
         print("=" * 80)
@@ -563,6 +658,8 @@ def main():
         print(f"  - Proveedores persona: {len(proveedores_persona_map)}")
         print(f"  - Proveedores sociedad: {len(proveedores_sociedad_map)}")
         print(f"  - Productos: {len(data['productos'])}")
+        print(f"  - Roles: {len(roles_map)}")
+        print(f"  - Empleados: {len(data.get('empleados', []))}")
         print()
 
 
