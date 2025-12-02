@@ -116,10 +116,10 @@ def test_categoria_atributo_herencia_de_atributos():
     """
     Verificar que un producto asociado a una categoría hoja
     hereda los atributos de toda la cadena de categorías.
-    
+
     Estructura:
       Raíz -> Padre -> Hoja
-      
+
     Se asignan atributos a cada nivel y se verifica que
     el producto obtenga la unión de atributos.
     """
@@ -231,7 +231,7 @@ def test_categoria_atributo_herencia_de_atributos():
         r = client.get(f"{BASE}/productos/{producto_id}")
         assert r.status_code == 200
         producto = r.json()
-        
+
         atributos_producto = producto.get("atributos", [])
         atributos_nombres = [a["atributo"]["nombre"] for a in atributos_producto]
 

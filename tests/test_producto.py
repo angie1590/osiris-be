@@ -107,7 +107,7 @@ def test_producto_cantidad_es_readonly_en_create():
 
     # El servicio debe crear con cantidad=0 (default)
     out = service.create(session, data)
-    
+
     # Verificar que repo.create fue llamado
     repo.create.assert_called_once()
     # El objeto creado debe tener cantidad=0 (default de la entidad)
