@@ -51,8 +51,6 @@ class ProductoCreate(BaseOSModel):
     pvp: Decimal
     casa_comercial_id: Optional[UUID] = None
     categoria_ids: Optional[List[UUID]] = None
-    proveedor_persona_ids: Optional[List[UUID]] = None
-    proveedor_sociedad_ids: Optional[List[UUID]] = None
     atributo_ids: Optional[List[UUID]] = None  # vía TipoProducto
     impuesto_catalogo_ids: List[UUID]  # OBLIGATORIO: al menos un impuesto IVA
     usuario_auditoria: Optional[str] = None
@@ -72,8 +70,6 @@ class ProductoUpdate(BaseOSModel):
     pvp: Optional[Decimal] = None
     casa_comercial_id: Optional[UUID] = None
     categoria_ids: Optional[List[UUID]] = None
-    proveedor_persona_ids: Optional[List[UUID]] = None
-    proveedor_sociedad_ids: Optional[List[UUID]] = None
     atributo_ids: Optional[List[UUID]] = None
     usuario_auditoria: Optional[str] = None
 

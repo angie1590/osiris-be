@@ -262,6 +262,7 @@ El sistema incluye el catálogo oficial de impuestos del SRI (Servicio de Rentas
 - **Compatibilidad tipo**: Los impuestos validan compatibilidad con el tipo de producto (BIEN/SERVICIO)
 - **Vigencia**: Solo se pueden asignar impuestos vigentes
 - **Cantidad (inventario)**: Nuevo atributo `cantidad` (int). Se inicializa automáticamente en `0` y no lo envía el usuario en la creación/actualización del producto. Se incluye en las respuestas.
+- **Proveedores (persona/sociedad)**: No se envían en creación/actualización de producto. Estas relaciones se crean automáticamente vía trigger después de ingresar una compra. Por defecto, las listas `proveedores_persona` y `proveedores_sociedad` estarán vacías hasta que haya compras asociadas.
 
 ### Endpoints de Productos
 

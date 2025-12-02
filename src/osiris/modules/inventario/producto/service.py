@@ -108,12 +108,6 @@ class ProductoService(BaseService):
         # asociaciones
         if categoria_ids:
             self.repo.set_categorias(session, pid, categoria_ids)
-        provp_ids = _val(data, "proveedor_persona_ids")
-        if provp_ids:
-            self.repo.set_proveedores_persona(session, pid, provp_ids)
-        provs_ids = _val(data, "proveedor_sociedad_ids")
-        if provs_ids:
-            self.repo.set_proveedores_sociedad(session, pid, provs_ids)
         attr_ids = _val(data, "atributo_ids")
         usuario_auditoria = _val(data, "usuario_auditoria")
         if attr_ids:
@@ -157,12 +151,6 @@ class ProductoService(BaseService):
         # asociaciones
         if categoria_ids is not None:
             self.repo.set_categorias(session, item_id, categoria_ids)
-        provp_ids = _val(data, "proveedor_persona_ids")
-        if provp_ids is not None:
-            self.repo.set_proveedores_persona(session, item_id, provp_ids)
-        provs_ids = _val(data, "proveedor_sociedad_ids")
-        if provs_ids is not None:
-            self.repo.set_proveedores_sociedad(session, item_id, provs_ids)
         attr_ids = _val(data, "atributo_ids")
         usuario_auditoria = _val(data, "usuario_auditoria")
         if attr_ids is not None:
