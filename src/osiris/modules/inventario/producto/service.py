@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from osiris.core.errors import NotFoundError
 from osiris.domain.service import BaseService
 from osiris.modules.inventario.categoria.entity import Categoria  # existente
-from osiris.modules.inventario.tipo_producto.entity import TipoProducto
+from osiris.modules.inventario.producto.entity import TipoProducto
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
@@ -267,12 +267,8 @@ class ProductoService(BaseService):
             .where(CategoriaAtributo.categoria_id.in_(list(categorias_ids)))
         ).all()
 
-        # 3) Cargar valores existentes para el producto
-        valores = session.exec(
-            select(TipoProducto)
-            .where(TipoProducto.producto_id == producto_id)
-        ).all()
-        valor_por_atributo = {tp.atributo_id: tp.valor for tp in valores}
+        # 3) Valores por producto eliminados: ya no se consulta tbl_tipo_producto
+        valor_por_atributo: dict = {}
 
         # 4) Unificar por atributo (evitar duplicados si viene de múltiples categorías)
         vistos = set()

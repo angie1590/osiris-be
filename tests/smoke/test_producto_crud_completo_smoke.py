@@ -191,6 +191,9 @@ def test_producto_get_completo_con_impuestos():
         assert "proveedores_sociedad" in data
         assert "atributos" in data
         assert data["nombre"] == producto_data["nombre"]
+        # Verificar campo cantidad (debe existir y ser 0 por defecto)
+        assert "cantidad" in data, "Debe tener campo cantidad"
+        assert data["cantidad"] == 0, "Cantidad debe inicializarse en 0"
 
         # Cleanup común
         from tests.smoke.utils import cleanup_product_scenario
@@ -260,9 +263,13 @@ def test_producto_tipos_bien_y_servicio():
         # Verificar con GET
         r = client.get(f"{BASE}/productos/{bien_id}")
         assert r.status_code == 200
+        assert r.json()["tipo"] == "BIEN"
+        assert r.json()["cantidad"] == 0
 
         r = client.get(f"{BASE}/productos/{servicio_id}")
         assert r.status_code == 200
+        assert r.json()["tipo"] == "SERVICIO"
+        assert r.json()["cantidad"] == 0
 
         # Cleanup
         from tests.smoke.utils import cleanup_product_scenario

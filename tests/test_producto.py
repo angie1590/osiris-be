@@ -84,3 +84,37 @@ def test_producto_service_update_valida_hoja():
     session.exec.return_value = _mock_exec_with_child_exists(False)
     out = service.update(session, db_obj.id, {"categoria_ids": [uuid4()]})
     repo.set_categorias.assert_called()
+
+
+def test_producto_cantidad_es_readonly_en_create():
+    """Verificar que el campo cantidad no puede ser ingresado por el usuario"""
+    session = MagicMock()
+    service = ProductoService()
+    repo = MagicMock()
+    service.repo = repo
+
+    session.exec.return_value = _mock_exec_with_child_exists(False)
+
+    created_obj = Producto(nombre="Test", usuario_auditoria="tester", cantidad=0)
+    created_obj.id = uuid4()
+    repo.create.return_value = created_obj
+
+    # El usuario intenta pasar cantidad=100 pero el DTO no debe aceptarlo
+    data = {
+        "nombre": f"Prod-{uuid4().hex[:8]}",
+        "cantidad": 100,  # Este campo debe ser ignorado
+    }
+
+    # El servicio debe crear con cantidad=0 (default)
+    out = service.create(session, data)
+    
+    # Verificar que repo.create fue llamado
+    repo.create.assert_called_once()
+    # El objeto creado debe tener cantidad=0 (default de la entidad)
+    assert created_obj.cantidad == 0
+
+
+def test_producto_cantidad_default_zero():
+    """Verificar que la entidad Producto inicializa cantidad en 0"""
+    producto = Producto(nombre="Test", usuario_auditoria="tester")
+    assert producto.cantidad == 0

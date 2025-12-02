@@ -378,20 +378,9 @@ def seed():
 
         session.commit()
 
-        # Asociar valores de atributos al producto (TipoProducto.valor)
-        for atributo_id, valor in atributo_ids:
-            tp = session.exec(
-                select(TipoProducto).where(
-                    TipoProducto.producto_id == producto.id,
-                    TipoProducto.atributo_id == atributo_id,
-                )
-            ).first()
-            if not tp:
-                tp = TipoProducto(producto_id=producto.id, atributo_id=atributo_id, valor=valor, usuario_auditoria=USUARIO)
-                session.add(tp)
-            else:
-                tp.valor = valor
-        session.commit()
+        # Nota: la relación producto-atributo directa (tbl_tipo_producto) fue eliminada.
+        # Los atributos efectivos del producto se determinan por herencia de categorías.
+        # Si se requieren valores por producto, este seed ya no los persiste.
 
         # Construir salida usando el servicio principal
         if 'prod_service' not in locals():
