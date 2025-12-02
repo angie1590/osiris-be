@@ -17,6 +17,8 @@ class Producto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_producto"
 
     nombre: str = Field(index=True, nullable=False, unique=True, max_length=255)
+    descripcion: str | None = Field(default=None, max_length=1000)
+    codigo_barras: str | None = Field(default=None, max_length=100, index=True)
     tipo: TipoProducto = Field(nullable=False, default=TipoProducto.BIEN)
     pvp: Decimal = Field(
         sa_column=Column(Numeric(10, 2), nullable=False),

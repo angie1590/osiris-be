@@ -9,7 +9,7 @@ from sqlalchemy import Column
 from sqlalchemy.types import Numeric, Date as SA_Date
 from sqlmodel import Field
 
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
 class Empleado(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

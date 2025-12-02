@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from src.osiris.domain.base_models import BaseOSModel
+from osiris.domain.base_models import BaseOSModel
 
 # DTOs (Pydantic-only)
 class CasaComercialCreate(BaseOSModel):

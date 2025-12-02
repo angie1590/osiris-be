@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from pydantic import Field
-from src.osiris.domain.base_models import BaseOSModel
+from osiris.domain.base_models import BaseOSModel
 
 
 class TipoClienteBase(BaseOSModel):

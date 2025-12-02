@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field
 
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
 class PuntoEmision(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

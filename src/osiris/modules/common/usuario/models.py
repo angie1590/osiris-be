@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from pydantic import Field as PydField
-from src.osiris.domain.base_models import BaseOSModel
+from osiris.domain.base_models import BaseOSModel
 
 class UsuarioBase(BaseOSModel):
     persona_id: UUID

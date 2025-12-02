@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlmodel import Field
 from sqlalchemy import Column, Integer, CheckConstraint
 
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
 class TipoCliente(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

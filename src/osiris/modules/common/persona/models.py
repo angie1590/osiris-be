@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import EmailStr, StringConstraints, model_validator
 
-from src.osiris.domain.base_models import BaseOSModel
+from osiris.domain.base_models import BaseOSModel
 from src.osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 
 

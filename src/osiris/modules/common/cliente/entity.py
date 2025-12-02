@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID
 from sqlmodel import Field
-from src.osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 class Cliente(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_cliente"

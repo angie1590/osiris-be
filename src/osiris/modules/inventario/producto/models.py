@@ -53,6 +53,8 @@ class BodegaNested(BaseOSModel):
 
 class ProductoCreate(BaseOSModel):
     nombre: str
+    descripcion: Optional[str] = None
+    codigo_barras: Optional[str] = None
     tipo: TipoProductoEnum = TipoProductoEnum.BIEN
     pvp: Decimal
     casa_comercial_id: Optional[UUID] = None
@@ -71,6 +73,8 @@ class ProductoCreate(BaseOSModel):
 
 class ProductoUpdate(BaseOSModel):
     nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    codigo_barras: Optional[str] = None
     tipo: Optional[TipoProductoEnum] = None
     pvp: Optional[Decimal] = None
     casa_comercial_id: Optional[UUID] = None
@@ -89,6 +93,8 @@ class ProductoUpdate(BaseOSModel):
 class ProductoRead(BaseOSModel):
     id: UUID
     nombre: str
+    descripcion: Optional[str] = None
+    codigo_barras: Optional[str] = None
     tipo: TipoProductoEnum
     pvp: Decimal
     cantidad: int
