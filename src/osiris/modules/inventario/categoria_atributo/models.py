@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class CategoriaAtributoBase(BaseModel):
     categoria_id: UUID
@@ -24,11 +24,10 @@ class AtributoRead(BaseModel):
     tipo_dato: str
 
 class CategoriaAtributoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: UUID
     categoria_id: UUID
     atributo_id: UUID
     orden: Optional[int] = None
     obligatorio: Optional[bool] = None
-
-    class Config:
-        from_attributes = True
