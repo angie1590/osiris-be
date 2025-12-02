@@ -15,7 +15,7 @@ def test_producto_bodega_service_create_ok():
     """Verifica que se puede crear una relación producto-bodega"""
     from osiris.modules.inventario.producto.entity import Producto
     from osiris.modules.inventario.bodega.entity import Bodega
-    
+
     session = MagicMock()
     service = ProductoBodegaService()
     repo = MagicMock()
@@ -28,11 +28,11 @@ def test_producto_bodega_service_create_ok():
     producto = Producto(nombre="Producto Test")
     producto.id = producto_id
     producto.activo = True
-    
+
     bodega = Bodega(codigo_bodega="BOD001", nombre_bodega="Bodega Test")
     bodega.id = bodega_id
     bodega.activo = True
-    
+
     # Mock para el orden correcto: duplicate check primero, luego FK validations
     def exec_side_effect(stmt):
         mock_result = MagicMock()
@@ -41,18 +41,18 @@ def test_producto_bodega_service_create_ok():
         # Tercera llamada: validación FK bodega (retorna bodega)
         if not hasattr(exec_side_effect, 'call_count'):
             exec_side_effect.call_count = 0
-        
+
         exec_side_effect.call_count += 1
-        
+
         if exec_side_effect.call_count == 1:  # Duplicate check
             mock_result.first.return_value = None
         elif exec_side_effect.call_count == 2:  # FK producto
             mock_result.first.return_value = producto
         else:  # FK bodega
             mock_result.first.return_value = bodega
-            
+
         return mock_result
-    
+
     session.exec.side_effect = exec_side_effect
 
     created_obj = ProductoBodega(
@@ -92,7 +92,7 @@ def test_producto_bodega_service_create_producto_invalido_falla():
 
     with pytest.raises(HTTPException) as exc_info:
         service.create(session, data)
-    
+
     assert exc_info.value.status_code == 404
     assert "Producto no encontrado" in exc_info.value.detail
 
@@ -101,7 +101,7 @@ def test_producto_bodega_service_create_duplicado_falla():
     """Verifica que no se puede crear una relación duplicada"""
     from osiris.modules.inventario.producto.entity import Producto
     from osiris.modules.inventario.bodega.entity import Bodega
-    
+
     session = MagicMock()
     service = ProductoBodegaService()
 
@@ -112,18 +112,18 @@ def test_producto_bodega_service_create_duplicado_falla():
     producto = Producto(nombre="Producto Test")
     producto.id = producto_id
     producto.activo = True
-    
+
     bodega = Bodega(codigo_bodega="BOD001", nombre_bodega="Bodega Test")
     bodega.id = bodega_id
     bodega.activo = True
-    
+
     # Mock para simular que ya existe la relación
     existing_relation = ProductoBodega(
         producto_id=producto_id,
         bodega_id=bodega_id,
         cantidad=5
     )
-    
+
     # El duplicate check es lo primero que se ejecuta
     exec_mock = MagicMock()
     exec_mock.first.return_value = existing_relation  # Ya existe
@@ -137,7 +137,7 @@ def test_producto_bodega_service_create_duplicado_falla():
 
     with pytest.raises(HTTPException) as exc_info:
         service.create(session, data)
-    
+
     assert exc_info.value.status_code == 409
     assert "ya está asignado" in exc_info.value.detail
 
@@ -175,7 +175,7 @@ def test_producto_bodega_update_cantidad_actualiza_si_existe():
         cantidad=5
     )
     existing.id = uuid4()
-    
+
     exec_mock = MagicMock()
     exec_mock.first.return_value = existing
     session.exec.return_value = exec_mock
@@ -194,19 +194,19 @@ def test_producto_bodega_get_bodegas_by_producto():
     service = ProductoBodegaService()
 
     producto_id = uuid4()
-    
+
     # Mock de datos
     from osiris.modules.inventario.bodega.entity import Bodega
-    
+
     bodega1 = Bodega(codigo_bodega="BOD001", nombre_bodega="Bodega Principal")
     bodega1.id = uuid4()
-    
+
     bodega2 = Bodega(codigo_bodega="BOD002", nombre_bodega="Bodega Secundaria")
     bodega2.id = uuid4()
-    
+
     rel1 = ProductoBodega(producto_id=producto_id, bodega_id=bodega1.id, cantidad=10)
     rel1.id = uuid4()
-    
+
     rel2 = ProductoBodega(producto_id=producto_id, bodega_id=bodega2.id, cantidad=5)
     rel2.id = uuid4()
 
@@ -229,19 +229,19 @@ def test_producto_bodega_get_productos_by_bodega():
     service = ProductoBodegaService()
 
     bodega_id = uuid4()
-    
+
     # Mock de datos
     from osiris.modules.inventario.producto.entity import Producto
-    
+
     prod1 = Producto(nombre="Producto A")
     prod1.id = uuid4()
-    
+
     prod2 = Producto(nombre="Producto B")
     prod2.id = uuid4()
-    
+
     rel1 = ProductoBodega(producto_id=prod1.id, bodega_id=bodega_id, cantidad=50)
     rel1.id = uuid4()
-    
+
     rel2 = ProductoBodega(producto_id=prod2.id, bodega_id=bodega_id, cantidad=30)
     rel2.id = uuid4()
 

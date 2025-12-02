@@ -306,7 +306,7 @@ class ProductoService(BaseService):
         # Bodegas (relación producto-bodega)
         from osiris.modules.inventario.producto.entity import ProductoBodega
         from osiris.modules.inventario.bodega.entity import Bodega
-        
+
         bodegas = []
         try:
             bodega_ids = session.exec(
