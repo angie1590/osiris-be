@@ -614,7 +614,102 @@ roles:
   - nombre: "Jefe de Almacén"
     descripcion: "Rol de jefe de almacén"
 
-# 14.1. EMPLEADOS (3 empleados con roles asignados)
+# 14.1. MÓDULOS DEL SISTEMA
+modulos:
+  - codigo: "VENTAS"
+    nombre: "Ventas"
+    descripcion: "Módulo de gestión de ventas y facturación"
+    orden: 1
+    icono: "shopping-cart"
+
+  - codigo: "COMPRAS"
+    nombre: "Compras"
+    descripcion: "Módulo de gestión de compras y proveedores"
+    orden: 2
+    icono: "shopping-bag"
+
+  - codigo: "INVENTARIO"
+    nombre: "Inventario"
+    descripcion: "Módulo de gestión de productos y bodegas"
+    orden: 3
+    icono: "package"
+
+  - codigo: "CONTABILIDAD"
+    nombre: "Contabilidad"
+    descripcion: "Módulo de contabilidad y finanzas"
+    orden: 4
+    icono: "calculator"
+
+# 14.2. PERMISOS POR ROL Y MÓDULO
+permisos:
+  # Administrador: acceso completo a todos los módulos
+  - rol: "Administrador"
+    modulo: "VENTAS"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: true
+
+  - rol: "Administrador"
+    modulo: "INVENTARIO"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: true
+
+  - rol: "Administrador"
+    modulo: "COMPRAS"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: true
+
+  - rol: "Administrador"
+    modulo: "CONTABILIDAD"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: true
+
+  # Vendedor: acceso completo a ventas, solo lectura en inventario
+  - rol: "Vendedor"
+    modulo: "VENTAS"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: false
+
+  - rol: "Vendedor"
+    modulo: "INVENTARIO"
+    puede_leer: true
+    puede_crear: false
+    puede_actualizar: false
+    puede_eliminar: false
+
+  # Jefe de Almacén: acceso completo a inventario, lectura en compras
+  - rol: "Jefe de Almacén"
+    modulo: "INVENTARIO"
+    puede_leer: true
+    puede_crear: true
+    puede_actualizar: true
+    puede_eliminar: true
+
+  - rol: "Jefe de Almacén"
+    modulo: "COMPRAS"
+    puede_leer: true
+    puede_crear: false
+    puede_actualizar: false
+    puede_eliminar: false
+
+  # Contador: solo lectura en ventas, sin acceso a eliminar en contabilidad
+  - rol: "CONTADOR"
+    modulo: "CONTABILIDAD"
+    puede_leer: true
+    puede_crear: false
+    puede_actualizar: false
+    puede_eliminar: false
+
+# 14.3. EMPLEADOS (3 empleados con roles asignados)
 empleados:
   - persona:
       identificacion: "0105841035"

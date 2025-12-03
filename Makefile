@@ -20,6 +20,9 @@ shell:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
+	@echo "Limpiando datos de prueba..."
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
+	@echo "Ejecutando suite de pruebas..."
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest -v
 
 db-upgrade:

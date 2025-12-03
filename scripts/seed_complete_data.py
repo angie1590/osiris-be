@@ -36,6 +36,8 @@ from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.cliente.entity import Cliente
 from osiris.modules.common.empleado.entity import Empleado
+from osiris.modules.common.modulo.entity import Modulo
+from osiris.modules.common.rol_modulo_permiso.entity import RolModuloPermiso
 from osiris.core.security import hash_password
 
 
@@ -506,6 +508,78 @@ def crear_roles(session: Session, roles_data: list) -> dict:
     return roles_map
 
 
+def crear_modulos(session: Session, modulos_data: list) -> dict:
+    """Crea módulos del sistema y retorna un mapa {codigo: id}."""
+    from osiris.modules.common.modulo.entity import Modulo
+
+    modulos_map = {}
+
+    for mod_data in modulos_data:
+        stmt = select(Modulo).where(Modulo.codigo == mod_data["codigo"])
+        modulo = session.exec(stmt).first()
+
+        if modulo:
+            print(f"  ✓ Módulo ya existe: {mod_data['codigo']}")
+            modulos_map[mod_data["codigo"]] = modulo.id
+            continue
+
+        modulo = Modulo(
+            codigo=mod_data["codigo"],
+            nombre=mod_data["nombre"],
+            descripcion=mod_data.get("descripcion"),
+            orden=mod_data.get("orden"),
+            icono=mod_data.get("icono"),
+            usuario_auditoria=AUDIT_USER
+        )
+        session.add(modulo)
+        session.commit()
+        session.refresh(modulo)
+        modulos_map[mod_data["codigo"]] = modulo.id
+        print(f"  ✓ Módulo creado: {mod_data['codigo']} - {mod_data['nombre']}")
+
+    return modulos_map
+
+
+def crear_permisos(session: Session, permisos_data: list, roles_map: dict, modulos_map: dict):
+    """Crea permisos asociando roles con módulos."""
+    from osiris.modules.common.rol_modulo_permiso.entity import RolModuloPermiso
+
+    for perm_data in permisos_data:
+        rol_nombre = perm_data["rol"]
+        modulo_codigo = perm_data["modulo"]
+
+        rol_id = roles_map.get(rol_nombre)
+        modulo_id = modulos_map.get(modulo_codigo)
+
+        if not rol_id or not modulo_id:
+            print(f"  ⚠ Permiso omitido: rol '{rol_nombre}' o módulo '{modulo_codigo}' no encontrado")
+            continue
+
+        # Verificar si ya existe el permiso
+        stmt = select(RolModuloPermiso).where(
+            RolModuloPermiso.rol_id == rol_id,
+            RolModuloPermiso.modulo_id == modulo_id
+        )
+        permiso = session.exec(stmt).first()
+
+        if permiso:
+            print(f"  ✓ Permiso ya existe: {rol_nombre} -> {modulo_codigo}")
+            continue
+
+        permiso = RolModuloPermiso(
+            rol_id=rol_id,
+            modulo_id=modulo_id,
+            puede_leer=perm_data.get("puede_leer", False),
+            puede_crear=perm_data.get("puede_crear", False),
+            puede_actualizar=perm_data.get("puede_actualizar", False),
+            puede_eliminar=perm_data.get("puede_eliminar", False),
+            usuario_auditoria=AUDIT_USER
+        )
+        session.add(permiso)
+        session.commit()
+        print(f"  ✓ Permiso creado: {rol_nombre} -> {modulo_codigo}")
+
+
 def crear_empleados(session: Session, empleados_data: list, empresa_id: UUID, roles_map: dict):
     """Crea empleados con sus usuarios."""
     for emp_data in empleados_data:
@@ -639,9 +713,17 @@ def main():
         print("\n14. Creando roles...")
         roles_map = crear_roles(session, data.get("roles", []))
 
-        # 15. Empleados
+        # 15. Módulos
+        print("\n15. Creando módulos del sistema...")
+        modulos_map = crear_modulos(session, data.get("modulos", []))
+
+        # 16. Permisos
+        print("\n16. Creando permisos por rol y módulo...")
+        crear_permisos(session, data.get("permisos", []), roles_map, modulos_map)
+
+        # 17. Empleados
         if "empleados" in data and data["empleados"]:
-            print("\n15. Creando empleados...")
+            print("\n17. Creando empleados...")
             crear_empleados(session, data["empleados"], empresa.id, roles_map)
 
         print("\n" + "=" * 80)
@@ -659,6 +741,8 @@ def main():
         print(f"  - Proveedores sociedad: {len(proveedores_sociedad_map)}")
         print(f"  - Productos: {len(data['productos'])}")
         print(f"  - Roles: {len(roles_map)}")
+        print(f"  - Módulos: {len(modulos_map)}")
+        print(f"  - Permisos: {len(data.get('permisos', []))}")
         print(f"  - Empleados: {len(data.get('empleados', []))}")
         print()
 

@@ -24,6 +24,8 @@ from osiris.modules.common.cliente import entity as cliente_entity  # noqa: F401
 from osiris.modules.common.empleado import entity as empleado_entity  # noqa: F401
 from osiris.modules.common.proveedor_persona import entity as proveedor_persona  # noqa: F401
 from osiris.modules.common.proveedor_sociedad import entity as proveedor_sociedad  # noqa: F401
+from osiris.modules.common.modulo import entity as modulo_entity  # noqa: F401
+from osiris.modules.common.rol_modulo_permiso import entity as rol_modulo_permiso_entity  # noqa: F401
 from osiris.modules.inventario.categoria import entity as categoria_entity  # noqa: F401
 from osiris.modules.inventario.casa_comercial import entity as casa_comercial_entity  # noqa: F401
 from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa: F401

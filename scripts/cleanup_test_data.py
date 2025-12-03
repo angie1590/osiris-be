@@ -196,6 +196,21 @@ def cleanup_test_data():
         """))
         print(f"   - tbl_persona: {result.rowcount} registros")
 
+        # Roles-Modulos-Permisos (antes de roles y modulos)
+        print("\n🗑️  Eliminando permisos de test...")
+        result = conn.execute(text(f"""
+            DELETE FROM roles_modulos_permisos
+            WHERE usuario_auditoria IN {test_users}
+        """))
+        print(f"   - roles_modulos_permisos: {result.rowcount} registros")
+
+        # Modulos
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_modulo
+            WHERE usuario_auditoria IN {test_users}
+        """))
+        print(f"   - tbl_modulo: {result.rowcount} registros")
+
         # Roles
         result = conn.execute(text(f"""
             DELETE FROM tbl_rol
