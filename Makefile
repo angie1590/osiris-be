@@ -20,6 +20,8 @@ shell:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash
 
 test:
+	@echo "Aplicando migraciones (alembic upgrade head)..."
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'PYTHONPATH=src ENVIRONMENT=development poetry run alembic upgrade head'
 	@echo "Limpiando datos de prueba..."
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
 	@echo "Ejecutando suite de pruebas..."

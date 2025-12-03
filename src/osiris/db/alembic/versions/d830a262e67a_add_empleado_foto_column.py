@@ -1,8 +1,8 @@
-"""añadir campo foto a empleado
+"""add empleado.foto column
 
-Revision ID: ccbbbb162eef
-Revises: 219b76343e08
-Create Date: 2025-12-03 05:10:59.872325
+Revision ID: d830a262e67a
+Revises: ccbbbb162eef
+Create Date: 2025-12-03 05:26:08.212180
 
 """
 from typing import Sequence, Union
@@ -13,19 +13,17 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'ccbbbb162eef'
-down_revision: Union[str, None] = '219b76343e08'
+revision: str = 'd830a262e67a'
+down_revision: Union[str, None] = 'ccbbbb162eef'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     """Upgrade schema."""
-    # Añadir columna 'foto' a tbl_empleado (nullable)
     op.add_column('tbl_empleado', sa.Column('foto', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    # Remover columna 'foto' de tbl_empleado
     op.drop_column('tbl_empleado', 'foto')
