@@ -39,6 +39,7 @@ class EmpleadoCreate(BaseOSModel):
     fecha_ingreso: date
     fecha_nacimiento: Optional[date] = None
     fecha_salida: Optional[date] = None
+    foto: Optional[str] = None
 
     # Al crear el empleado, también se crea el usuario
     usuario: UsuarioInlineCreate
@@ -72,6 +73,7 @@ class EmpleadoUpdate(BaseOSModel):
     fecha_ingreso: Optional[date] = None
     fecha_nacimiento: Optional[date] = None
     fecha_salida: Optional[date] = None
+    foto: Optional[str] = None
     usuario_auditoria: Optional[str] = None
 
     @model_validator(mode="after")
@@ -93,6 +95,7 @@ class EmpleadoRead(BaseOSModel):
     fecha_ingreso: date
     fecha_nacimiento: Optional[date] = None
     fecha_salida: Optional[date] = None
+    foto: Optional[str] = None
     activo: bool
     creado_en: datetime
     actualizado_en: datetime

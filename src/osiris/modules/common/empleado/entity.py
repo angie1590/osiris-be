@@ -24,3 +24,5 @@ class Empleado(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     fecha_nacimiento: Optional[date] = Field(default=None, sa_column=Column(SA_Date, nullable=True))
     fecha_ingreso: date = Field(sa_column=Column(SA_Date, nullable=False))
     fecha_salida: Optional[date] = Field(default=None, sa_column=Column(SA_Date, nullable=True))
+    # Foto del empleado (ruta/URL)
+    foto: Optional[str] = Field(default=None, sa_column=Column("foto", nullable=True))
