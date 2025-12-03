@@ -54,6 +54,7 @@ def test_empleado_create_crea_usuario_y_empleado(monkeypatch):
         empresa_id=uuid4(),
         salario=1000.00,
         fecha_ingreso=date(2024, 1, 1),
+        foto=None,
         usuario_auditoria="tester",
     ))
 
@@ -64,6 +65,7 @@ def test_empleado_create_crea_usuario_y_empleado(monkeypatch):
         "empresa_id": empresa_id,
         "salario": "1200.00",
         "fecha_ingreso": "2024-01-01",
+        "foto": None,
         "usuario": {
             "username": "jdoe",
             "password": "secret123",
@@ -79,6 +81,42 @@ def test_empleado_create_crea_usuario_y_empleado(monkeypatch):
     # Se creó empleado por repo
     svc.repo.create.assert_called_once()
     assert isinstance(emp, Empleado)
+    assert getattr(emp, "foto", None) is None
+
+
+def test_empleado_create_con_foto_pasa_a_repo(monkeypatch):
+    session = _mk_session()
+
+    strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
+    strategy.create_user_for_persona = MagicMock(return_value=MagicMock(id=uuid4()))
+
+    svc = EmpleadoService(strategy=strategy)
+    svc.repo = MagicMock()
+    svc.repo.create = MagicMock(return_value=Empleado(
+        persona_id=uuid4(),
+        empresa_id=uuid4(),
+        salario=1200.00,
+        fecha_ingreso=date(2024, 1, 1),
+        foto="https://cdn.example.com/fotos/emp123.jpg",
+        usuario_auditoria="tester",
+    ))
+
+    payload = {
+        "persona_id": str(uuid4()),
+        "empresa_id": str(uuid4()),
+        "salario": "1200.00",
+        "fecha_ingreso": str(date(2024, 1, 1)),
+        "foto": "https://cdn.example.com/fotos/emp123.jpg",
+        "usuario": {"username": "jdoe", "password": "secret123", "rol_id": str(uuid4())},
+        "usuario_auditoria": "tester",
+    }
+
+    emp = svc.create(session, payload)
+    # Verificar que el payload pasó con foto
+    args, kwargs = svc.repo.create.call_args
+    data_arg = args[1] if len(args) >= 2 else kwargs.get("data", {})
+    assert data_arg.get("foto") == "https://cdn.example.com/fotos/emp123.jpg"
+    assert emp.foto == "https://cdn.example.com/fotos/emp123.jpg"
 
 
 # --------------------------
@@ -143,6 +181,7 @@ def test_empleado_update_no_cambia_persona_id(monkeypatch):
         empresa_id=uuid4(),
         salario=1500.0,
         fecha_ingreso=date(2024, 1, 1),
+        foto=None,
         usuario_auditoria="current",
     )
     current.id = uuid4()
@@ -152,6 +191,7 @@ def test_empleado_update_no_cambia_persona_id(monkeypatch):
     new_persona_id = uuid4()
     incoming = EmpleadoUpdate(
         salario="2000.00",
+        foto="https://cdn.example.com/fotos/emp999.jpg",
         usuario_auditoria="tester",
     )
     # Simulamos que llega persona_id "por error" en dict:
@@ -170,6 +210,7 @@ def test_empleado_update_no_cambia_persona_id(monkeypatch):
     args, kwargs = svc.repo.update.call_args
     update_payload = args[2] if len(args) >= 3 else kwargs.get("data", {})
     assert "persona_id" not in update_payload
+    assert update_payload.get("foto") == "https://cdn.example.com/fotos/emp999.jpg"
 
 
 def test_empleado_update_valida_fecha_salida_vs_ingreso():
