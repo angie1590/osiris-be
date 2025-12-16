@@ -250,3 +250,56 @@ def test_usuario_reset_password_not_found_404():
     with pytest.raises(HTTPException) as exc:
         service.reset_password(session, uuid4())
     assert exc.value.status_code == 404
+
+
+# -----------------------
+# Tests de verify password
+# -----------------------
+
+
+def test_usuario_verify_password_true():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+
+    user = SimpleNamespace(id=uuid4(), username="usuario1", activo=True, password_hash="HASH")
+    service.repo.get.return_value = user
+
+    with patch("osiris.modules.common.usuario.service.security.verify_password", return_value=True):
+        assert service.verify_password(session, user.id, "Secreta123") is True
+
+
+def test_usuario_verify_password_false():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+
+    user = SimpleNamespace(id=uuid4(), username="usuario1", activo=True, password_hash="HASH")
+    service.repo.get.return_value = user
+
+    with patch("osiris.modules.common.usuario.service.security.verify_password", return_value=False):
+        assert service.verify_password(session, user.id, "MalaClave") is False
+
+
+def test_usuario_verify_password_inactivo_409():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+
+    user = SimpleNamespace(id=uuid4(), username="usuario1", activo=False, password_hash="HASH")
+    service.repo.get.return_value = user
+
+    with pytest.raises(HTTPException) as exc:
+        service.verify_password(session, user.id, "Secreta123")
+    assert exc.value.status_code == 409
+
+
+def test_usuario_verify_password_not_found_404():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+    service.repo.get.return_value = None
+
+    with pytest.raises(HTTPException) as exc:
+        service.verify_password(session, uuid4(), "Secreta123")
+    assert exc.value.status_code == 404

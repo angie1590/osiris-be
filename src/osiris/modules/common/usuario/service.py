@@ -111,3 +111,12 @@ class UsuarioService(BaseService):
 
         updated = self.repo.update(session, user, data)
         return updated, temp_password
+
+    # ---------- Verify password ----------
+    def verify_password(self, session: Session, item_id: UUID, password: str) -> bool:
+        user = self.repo.get(session, item_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        if hasattr(user, "activo") and user.activo is False:
+            raise HTTPException(status_code=409, detail="Usuario inactivo")
+        return security.verify_password(password, getattr(user, "password_hash", ""))

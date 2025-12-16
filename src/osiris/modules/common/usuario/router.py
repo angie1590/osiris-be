@@ -12,6 +12,7 @@ from .models import (
     UsuarioRead,
     UsuarioResetPasswordRequest,
     UsuarioResetPasswordResponse,
+    UsuarioVerifyPasswordRequest,
 )
 from .service import UsuarioService
 from .repository import UsuarioRepository
@@ -93,4 +94,14 @@ def reset_password_usuario(
         password_temporal=temp_password,
         requiere_cambio_password=updated.requiere_cambio_password,
     )
+
+
+@router.post("/usuarios/{usuario_id}/verify-password", response_model=bool, tags=["Usuarios"])
+def verify_password_usuario(
+    usuario_id: UUID = Path(..., description="ID del usuario"),
+    payload: UsuarioVerifyPasswordRequest = Body(...),
+    session: Session = Depends(get_session),
+):
+    """Devuelve True/False si la clave coincide con el hash almacenado."""
+    return service.verify_password(session, usuario_id, payload.password)
 

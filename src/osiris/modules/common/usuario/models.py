@@ -39,3 +39,7 @@ class UsuarioResetPasswordResponse(BaseOSModel):
     username: str
     password_temporal: str
     requiere_cambio_password: bool
+
+
+class UsuarioVerifyPasswordRequest(BaseOSModel):
+    password: str = PydField(..., min_length=1, description="Clave en texto plano a verificar")
