@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import sqlmodel
+from sqlalchemy.engine.reflection import Inspector
 
 
 # revision identifiers, used by Alembic.
@@ -21,9 +21,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column('tbl_empleado', sa.Column('foto', sa.String(), nullable=True))
+    bind = op.get_bind()
+    inspector = Inspector.from_engine(bind)
+    columns = {col['name'] for col in inspector.get_columns('tbl_empleado')}
+    if 'foto' not in columns:
+        op.add_column('tbl_empleado', sa.Column('foto', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column('tbl_empleado', 'foto')
+    bind = op.get_bind()
+    inspector = Inspector.from_engine(bind)
+    columns = {col['name'] for col in inspector.get_columns('tbl_empleado')}
+    if 'foto' in columns:
+        op.drop_column('tbl_empleado', 'foto')
