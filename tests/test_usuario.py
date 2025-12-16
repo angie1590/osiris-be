@@ -197,3 +197,56 @@ def test_usuario_update_inexistente_devuelve_none():
 
     upd = UsuarioUpdate(rol_id=uuid4(), usuario_auditoria="editor")
     assert service.update(session, uuid4(), upd) is None
+
+
+# -----------------------
+# Tests de reset password
+# -----------------------
+
+
+def test_usuario_reset_password_generates_temp_and_sets_flags():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+
+    user = SimpleNamespace(id=uuid4(), username="usuario1", activo=True)
+    service.repo.get.return_value = user
+    service.repo.update.return_value = user
+
+    with patch.object(service, "_generate_temp_password", return_value="Temp123456"):
+        with patch("osiris.modules.common.usuario.service.security.hash_password", return_value="HASHED"):
+            updated, temp = service.reset_password(session, user.id, usuario_auditoria="admin")
+
+    assert temp == "Temp123456"
+    args, kwargs = service.repo.update.call_args
+    assert args[0] is session
+    assert args[1] is user
+    data = args[2]
+    assert data["password_hash"] == "HASHED"
+    assert data["requiere_cambio_password"] is True
+    assert data["usuario_auditoria"] == "admin"
+    assert updated is service.repo.update.return_value
+
+
+def test_usuario_reset_password_usuario_inactivo_409():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+
+    user = SimpleNamespace(id=uuid4(), username="usuario1", activo=False)
+    service.repo.get.return_value = user
+
+    with pytest.raises(HTTPException) as exc:
+        service.reset_password(session, user.id)
+    assert exc.value.status_code == 409
+
+
+def test_usuario_reset_password_not_found_404():
+    session = MagicMock()
+    service = UsuarioService()
+    service.repo = MagicMock()
+    service.repo.get.return_value = None
+
+    with pytest.raises(HTTPException) as exc:
+        service.reset_password(session, uuid4())
+    assert exc.value.status_code == 404

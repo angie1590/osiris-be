@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from typing import Any
+import secrets
+import string
 from fastapi import HTTPException
 from sqlmodel import Session, select
 from uuid import UUID
@@ -83,3 +85,29 @@ class UsuarioService(BaseService):
         if not security.verify_password(password, user.password_hash):
             return None
         return user
+
+    # ---------- Reset password ----------
+    @staticmethod
+    def _generate_temp_password(length: int = 12) -> str:
+        alphabet = string.ascii_letters + string.digits
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
+    def reset_password(self, session: Session, item_id: UUID, *, usuario_auditoria: str | None = None) -> tuple[Usuario, str]:
+        user = self.repo.get(session, item_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        if hasattr(user, "activo") and user.activo is False:
+            raise HTTPException(status_code=409, detail="Usuario inactivo")
+
+        temp_password = self._generate_temp_password()
+        hashed = security.hash_password(temp_password)
+
+        data: dict[str, Any] = {
+            "password_hash": hashed,
+            "requiere_cambio_password": True,
+        }
+        if usuario_auditoria:
+            data["usuario_auditoria"] = usuario_auditoria
+
+        updated = self.repo.update(session, user, data)
+        return updated, temp_password

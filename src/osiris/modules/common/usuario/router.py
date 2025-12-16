@@ -6,7 +6,13 @@ from uuid import UUID
 
 from osiris.core.db import get_session
 from osiris.domain.router import register_crud_routes
-from .models import UsuarioCreate, UsuarioUpdate, UsuarioRead
+from .models import (
+    UsuarioCreate,
+    UsuarioUpdate,
+    UsuarioRead,
+    UsuarioResetPasswordRequest,
+    UsuarioResetPasswordResponse,
+)
 from .service import UsuarioService
 from .repository import UsuarioRepository
 from osiris.modules.common.rol_modulo_permiso.service import RolModuloPermisoService
@@ -64,4 +70,27 @@ def obtener_menu_usuario(
     # Obtener menú del rol
     menu = permiso_service.obtener_menu_por_rol(session, usuario.rol_id)
     return menu
+
+
+@router.post(
+    "/usuarios/{usuario_id}/reset-password",
+    response_model=UsuarioResetPasswordResponse,
+    tags=["Usuarios"],
+)
+def reset_password_usuario(
+    usuario_id: UUID = Path(..., description="ID del usuario"),
+    payload: UsuarioResetPasswordRequest | None = Body(None),
+    session: Session = Depends(get_session),
+):
+    updated, temp_password = service.reset_password(
+        session,
+        usuario_id,
+        usuario_auditoria=payload.usuario_auditoria if payload else None,
+    )
+    return UsuarioResetPasswordResponse(
+        usuario_id=updated.id,
+        username=updated.username,
+        password_temporal=temp_password,
+        requiere_cambio_password=updated.requiere_cambio_password,
+    )
 

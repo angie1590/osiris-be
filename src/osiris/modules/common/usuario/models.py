@@ -28,3 +28,14 @@ class UsuarioRead(UsuarioBase):
     creado_en: datetime
     actualizado_en: datetime
     usuario_auditoria: Optional[str] = None
+
+
+class UsuarioResetPasswordRequest(BaseOSModel):
+    usuario_auditoria: Optional[str] = None
+
+
+class UsuarioResetPasswordResponse(BaseOSModel):
+    usuario_id: UUID
+    username: str
+    password_temporal: str
+    requiere_cambio_password: bool
