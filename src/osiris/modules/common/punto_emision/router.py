@@ -12,6 +12,8 @@ from .models import (
     PuntoEmisionRead,
     PuntoEmisionSecuencialRead,
     PuntoEmisionUpdate,
+    SiguienteSecuencialRequest,
+    SiguienteSecuencialResponse,
 )
 from .service import PuntoEmisionService
 
@@ -27,6 +29,26 @@ register_crud_routes(
     model_update=PuntoEmisionUpdate,
     service=service,
 )
+
+
+@router.post(
+    "/puntos-emision/{punto_emision_id}/secuenciales/{tipo_documento}/siguiente",
+    response_model=SiguienteSecuencialResponse,
+    tags=["Puntos de Emisión"],
+)
+def obtener_siguiente_secuencial(
+    punto_emision_id: UUID = Path(..., description="ID del punto de emisión"),
+    tipo_documento: TipoDocumentoSRI = Path(..., description="Tipo de documento SRI"),
+    payload: SiguienteSecuencialRequest = Body(default=SiguienteSecuencialRequest()),
+    session: Session = Depends(get_session),
+):
+    secuencial = service.obtener_siguiente_secuencial_formateado(
+        session,
+        punto_emision_id=punto_emision_id,
+        tipo_documento=tipo_documento,
+        usuario_auditoria=payload.usuario_auditoria,
+    )
+    return SiguienteSecuencialResponse(secuencial=secuencial)
 
 
 @router.post(

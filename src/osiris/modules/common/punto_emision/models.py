@@ -52,3 +52,11 @@ class AjusteManualSecuencialRequest(BaseModel):
     usuario_id: UUID
     justificacion: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=500)]
     nuevo_secuencial: int = Field(..., ge=1)
+
+
+class SiguienteSecuencialRequest(BaseModel):
+    usuario_auditoria: Optional[str] = None
+
+
+class SiguienteSecuencialResponse(BaseModel):
+    secuencial: str = Field(..., min_length=9, max_length=9)
