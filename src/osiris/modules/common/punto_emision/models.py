@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, Field
+from .entity import TipoDocumentoSRI
 
 Codigo3 = Annotated[str, StringConstraints(min_length=3, max_length=3)]
 
@@ -32,3 +33,30 @@ class PuntoEmisionRead(PuntoEmisionBase):
     usuario_auditoria: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PuntoEmisionSecuencialRead(BaseModel):
+    id: UUID
+    punto_emision_id: UUID
+    tipo_documento: TipoDocumentoSRI
+    secuencial_actual: int
+    usuario_auditoria: Optional[str]
+    activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AjusteManualSecuencialRequest(BaseModel):
+    usuario_id: UUID
+    justificacion: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=500)]
+    nuevo_secuencial: int = Field(..., ge=1)
+
+
+class SiguienteSecuencialRequest(BaseModel):
+    usuario_auditoria: Optional[str] = None
+
+
+class SiguienteSecuencialResponse(BaseModel):
+    secuencial: str = Field(..., min_length=9, max_length=9)

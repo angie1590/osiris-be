@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -18,6 +19,9 @@ class ProductoImpuestoRead(BaseOSModel):
     id: UUID
     producto_id: UUID
     impuesto_catalogo_id: UUID
+    codigo_impuesto_sri: str
+    codigo_porcentaje_sri: str
+    tarifa: Decimal
     activo: bool
     creado_en: datetime
     actualizado_en: datetime

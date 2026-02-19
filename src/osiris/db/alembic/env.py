@@ -13,6 +13,7 @@ from osiris.core.settings import get_settings
 from osiris.modules.sri.tipo_contribuyente import entity as tipo_contribuyente_entity
 from osiris.modules.sri.impuesto_catalogo import entity as impuesto_catalogo_entity  # noqa: F401
 from osiris.modules.common.rol import entity as rol_entity  # noqa: F401
+from osiris.modules.common.audit_log import entity as audit_log_entity  # noqa: F401
 from osiris.modules.common.empresa import entity as empresa_entity  # noqa: F401
 from osiris.modules.common.sucursal import entity as sucursal_entity  # noqa: F401
 from osiris.modules.common.punto_emision import entity as punto_emision_entity  # noqa: F401
@@ -31,6 +32,7 @@ from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa
 from osiris.modules.inventario.producto import entity as producto_entity  # noqa: F401
 from osiris.modules.inventario.categoria_atributo import entity as categoria_atributo_entity  # noqa: F401
 from osiris.modules.inventario.bodega import entity as bodega_entity  # noqa: F401
+from osiris.modules.facturacion import entity as facturacion_entity  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

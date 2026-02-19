@@ -5,10 +5,21 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
 
-from osiris.modules.common.empresa.models import EmpresaCreate, EmpresaUpdate
-from osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.empresa.models import (
+    EmpresaCreate,
+    EmpresaRegimenModoRules,
+    EmpresaUpdate,
+)
+from osiris.modules.common.empresa.entity import (
+    Empresa,
+    ModoEmisionEmpresa,
+    RegimenTributario,
+    _registrar_auditoria_regimen_modo_after_update,
+)
+from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.repository import EmpresaRepository
 from osiris.modules.common.empresa.service import EmpresaService
 
@@ -35,6 +46,8 @@ def test_empresa_create_valida_usa_validador_ruc_ok():
         )
         assert dto.ruc == "1104680138001"
         assert dto.tipo_contribuyente_id == "01"
+        assert dto.regimen == RegimenTributario.GENERAL
+        assert dto.modo_emision == ModoEmisionEmpresa.ELECTRONICO
 
 
 def test_empresa_create_ruc_invalido_lanza_validationerror():
@@ -64,6 +77,23 @@ def test_empresa_update_ruc_none_no_valida_y_es_permitido():
     assert dto.telefono == "022345678"
 
 
+def test_empresa_update_regimen_modo_invalido_lanza_http_400():
+    with pytest.raises(HTTPException) as exc:
+        EmpresaUpdate(
+            regimen=RegimenTributario.GENERAL,
+            modo_emision=ModoEmisionEmpresa.NOTA_VENTA_FISICA,
+        )
+    assert exc.value.status_code == 400
+
+
+def test_empresa_regimen_modo_rules_invalido_para_regimen_general():
+    with pytest.raises(ValidationError):
+        EmpresaRegimenModoRules(
+            regimen=RegimenTributario.GENERAL,
+            modo_emision=ModoEmisionEmpresa.NOTA_VENTA_FISICA,
+        )
+
+
 # =======================
 # Repository (Session mock)
 # =======================
@@ -80,6 +110,8 @@ def test_empresa_repository_create_desde_dict_instancia_y_persiste():
         "telefono": "022345678",
         "codigo_establecimiento": "001",
         "obligado_contabilidad": True,
+        "regimen": RegimenTributario.GENERAL,
+        "modo_emision": ModoEmisionEmpresa.ELECTRONICO,
         "tipo_contribuyente_id": "01",
         "usuario_auditoria": "tester",
         "activo": True,
@@ -105,6 +137,8 @@ def test_empresa_repository_update_parcial_no_pisa_campos_no_enviados():
         telefono=None,
         codigo_establecimiento=None,
         obligado_contabilidad=False,
+        regimen=RegimenTributario.GENERAL,
+        modo_emision=ModoEmisionEmpresa.ELECTRONICO,
         tipo_contribuyente_id="01",
         usuario_auditoria="tester",
     )
@@ -120,7 +154,16 @@ def test_empresa_repository_update_parcial_no_pisa_campos_no_enviados():
     assert updated.nombre_comercial == "Nuevo NC"    # cambia
     assert updated.telefono == "022345678"           # cambia
 
-    session.add.assert_called_once_with(db_obj)
+    add_calls = session.add.call_args_list
+    assert any(call.args and call.args[0] is db_obj for call in add_calls)
+    assert any(isinstance(call.args[0], AuditLog) for call in add_calls if call.args)
+    audit_entries = [call.args[0] for call in add_calls if call.args and isinstance(call.args[0], AuditLog)]
+    assert len(audit_entries) == 1
+    audit = audit_entries[0]
+    assert audit.estado_anterior["nombre_comercial"] is None
+    assert audit.estado_nuevo["nombre_comercial"] == "Nuevo NC"
+    assert audit.estado_anterior["regimen"] == "GENERAL"
+    assert audit.estado_nuevo["modo_emision"] == "ELECTRONICO"
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(db_obj)
 
@@ -134,6 +177,8 @@ def test_empresa_repository_delete_logico_activo_a_false():
         nombre_comercial=None,
         ruc="1104680138001",
         direccion_matriz="Dir",
+        regimen=RegimenTributario.GENERAL,
+        modo_emision=ModoEmisionEmpresa.ELECTRONICO,
         tipo_contribuyente_id="01",
         usuario_auditoria="tester",
         activo=True,
@@ -165,7 +210,16 @@ def test_empresa_service_update_not_found_devuelve_none():
 
 def test_empresa_service_update_found_llama_repo_update():
     repo = MagicMock()
-    repo.get.return_value = object()
+    repo.get.return_value = Empresa(
+        razon_social="Empresa",
+        nombre_comercial="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        regimen=RegimenTributario.GENERAL,
+        modo_emision=ModoEmisionEmpresa.ELECTRONICO,
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
     repo.update.return_value = "UPDATED"
 
     s = EmpresaService()
@@ -174,6 +228,50 @@ def test_empresa_service_update_found_llama_repo_update():
     out = s.update(MagicMock(), item_id=uuid4(), data={"razon_social": "Y"})
     assert out == "UPDATED"
     repo.update.assert_called_once()
+
+
+def test_empresa_service_update_rechaza_nota_venta_fisica_para_regimen_general():
+    repo = MagicMock()
+    repo.get.return_value = Empresa(
+        razon_social="Empresa",
+        nombre_comercial="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        regimen=RegimenTributario.GENERAL,
+        modo_emision=ModoEmisionEmpresa.ELECTRONICO,
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
+
+    s = EmpresaService()
+    s.repo = repo
+
+    with pytest.raises(HTTPException) as exc:
+        s.update(MagicMock(), item_id=uuid4(), data={"modo_emision": ModoEmisionEmpresa.NOTA_VENTA_FISICA})
+
+    assert exc.value.status_code == 400
+    repo.update.assert_not_called()
+
+
+def test_empresa_service_create_rechaza_nota_venta_fisica_para_regimen_general():
+    session = MagicMock()
+    s = EmpresaService()
+
+    with pytest.raises(HTTPException) as exc:
+        s.create(
+            session,
+            {
+                "razon_social": "Empresa",
+                "ruc": "1104680138001",
+                "direccion_matriz": "Dir",
+                "tipo_contribuyente_id": "01",
+                "usuario_auditoria": "tester",
+                "regimen": RegimenTributario.GENERAL,
+                "modo_emision": ModoEmisionEmpresa.NOTA_VENTA_FISICA,
+            },
+        )
+
+    assert exc.value.status_code == 400
 
 
 def test_empresa_service_list_paginated_retorna_items_y_meta():
@@ -208,6 +306,8 @@ def test_empresa_create_con_logo_opcional():
             usuario_auditoria="tester",
         )
         assert dto_sin_logo.logo is None
+        assert dto_sin_logo.regimen == RegimenTributario.GENERAL
+        assert dto_sin_logo.modo_emision == ModoEmisionEmpresa.ELECTRONICO
 
         # Con logo (URL o path)
         dto_con_logo = EmpresaCreate(
@@ -233,6 +333,8 @@ def test_empresa_update_puede_actualizar_logo():
         nombre_comercial="Test SA",
         ruc="1104680138001",
         direccion_matriz="Dir Test",
+        regimen=RegimenTributario.GENERAL,
+        modo_emision=ModoEmisionEmpresa.ELECTRONICO,
         tipo_contribuyente_id="01",
         usuario_auditoria="tester",
         logo=None,  # Sin logo inicialmente
@@ -245,6 +347,72 @@ def test_empresa_update_puede_actualizar_logo():
     assert updated.logo == "https://nuevo-logo.com/logo.jpg"
     assert updated.razon_social == "Empresa Test"  # otros campos se mantienen
 
-    session.add.assert_called_once_with(db_obj)
+    add_calls = session.add.call_args_list
+    assert any(call.args and call.args[0] is db_obj for call in add_calls)
+    assert any(isinstance(call.args[0], AuditLog) for call in add_calls if call.args)
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(db_obj)
+
+
+def test_empresa_after_update_listener_registra_before_after_json():
+    connection = MagicMock()
+    target = Empresa(
+        razon_social="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
+
+    history_changed = MagicMock()
+    history_changed.deleted = [RegimenTributario.GENERAL]
+    history_changed.added = [RegimenTributario.RIMPE_NEGOCIO_POPULAR]
+    history_changed.has_changes.return_value = True
+
+    history_same = MagicMock()
+    history_same.deleted = []
+    history_same.added = []
+    history_same.has_changes.return_value = False
+
+    state = MagicMock()
+    state.attrs = {
+        "regimen": MagicMock(history=history_changed),
+        "modo_emision": MagicMock(history=history_same),
+    }
+
+    with patch("osiris.modules.common.empresa.entity.sa_inspect", return_value=state):
+        _registrar_auditoria_regimen_modo_after_update(MagicMock(), connection, target)
+
+    connection.execute.assert_called_once()
+    payload = connection.execute.call_args.args[0].compile().params
+    assert payload["before_json"]["regimen"] == "GENERAL"
+    assert payload["after_json"]["regimen"] == "RIMPE_NEGOCIO_POPULAR"
+    assert payload["before_json"]["modo_emision"] == "ELECTRONICO"
+    assert payload["after_json"]["modo_emision"] == "ELECTRONICO"
+
+
+def test_empresa_after_update_listener_no_registra_si_no_hay_cambio():
+    connection = MagicMock()
+    target = Empresa(
+        razon_social="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
+
+    history_same = MagicMock()
+    history_same.deleted = []
+    history_same.added = []
+    history_same.has_changes.return_value = False
+
+    state = MagicMock()
+    state.attrs = {
+        "regimen": MagicMock(history=history_same),
+        "modo_emision": MagicMock(history=history_same),
+    }
+
+    with patch("osiris.modules.common.empresa.entity.sa_inspect", return_value=state):
+        _registrar_auditoria_regimen_modo_after_update(MagicMock(), connection, target)
+
+    connection.execute.assert_not_called()

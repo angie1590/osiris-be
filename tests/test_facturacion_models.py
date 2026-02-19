@@ -1,0 +1,196 @@
+from __future__ import annotations
+
+from decimal import Decimal
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from osiris.modules.common.empresa.entity import RegimenTributario
+from osiris.modules.facturacion.models import (
+    CompraCreate,
+    ImpuestoAplicadoInput,
+    VentaCompraDetalleCreate,
+    VentaCreate,
+)
+
+
+def _iva12() -> ImpuestoAplicadoInput:
+    return ImpuestoAplicadoInput(
+        tipo_impuesto="IVA",
+        codigo_impuesto_sri="2",
+        codigo_porcentaje_sri="2",
+        tarifa=Decimal("12"),
+    )
+
+
+def _iva15() -> ImpuestoAplicadoInput:
+    return ImpuestoAplicadoInput(
+        tipo_impuesto="IVA",
+        codigo_impuesto_sri="2",
+        codigo_porcentaje_sri="4",
+        tarifa=Decimal("15"),
+    )
+
+
+def _iva0() -> ImpuestoAplicadoInput:
+    return ImpuestoAplicadoInput(
+        tipo_impuesto="IVA",
+        codigo_impuesto_sri="2",
+        codigo_porcentaje_sri="0",
+        tarifa=Decimal("0"),
+    )
+
+
+def _ice5() -> ImpuestoAplicadoInput:
+    return ImpuestoAplicadoInput(
+        tipo_impuesto="ICE",
+        codigo_impuesto_sri="3",
+        codigo_porcentaje_sri="305",
+        tarifa=Decimal("5"),
+    )
+
+
+def test_venta_create_calcula_totales_e_impuestos_al_centavo():
+    venta = VentaCreate(
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="A",
+                cantidad=Decimal("2"),
+                precio_unitario=Decimal("10"),
+                impuestos=[_iva12()],
+            ),
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="B",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("100"),
+                descuento=Decimal("10"),
+                impuestos=[_iva15(), _ice5()],
+            ),
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="C",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("50"),
+                impuestos=[_iva0()],
+            ),
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="D",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("30"),
+                impuestos=[],
+            ),
+        ],
+    )
+
+    assert venta.subtotal_sin_impuestos == Decimal("190.00")
+    assert venta.subtotal_12 == Decimal("20.00")
+    assert venta.subtotal_15 == Decimal("90.00")
+    assert venta.subtotal_0 == Decimal("50.00")
+    assert venta.subtotal_no_objeto == Decimal("30.00")
+    assert venta.monto_iva == Decimal("16.58")
+    assert venta.monto_ice == Decimal("4.50")
+    assert venta.valor_total == Decimal("211.08")
+
+
+def test_compra_create_calcula_totales_redondeados():
+    compra = CompraCreate(
+        tipo_identificacion_proveedor="RUC",
+        identificacion_proveedor="1790099988001",
+        forma_pago="TRANSFERENCIA",
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="INSUMO",
+                cantidad=Decimal("3"),
+                precio_unitario=Decimal("0.99"),
+                impuestos=[_iva12()],
+            ),
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="SERVICIO",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("10"),
+                impuestos=[],
+            ),
+        ],
+    )
+
+    # base1 = 2.97, iva = 0.3564 -> 0.36
+    assert compra.subtotal_sin_impuestos == Decimal("12.97")
+    assert compra.subtotal_12 == Decimal("2.97")
+    assert compra.subtotal_no_objeto == Decimal("10.00")
+    assert compra.monto_iva == Decimal("0.36")
+    assert compra.monto_ice == Decimal("0.00")
+    assert compra.valor_total == Decimal("13.33")
+
+
+def test_iva_calcula_base_imponible_sobre_subtotal_mas_ice():
+    detalle = VentaCompraDetalleCreate(
+        producto_id=uuid4(),
+        descripcion="Detalle con ICE",
+        cantidad=Decimal("1"),
+        precio_unitario=Decimal("100.00"),
+        descuento=Decimal("0.00"),
+        impuestos=[_iva12(), _ice5()],
+    )
+    iva = next(i for i in detalle.impuestos if i.tipo_impuesto == "IVA")
+
+    assert detalle.monto_ice_detalle() == Decimal("5.00")
+    assert detalle.base_imponible_impuesto(iva) == Decimal("105.00")
+    assert detalle.valor_impuesto(iva) == Decimal("12.60")
+
+
+def test_venta_rimpe_negocio_popular_rechaza_iva_mayor_a_cero_en_actividad_incluyente():
+    with pytest.raises(ValidationError) as exc:
+        VentaCreate(
+            tipo_identificacion_comprador="RUC",
+            identificacion_comprador="1790012345001",
+            forma_pago="EFECTIVO",
+            regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+            usuario_auditoria="tester",
+            detalles=[
+                VentaCompraDetalleCreate(
+                    producto_id=uuid4(),
+                    descripcion="Servicio normal",
+                    cantidad=Decimal("1"),
+                    precio_unitario=Decimal("10.00"),
+                    es_actividad_excluida=False,
+                    impuestos=[_iva12()],
+                )
+            ],
+        )
+
+    assert (
+        "Los Negocios Populares solo pueden facturar con tarifa 0% de IVA para sus actividades incluyentes"
+        in str(exc.value)
+    )
+
+
+def test_venta_rimpe_negocio_popular_permite_iva_si_actividad_excluida():
+    venta = VentaCreate(
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Actividad excluida",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("10.00"),
+                es_actividad_excluida=True,
+                impuestos=[_iva12()],
+            )
+        ],
+    )
+    assert venta.monto_iva == Decimal("1.20")

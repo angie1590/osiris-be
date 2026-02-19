@@ -242,3 +242,49 @@ def test_service_eliminar_ice_ok():
     result = service.eliminar_impuesto(session, producto_impuesto_id)
     assert result is True
     service.repo.delete_by_id.assert_called_once_with(session, producto_impuesto_id)
+
+
+def test_service_asignar_impuesto_guarda_codigos_sri_y_tarifa_snapshot():
+    service = ProductoImpuestoService()
+    session = MagicMock()
+
+    producto_id = uuid4()
+    impuesto_id = uuid4()
+    producto = Producto(
+        id=producto_id,
+        nombre="Producto Test",
+        tipo=TipoProducto.BIEN,
+        pvp=100.0,
+        activo=True,
+        usuario_auditoria="test_user",
+    )
+    impuesto = ImpuestoCatalogo(
+        id=impuesto_id,
+        tipo_impuesto=TipoImpuesto.IVA,
+        codigo_tipo_impuesto="2",
+        codigo_sri="4",
+        descripcion="IVA 15%",
+        vigente_desde=date.today() - timedelta(days=10),
+        aplica_a=AplicaA.AMBOS,
+        porcentaje_iva=15,
+        activo=True,
+        usuario_auditoria="test",
+    )
+
+    def mock_get(model, obj_id):
+        if model is Producto and obj_id == producto_id:
+            return producto
+        if model is ImpuestoCatalogo and obj_id == impuesto_id:
+            return impuesto
+        return None
+
+    session.get = mock_get
+    service.repo.validar_duplicado = MagicMock()
+    service.list_by_producto = MagicMock(return_value=[])
+    service.impuesto_repo.es_vigente = MagicMock(return_value=True)
+    service.repo.create = MagicMock(side_effect=lambda _session, obj: obj)
+
+    result = service.asignar_impuesto(session, producto_id, impuesto_id, "tester")
+    assert result.codigo_impuesto_sri == "2"
+    assert result.codigo_porcentaje_sri == "4"
+    assert str(result.tarifa) == "15"
