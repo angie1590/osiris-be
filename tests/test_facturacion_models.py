@@ -91,9 +91,9 @@ def test_venta_create_calcula_totales_e_impuestos_al_centavo():
     assert venta.subtotal_15 == Decimal("90.00")
     assert venta.subtotal_0 == Decimal("50.00")
     assert venta.subtotal_no_objeto == Decimal("30.00")
-    assert venta.monto_iva == Decimal("15.90")
+    assert venta.monto_iva == Decimal("16.58")
     assert venta.monto_ice == Decimal("4.50")
-    assert venta.valor_total == Decimal("210.40")
+    assert venta.valor_total == Decimal("211.08")
 
 
 def test_compra_create_calcula_totales_redondeados():
@@ -127,3 +127,19 @@ def test_compra_create_calcula_totales_redondeados():
     assert compra.monto_iva == Decimal("0.36")
     assert compra.monto_ice == Decimal("0.00")
     assert compra.valor_total == Decimal("13.33")
+
+
+def test_iva_calcula_base_imponible_sobre_subtotal_mas_ice():
+    detalle = VentaCompraDetalleCreate(
+        producto_id=uuid4(),
+        descripcion="Detalle con ICE",
+        cantidad=Decimal("1"),
+        precio_unitario=Decimal("100.00"),
+        descuento=Decimal("0.00"),
+        impuestos=[_iva12(), _ice5()],
+    )
+    iva = next(i for i in detalle.impuestos if i.tipo_impuesto == "IVA")
+
+    assert detalle.monto_ice_detalle() == Decimal("5.00")
+    assert detalle.base_imponible_impuesto(iva) == Decimal("105.00")
+    assert detalle.valor_impuesto(iva) == Decimal("12.60")

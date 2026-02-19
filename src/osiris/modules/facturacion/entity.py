@@ -61,7 +61,7 @@ class VentaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     subtotal_sin_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
 
 
-class VentaDetalleImpuestoSnapshot(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+class VentaDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_venta_detalle_impuesto"
 
     venta_detalle_id: UUID = Field(foreign_key="tbl_venta_detalle.id", nullable=False, index=True)
@@ -72,6 +72,10 @@ class VentaDetalleImpuestoSnapshot(BaseTable, AuditMixin, SoftDeleteMixin, table
     tarifa: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
     base_imponible: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     valor_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+# Alias de compatibilidad para referencias existentes.
+VentaDetalleImpuestoSnapshot = VentaDetalleImpuesto
 
 
 class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -107,7 +111,7 @@ class CompraDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     subtotal_sin_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
 
 
-class CompraDetalleImpuestoSnapshot(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+class CompraDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_compra_detalle_impuesto"
 
     compra_detalle_id: UUID = Field(foreign_key="tbl_compra_detalle.id", nullable=False, index=True)
@@ -118,3 +122,7 @@ class CompraDetalleImpuestoSnapshot(BaseTable, AuditMixin, SoftDeleteMixin, tabl
     tarifa: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
     base_imponible: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     valor_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+# Alias de compatibilidad para referencias existentes.
+CompraDetalleImpuestoSnapshot = CompraDetalleImpuesto

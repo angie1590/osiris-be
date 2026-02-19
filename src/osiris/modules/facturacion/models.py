@@ -21,7 +21,7 @@ IVA_0_CODES = {"0"}
 IVA_NO_OBJETO_CODES = {"6"}
 
 
-def q2(value: Decimal | int | float | str) -> Decimal:
+def q2(value: Decimal | int | str) -> Decimal:
     return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
@@ -67,8 +67,22 @@ class VentaCompraDetalleCreate(BaseModel):
         bruto = Decimal(str(self.cantidad)) * Decimal(str(self.precio_unitario))
         return q2(bruto - self.descuento)
 
+    def monto_ice_detalle(self) -> Decimal:
+        total = Decimal("0.00")
+        for ice in self.ice_impuestos():
+            total += self.valor_impuesto(ice)
+        return q2(total)
+
+    def base_imponible_impuesto(self, impuesto: ImpuestoAplicadoInput) -> Decimal:
+        base = self.subtotal_sin_impuesto
+        if impuesto.tipo_impuesto == TipoImpuestoMVP.IVA:
+            # Regla FE-EC: IVA se calcula sobre subtotal neto + ICE del detalle.
+            base = q2(base + self.monto_ice_detalle())
+        return q2(base)
+
     def valor_impuesto(self, impuesto: ImpuestoAplicadoInput) -> Decimal:
-        return q2(self.subtotal_sin_impuesto * impuesto.tarifa / Decimal("100"))
+        base = self.base_imponible_impuesto(impuesto)
+        return q2(base * impuesto.tarifa / Decimal("100"))
 
     def iva_impuesto(self) -> Optional[ImpuestoAplicadoInput]:
         for impuesto in self.impuestos:
@@ -246,7 +260,7 @@ class CompraRegistroCreate(BaseModel):
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
 
 
-class VentaDetalleImpuestoSnapshotRead(BaseModel):
+class VentaDetalleImpuestoRead(BaseModel):
     tipo_impuesto: TipoImpuestoMVP
     codigo_impuesto_sri: str
     codigo_porcentaje_sri: str
@@ -262,7 +276,7 @@ class VentaDetalleRead(BaseModel):
     precio_unitario: Decimal
     descuento: Decimal
     subtotal_sin_impuesto: Decimal
-    impuestos: list[VentaDetalleImpuestoSnapshotRead]
+    impuestos: list[VentaDetalleImpuestoRead]
 
 
 class VentaRead(BaseModel):
@@ -286,3 +300,7 @@ class VentaRead(BaseModel):
     actualizado_en: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Alias de compatibilidad para referencias existentes en tests y módulos.
+VentaDetalleImpuestoSnapshotRead = VentaDetalleImpuestoRead

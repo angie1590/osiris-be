@@ -3,12 +3,12 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from osiris.modules.facturacion.entity import Venta, VentaDetalle, VentaDetalleImpuestoSnapshot
+from osiris.modules.facturacion.entity import Venta, VentaDetalle, VentaDetalleImpuesto
 from osiris.modules.facturacion.models import (
     ImpuestoAplicadoInput,
     VentaCompraDetalleCreate,
     VentaCreate,
-    VentaDetalleImpuestoSnapshotRead,
+    VentaDetalleImpuestoRead,
     VentaDetalleRead,
     VentaRead,
     VentaRegistroCreate,
@@ -121,13 +121,13 @@ class VentaService:
             session.flush()
 
             for impuesto in detalle.impuestos:
-                snapshot = VentaDetalleImpuestoSnapshot(
+                snapshot = VentaDetalleImpuesto(
                     venta_detalle_id=detalle_db.id,
                     tipo_impuesto=impuesto.tipo_impuesto,
                     codigo_impuesto_sri=impuesto.codigo_impuesto_sri,
                     codigo_porcentaje_sri=impuesto.codigo_porcentaje_sri,
                     tarifa=impuesto.tarifa,
-                    base_imponible=detalle.subtotal_sin_impuesto,
+                    base_imponible=detalle.base_imponible_impuesto(impuesto),
                     valor_impuesto=detalle.valor_impuesto(impuesto),
                     usuario_auditoria=payload.usuario_auditoria,
                 )
@@ -154,13 +154,13 @@ class VentaService:
 
         detalles_read: list[VentaDetalleRead] = []
         for detalle in detalles_db:
-            stmt_impuestos = select(VentaDetalleImpuestoSnapshot).where(
-                VentaDetalleImpuestoSnapshot.venta_detalle_id == detalle.id,
-                VentaDetalleImpuestoSnapshot.activo.is_(True),
+            stmt_impuestos = select(VentaDetalleImpuesto).where(
+                VentaDetalleImpuesto.venta_detalle_id == detalle.id,
+                VentaDetalleImpuesto.activo.is_(True),
             )
             impuestos_db = list(session.exec(stmt_impuestos).all())
             impuestos_read = [
-                VentaDetalleImpuestoSnapshotRead(
+                VentaDetalleImpuestoRead(
                     tipo_impuesto=imp.tipo_impuesto,
                     codigo_impuesto_sri=imp.codigo_impuesto_sri,
                     codigo_porcentaje_sri=imp.codigo_porcentaje_sri,
