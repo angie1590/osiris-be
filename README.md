@@ -80,6 +80,8 @@ FEEC_P12_PATH=conf/firma.p12
 FEEC_P12_PASSWORD=clave123
 FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd
 FEEC_AMBIENTE=pruebas
+FEEC_TIPO_EMISION=1
+FEEC_REGIMEN=GENERAL
 
 # Configuraciones adicionales
 SQL_ECHO=true

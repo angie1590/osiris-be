@@ -25,7 +25,7 @@ class _Diag:
         self.table_name = table_name
 
 class _PGOrig:
-    """Simula psycopg2 error con pgcode y diag.*"""
+    """Simula error PostgreSQL con pgcode y diag.*"""
     def __init__(self, pgcode, constraint=None, column=None, table=None, text=""):
         self.pgcode = pgcode
         self.diag = _Diag(constraint, column, table)

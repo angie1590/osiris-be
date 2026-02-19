@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     FEEC_P12_PASSWORD: str
     FEEC_XSD_PATH: Path
     FEEC_AMBIENTE: str = Field(default="pruebas")  # pruebas | produccion
+    FEEC_TIPO_EMISION: str
+    FEEC_REGIMEN: str
 
     # DB
     DATABASE_URL: str
@@ -43,6 +45,28 @@ class Settings(BaseSettings):
         if value not in {"pruebas", "produccion"}:
             raise ValueError("FEEC_AMBIENTE debe ser 'pruebas' o 'produccion'")
         return value
+
+    @field_validator("FEEC_TIPO_EMISION")
+    @classmethod
+    def _check_tipo_emision(cls, value: str) -> str:
+        if value not in {"1", "2"}:
+            raise ValueError("FEEC_TIPO_EMISION debe ser '1' (normal) o '2' (contingencia)")
+        return value
+
+    @field_validator("FEEC_REGIMEN")
+    @classmethod
+    def _check_regimen(cls, value: str) -> str:
+        allowed = {
+            "GENERAL",
+            "CONTRIBUYENTE_ESPECIAL",
+            "RIMPE_EMPRENDEDOR",
+            "RIMPE_NEGOCIO_POPULAR",
+        }
+        normalized = value.strip().upper()
+        if normalized not in allowed:
+            allowed_values = ", ".join(sorted(allowed))
+            raise ValueError(f"FEEC_REGIMEN invalido. Valores permitidos: {allowed_values}")
+        return normalized
 
     @field_validator("FEEC_P12_PATH", "FEEC_XSD_PATH")
     @classmethod
@@ -91,7 +115,12 @@ def load_settings() -> Settings:
         lines = [f"Error de configuracion ({env_file.name}):"]
         for err in exc.errors():
             field = ".".join(str(part) for part in err["loc"])
-            lines.append(f" - {field}: {err['msg']}")
+            if err.get("type") == "missing":
+                lines.append(
+                    f" - {field}: Variable requerida no definida en {env_file.name} ni entorno."
+                )
+            else:
+                lines.append(f" - {field}: {err['msg']}")
         raise RuntimeError("\n".join(lines)) from exc
 
 

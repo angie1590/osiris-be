@@ -197,7 +197,9 @@ def check_env_file():
             "FEEC_P12_PATH",
             "FEEC_P12_PASSWORD",
             "FEEC_XSD_PATH",
-            "FEEC_AMBIENTE"
+            "FEEC_AMBIENTE",
+            "FEEC_TIPO_EMISION",
+            "FEEC_REGIMEN",
         ]
 
         with open(env_file, 'r') as f:

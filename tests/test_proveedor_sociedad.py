@@ -68,7 +68,7 @@ def _mk_session_for_fk(*, persona_exists=True, tc_exists=True, tc_nombre="socied
 
 def _mk_integrity_error(pgcode: str, constraint: str | None = None):
     """
-    Crea un IntegrityError como el que dispara psycopg2 (para mapear a 409).
+    Crea un IntegrityError de PostgreSQL para mapearlo a 409.
     """
     orig = MagicMock()
     orig.pgcode = pgcode

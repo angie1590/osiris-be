@@ -1,5 +1,8 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from osiris.core.settings import get_settings
 from osiris.core.errors import NotFoundError
 from osiris.modules.common.rol.router import router as rol_router
 from osiris.modules.common.empresa.router import router as empresa_router
@@ -23,12 +26,21 @@ from osiris.modules.inventario.producto.router import router as producto_router
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
 from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catalogo_router
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Fuerza validacion de settings al arranque para fail-fast con mensaje claro.
+    get_settings()
+    yield
+
+
 app = FastAPI(
     title="Osiris API",
     description="API para la gestión tributaria y empresarial.",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 @app.exception_handler(NotFoundError)

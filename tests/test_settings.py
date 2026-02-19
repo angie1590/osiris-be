@@ -34,6 +34,8 @@ def test_load_settings_uses_single_source_and_resolves_relative_cert_paths(
                 "FEEC_P12_PASSWORD=clave",
                 "FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd",
                 "FEEC_AMBIENTE=pruebas",
+                "FEEC_TIPO_EMISION=1",
+                "FEEC_REGIMEN=GENERAL",
             ]
         ),
     )
@@ -72,6 +74,8 @@ def test_load_settings_fails_fast_with_clear_message_when_env_var_is_missing(
                 "FEEC_P12_PASSWORD=clave",
                 "FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd",
                 "FEEC_AMBIENTE=pruebas",
+                "FEEC_TIPO_EMISION=1",
+                "FEEC_REGIMEN=GENERAL",
             ]
         ),
     )
@@ -86,7 +90,7 @@ def test_load_settings_fails_fast_with_clear_message_when_env_var_is_missing(
     message = str(exc_info.value)
     assert "Error de configuracion (.env.e0_missing):" in message
     assert "DATABASE_URL" in message
-    assert "Field required" in message
+    assert "Variable requerida no definida" in message
 
 
 def test_load_settings_allows_os_environment_override(
@@ -114,6 +118,8 @@ def test_load_settings_allows_os_environment_override(
                 "FEEC_P12_PASSWORD=clave",
                 "FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd",
                 "FEEC_AMBIENTE=pruebas",
+                "FEEC_TIPO_EMISION=1",
+                "FEEC_REGIMEN=GENERAL",
             ]
         ),
     )
@@ -156,6 +162,8 @@ def test_load_settings_normalizes_legacy_postgres_driver_prefixes(
                 "FEEC_P12_PASSWORD=clave",
                 "FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd",
                 "FEEC_AMBIENTE=pruebas",
+                "FEEC_TIPO_EMISION=1",
+                "FEEC_REGIMEN=GENERAL",
             ]
         ),
     )
@@ -169,3 +177,44 @@ def test_load_settings_normalizes_legacy_postgres_driver_prefixes(
 
     assert loaded.DATABASE_URL == "postgresql+psycopg://from_file:pass@localhost/file_db"
     assert loaded.DB_URL_ALEMBIC == "postgresql+psycopg://from_file:pass@localhost/alembic_db"
+
+
+def test_load_settings_fails_fast_when_feec_tipo_emision_or_regimen_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cert_path = tmp_path / "conf" / "firma.p12"
+    xsd_path = tmp_path / "conf" / "sri_docs" / "factura_V1_1.xsd"
+    cert_path.parent.mkdir(parents=True, exist_ok=True)
+    xsd_path.parent.mkdir(parents=True, exist_ok=True)
+    cert_path.write_text("dummy", encoding="utf-8")
+    xsd_path.write_text("dummy", encoding="utf-8")
+
+    env_file = tmp_path / ".env.e0_feec_missing"
+    _write_env_file(
+        env_file,
+        "\n".join(
+            [
+                "ENVIRONMENT=e0_feec_missing",
+                "POSTGRES_USER=postgres",
+                "POSTGRES_PASSWORD=postgres",
+                "POSTGRES_DB=osiris",
+                "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+                "FEEC_P12_PATH=conf/firma.p12",
+                "FEEC_P12_PASSWORD=clave",
+                "FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd",
+                "FEEC_AMBIENTE=pruebas",
+            ]
+        ),
+    )
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e0_feec_missing")
+
+    with pytest.raises(RuntimeError) as exc_info:
+        core_settings.load_settings()
+
+    message = str(exc_info.value)
+    assert "FEEC_TIPO_EMISION" in message
+    assert "FEEC_REGIMEN" in message
+    assert "Variable requerida no definida" in message
