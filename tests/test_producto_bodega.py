@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 from osiris.modules.inventario.producto_bodega.service import ProductoBodegaService
-from osiris.modules.inventario.producto.entity import ProductoBodega
+from osiris.modules.inventario.producto.entity import ProductoBodega, Producto, TipoProducto
 
 
 def test_producto_bodega_service_create_ok():
@@ -186,6 +186,49 @@ def test_producto_bodega_update_cantidad_actualiza_si_existe():
     assert existing.cantidad == nueva_cantidad
     session.add.assert_called()
     session.commit.assert_called_once()
+
+
+def test_producto_servicio_no_puede_tener_stock_en_create():
+    session = MagicMock()
+    service = ProductoBodegaService()
+
+    # No existe relación previa
+    exec_mock = MagicMock()
+    exec_mock.first.return_value = None
+    session.exec.return_value = exec_mock
+
+    # Producto tipo SERVICIO
+    prod = Producto(nombre="Servicio X")
+    prod.id = uuid4()
+    prod.tipo = TipoProducto.SERVICIO
+    session.get.return_value = prod
+
+    data = {
+        "producto_id": prod.id,
+        "bodega_id": uuid4(),
+        "cantidad": 5,
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        service.create(session, data)
+    assert exc.value.status_code == 400
+    assert "servicios no pueden tener stock" in exc.value.detail.lower()
+
+
+def test_producto_servicio_no_puede_tener_stock_en_update():
+    session = MagicMock()
+    service = ProductoBodegaService()
+
+    # Producto tipo SERVICIO
+    prod = Producto(nombre="Servicio Y")
+    prod.id = uuid4()
+    prod.tipo = TipoProducto.SERVICIO
+    session.get.return_value = prod
+
+    with pytest.raises(HTTPException) as exc:
+        service.update_cantidad(session, prod.id, uuid4(), 3)
+    assert exc.value.status_code == 400
+    assert "servicios no pueden tener stock" in exc.value.detail.lower()
 
 
 def test_producto_bodega_get_bodegas_by_producto():

@@ -27,6 +27,7 @@ class ProductoBodegaService(BaseService):
         """
         producto_id = data.get("producto_id")
         bodega_id = data.get("bodega_id")
+        cantidad = data.get("cantidad", 0)
 
         # Validar si ya existe la relación
         existing = session.exec(
@@ -41,6 +42,18 @@ class ProductoBodegaService(BaseService):
                 detail=f"El producto ya está asignado a la bodega especificada."
             )
 
+        # Regla de negocio: Productos de tipo SERVICIO no pueden tener stock (> 0) ni asignaciones a bodegas con cantidad positiva
+        producto = session.get(Producto, producto_id)
+        if producto and getattr(producto, "tipo", None) == getattr(Producto, "tipo").enum.SERVICIO if hasattr(getattr(Producto, "tipo"), "enum") else None:
+            # Si el enum no está accesible vía .enum, comparar por string
+            tipo_val = str(producto.tipo)
+            if tipo_val == "SERVICIO" and cantidad and cantidad > 0:
+                raise HTTPException(status_code=400, detail="Los servicios no pueden tener stock en bodegas.")
+
+        # Alternativamente, si el producto existe y es SERVICIO, forzar cantidad = 0
+        if producto and str(producto.tipo) == "SERVICIO":
+            data["cantidad"] = 0
+
         return super().create(session, data)
 
     def update_cantidad(self, session: Session, producto_id: UUID, bodega_id: UUID, cantidad: int):
@@ -48,6 +61,11 @@ class ProductoBodegaService(BaseService):
         Actualiza la cantidad de un producto en una bodega específica.
         Si no existe la relación, la crea.
         """
+        # Regla de negocio: Productos de tipo SERVICIO no pueden tener stock (> 0)
+        producto = session.get(Producto, producto_id)
+        if producto and str(producto.tipo) == "SERVICIO" and cantidad > 0:
+            raise HTTPException(status_code=400, detail="Los servicios no pueden tener stock.")
+
         relacion = session.exec(
             select(ProductoBodega)
             .where(ProductoBodega.producto_id == producto_id)
