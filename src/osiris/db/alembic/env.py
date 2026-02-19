@@ -7,8 +7,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlmodel import SQLModel
 
-# Usa la misma configuración que la app
-from osiris.core.db import get_settings
+from osiris.core.settings import get_settings
 
 # IMPORTA tus modelos para que Alembic detecte las tablas
 from osiris.modules.sri.tipo_contribuyente import entity as tipo_contribuyente_entity
@@ -29,33 +28,30 @@ from osiris.modules.common.rol_modulo_permiso import entity as rol_modulo_permis
 from osiris.modules.inventario.categoria import entity as categoria_entity  # noqa: F401
 from osiris.modules.inventario.casa_comercial import entity as casa_comercial_entity  # noqa: F401
 from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa: F401
-# tipo_producto eliminado: ya no se importa en autogenerate
 from osiris.modules.inventario.producto import entity as producto_entity  # noqa: F401
 from osiris.modules.inventario.categoria_atributo import entity as categoria_atributo_entity  # noqa: F401
 from osiris.modules.inventario.bodega import entity as bodega_entity  # noqa: F401
 
-
-# Config Alembic y logging
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Metadata global para autogenerate
 target_metadata = SQLModel.metadata
 
 
 def _get_database_url() -> str:
     """
     Prioridad:
-    1) DB_URL_ALEMBIC (útil en CI/CD)
-    2) settings.DATABASE_URL (si está definida en .env)
-    3) settings.build_url() con variables POSTGRES_*
+    1) DB_URL_ALEMBIC desde variable de entorno
+    2) DB_URL_ALEMBIC desde settings
+    3) DATABASE_URL desde settings
     """
     override = os.getenv("DB_URL_ALEMBIC")
     if override:
         return override
+
     settings = get_settings()
-    return settings.DATABASE_URL or settings.build_url()
+    return settings.DB_URL_ALEMBIC or settings.DATABASE_URL
 
 
 def run_migrations_offline() -> None:
@@ -77,13 +73,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Modo online: con Engine y conexión activa."""
+    """Modo online: con Engine y conexion activa."""
     url = _get_database_url()
     config.set_main_option("sqlalchemy.url", url)
 
     connectable = create_engine(
         url,
-        poolclass=pool.NullPool,  # Alembic maneja la conexión
+        poolclass=pool.NullPool,
         future=True,
     )
 

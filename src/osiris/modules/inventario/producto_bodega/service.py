@@ -20,6 +20,18 @@ class ProductoBodegaService(BaseService):
         "bodega_id": Bodega,
     }
 
+    @staticmethod
+    def _is_service_product(producto: Producto | None) -> bool:
+        if producto is None:
+            return False
+
+        tipo = getattr(producto, "tipo", None)
+        if tipo is None:
+            return False
+
+        # Soporta enums (TipoProducto.SERVICIO) y strings ("SERVICIO")
+        return getattr(tipo, "value", tipo) == "SERVICIO"
+
     def create(self, session: Session, data):
         """
         Crea una relación producto-bodega.
@@ -44,14 +56,14 @@ class ProductoBodegaService(BaseService):
 
         # Regla de negocio: Productos de tipo SERVICIO no pueden tener stock (> 0) ni asignaciones a bodegas con cantidad positiva
         producto = session.get(Producto, producto_id)
-        if producto and getattr(producto, "tipo", None) == getattr(Producto, "tipo").enum.SERVICIO if hasattr(getattr(Producto, "tipo"), "enum") else None:
-            # Si el enum no está accesible vía .enum, comparar por string
-            tipo_val = str(producto.tipo)
-            if tipo_val == "SERVICIO" and cantidad and cantidad > 0:
-                raise HTTPException(status_code=400, detail="Los servicios no pueden tener stock en bodegas.")
+        if self._is_service_product(producto) and cantidad > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Los servicios no pueden tener stock en bodegas.",
+            )
 
         # Alternativamente, si el producto existe y es SERVICIO, forzar cantidad = 0
-        if producto and str(producto.tipo) == "SERVICIO":
+        if self._is_service_product(producto):
             data["cantidad"] = 0
 
         return super().create(session, data)
@@ -63,7 +75,7 @@ class ProductoBodegaService(BaseService):
         """
         # Regla de negocio: Productos de tipo SERVICIO no pueden tener stock (> 0)
         producto = session.get(Producto, producto_id)
-        if producto and str(producto.tipo) == "SERVICIO" and cantidad > 0:
+        if self._is_service_product(producto) and cantidad > 0:
             raise HTTPException(status_code=400, detail="Los servicios no pueden tener stock.")
 
         relacion = session.exec(

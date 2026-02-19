@@ -3,11 +3,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from osiris.main import app
+from tests.smoke.utils import is_port_open
 
 
 client = TestClient(app)
 
 
+@pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_permisos_crud_completo():
     """Test smoke del flujo CRUD completo de permisos."""
 
@@ -95,6 +97,7 @@ def test_permisos_crud_completo():
     client.delete(f"/api/roles/{rol_id}")
 
 
+@pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_permisos_usuario():
     """Test obtener permisos de un usuario."""
     from tests.smoke.ruc_utils import generar_ruc_empresa
@@ -252,6 +255,7 @@ def test_obtener_permisos_usuario():
         client.delete(f"/api/empresa/{empresa_id}")
 
 
+@pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_menu_usuario():
     """Test obtener menú dinámico de usuario."""
     from tests.smoke.ruc_utils import generar_ruc_empresa

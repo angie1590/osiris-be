@@ -1,31 +1,26 @@
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-import os
-from dotenv import load_dotenv
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Cargar variables de entorno desde el archivo correspondiente
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-DOTENV_PATH = f".env.{ENVIRONMENT}"
-load_dotenv(DOTENV_PATH)
+from osiris.core.settings import get_settings
 
-# Obtener URL de la base de datos
-DATABASE_URL = os.getenv("DATABASE_URL")
+settings = get_settings()
 
-# Crear el engine asincrónico
-engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+# Motor async unificado con la misma fuente de configuracion.
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=settings.SQL_ECHO,
+    future=True,
+)
 
-# Crear Session factory
 async_session = sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False
+    expire_on_commit=False,
 )
 
-# Base declarativa para las entidades
 Base = declarative_base()
 
-# Dependency para inyección de sesiones
+
 async def get_session() -> AsyncSession:
     async with async_session() as session:
         yield session
