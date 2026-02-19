@@ -9,7 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoCompra,
     FormaPagoSRI,
+    SustentoTributarioSRI,
     TipoIdentificacionSRI,
     TipoImpuestoMVP,
 )
@@ -204,8 +206,12 @@ class VentaRegistroCreate(BaseModel):
 
 
 class CompraCreate(BaseModel):
+    proveedor_id: UUID
+    secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
+    sustento_tributario: SustentoTributarioSRI
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
@@ -275,13 +281,57 @@ class CompraCreate(BaseModel):
 
 
 class CompraRegistroCreate(BaseModel):
+    proveedor_id: UUID
+    secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
+    sustento_tributario: SustentoTributarioSRI
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
+
+
+class CompraUpdate(BaseModel):
+    secuencial_factura: str | None = Field(default=None, pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str | None = Field(default=None, pattern=r"^\d{37}$|^\d{49}$")
+    fecha_emision: date | None = None
+    sustento_tributario: SustentoTributarioSRI | None = None
+    tipo_identificacion_proveedor: TipoIdentificacionSRI | None = None
+    identificacion_proveedor: str | None = Field(default=None, min_length=3, max_length=20)
+    forma_pago: FormaPagoSRI | None = None
+    usuario_auditoria: str
+
+
+class CompraAnularRequest(BaseModel):
+    usuario_auditoria: str
+
+
+class CompraRead(BaseModel):
+    id: UUID
+    proveedor_id: UUID
+    secuencial_factura: str
+    autorizacion_sri: str
+    fecha_emision: date
+    sustento_tributario: SustentoTributarioSRI
+    tipo_identificacion_proveedor: TipoIdentificacionSRI
+    identificacion_proveedor: str
+    forma_pago: FormaPagoSRI
+    subtotal_sin_impuestos: Decimal
+    subtotal_12: Decimal
+    subtotal_15: Decimal
+    subtotal_0: Decimal
+    subtotal_no_objeto: Decimal
+    monto_iva: Decimal
+    monto_ice: Decimal
+    valor_total: Decimal
+    estado: EstadoCompra
+    creado_en: Optional[datetime] = None
+    actualizado_en: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class VentaDetalleImpuestoRead(BaseModel):

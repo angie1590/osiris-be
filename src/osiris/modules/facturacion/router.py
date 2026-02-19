@@ -9,8 +9,11 @@ from osiris.core.db import get_session
 from osiris.modules.facturacion.fe_mapper_service import FEMapperService
 from osiris.modules.facturacion.compra_service import CompraService
 from osiris.modules.facturacion.models import (
+    CompraAnularRequest,
     CompraCreate,
+    CompraRead,
     CompraRegistroCreate,
+    CompraUpdate,
     VentaCreate,
     VentaRead,
     VentaRegistroCreate,
@@ -53,6 +56,7 @@ def crear_venta_desde_productos(
 
 @router.post(
     "/compras",
+    response_model=CompraRead,
     status_code=status.HTTP_201_CREATED,
     tags=["Facturacion"],
 )
@@ -61,11 +65,12 @@ def crear_compra(
     session: Session = Depends(get_session),
 ):
     compra = compra_service.registrar_compra(session, payload)
-    return {"id": compra.id}
+    return compra
 
 
 @router.post(
     "/compras/desde-productos",
+    response_model=CompraRead,
     status_code=status.HTTP_201_CREATED,
     tags=["Facturacion"],
 )
@@ -74,7 +79,33 @@ def crear_compra_desde_productos(
     session: Session = Depends(get_session),
 ):
     compra = compra_service.registrar_compra_desde_productos(session, payload)
-    return {"id": compra.id}
+    return compra
+
+
+@router.put(
+    "/compras/{compra_id}",
+    response_model=CompraRead,
+    tags=["Facturacion"],
+)
+def actualizar_compra(
+    compra_id: UUID,
+    payload: CompraUpdate,
+    session: Session = Depends(get_session),
+):
+    return compra_service.actualizar_compra(session, compra_id, payload)
+
+
+@router.post(
+    "/compras/{compra_id}/anular",
+    response_model=CompraRead,
+    tags=["Facturacion"],
+)
+def anular_compra(
+    compra_id: UUID,
+    payload: CompraAnularRequest,
+    session: Session = Depends(get_session),
+):
+    return compra_service.anular_compra(session, compra_id, payload)
 
 
 @router.get(

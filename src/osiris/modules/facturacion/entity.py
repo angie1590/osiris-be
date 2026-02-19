@@ -37,9 +37,24 @@ class EstadoVenta(str, Enum):
 
 
 class EstadoCompra(str, Enum):
+    BORRADOR = "BORRADOR"
+    REGISTRADA = "REGISTRADA"
+    ANULADA = "ANULADA"
+    # Alias de compatibilidad con etapas previas.
+    PENDIENTE = BORRADOR
+    PAGADA = REGISTRADA
+
+
+class EstadoCuentaPorPagar(str, Enum):
     PENDIENTE = "PENDIENTE"
     PAGADA = "PAGADA"
     ANULADA = "ANULADA"
+
+
+class SustentoTributarioSRI(str, Enum):
+    CREDITO_TRIBUTARIO_BIENES = "01"
+    CREDITO_TRIBUTARIO_SERVICIOS = "02"
+    SIN_CREDITO_TRIBUTARIO = "05"
 
 
 class EstadoDocumentoElectronico(str, Enum):
@@ -138,7 +153,11 @@ class DocumentoElectronicoHistorial(BaseTable, table=True):
 class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_compra"
 
+    proveedor_id: UUID = Field(nullable=False, index=True)
+    secuencial_factura: str = Field(nullable=False, max_length=20, index=True)
+    autorizacion_sri: str = Field(nullable=False, max_length=49, index=True)
     fecha_emision: date = Field(default_factory=date.today, nullable=False)
+    sustento_tributario: SustentoTributarioSRI = Field(nullable=False, max_length=5)
     tipo_identificacion_proveedor: TipoIdentificacionSRI = Field(nullable=False, max_length=20)
     identificacion_proveedor: str = Field(nullable=False, max_length=20, index=True)
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
@@ -153,7 +172,7 @@ class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto_iva: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     monto_ice: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     valor_total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    estado: EstadoCompra = Field(default=EstadoCompra.PENDIENTE, nullable=False, max_length=20)
+    estado: EstadoCompra = Field(default=EstadoCompra.BORRADOR, nullable=False, max_length=20)
 
 
 class CompraDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -180,6 +199,17 @@ class CompraDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     tarifa: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
     base_imponible: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     valor_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+class CuentaPorPagar(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_cuenta_por_pagar"
+
+    compra_id: UUID = Field(foreign_key="tbl_compra.id", nullable=False, index=True, unique=True)
+    valor_total_factura: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
+    pagos_acumulados: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
+    saldo_pendiente: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    estado: EstadoCuentaPorPagar = Field(default=EstadoCuentaPorPagar.PENDIENTE, nullable=False, max_length=20)
 
 
 # Alias de compatibilidad para referencias existentes.

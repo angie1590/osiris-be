@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.pool import StaticPool
@@ -66,7 +67,11 @@ def _venta_base() -> Venta:
 
 def _compra_base() -> Compra:
     return Compra(
+        proveedor_id=uuid4(),
+        secuencial_factura="001-001-123456789",
+        autorizacion_sri="1" * 49,
         fecha_emision=date.today(),
+        sustento_tributario="01",
         tipo_identificacion_proveedor=TipoIdentificacionSRI.RUC,
         identificacion_proveedor="1790099988001",
         forma_pago=FormaPagoSRI.TRANSFERENCIA,
