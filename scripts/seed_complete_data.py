@@ -4,7 +4,7 @@ Script para poblar la base de datos con datos de prueba completos.
 Lee la estructura desde seed_data_structure.yaml y crea todos los registros.
 
 Uso:
-    PYTHONPATH=src ENVIRONMENT=development python scripts/seed_complete_data.py
+    ENVIRONMENT=development python scripts/seed_complete_data.py
 """
 
 import sys

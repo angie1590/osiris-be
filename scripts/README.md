@@ -33,7 +33,7 @@ bash scripts/validate_setup.sh
 - ✓ Variables de entorno requeridas presentes
 - ✓ Line endings correctos en `.env` (LF no CRLF en Windows)
 - ✓ Archivos del proyecto presentes (pyproject.toml, Dockerfile, etc.)
-- ✓ PYTHONPATH=/app/src en Dockerfile
+- ✓ Import path consistente entre local y Docker (sin PYTHONPATH manual)
 - ✓ CMD usa `osiris.main:app` (no `src.osiris.main:app`)
 - ✓ docker-compose.yml sin `platform: linux/arm64` (multiplataforma)
 
@@ -59,7 +59,7 @@ bash scripts/validate_setup.sh
 make seed
 
 # Opción 2: Directamente con Python
-docker compose exec osiris-backend bash -c 'export PYTHONPATH=src:. && poetry run python scripts/seed_sample_product.py'
+docker compose exec osiris-backend poetry run python scripts/seed_sample_product.py
 ```
 
 **Qué crea**:
@@ -88,7 +88,7 @@ docker compose exec osiris-backend bash -c 'export PYTHONPATH=src:. && poetry ru
 make cleanup-test-data
 
 # Opción 2: Directamente con Python
-docker compose exec osiris-backend bash -c 'export PYTHONPATH=src:. && poetry run python scripts/cleanup_test_data.py'
+docker compose exec osiris-backend poetry run python scripts/cleanup_test_data.py
 ```
 
 **Qué elimina**:
@@ -162,7 +162,7 @@ docker compose exec osiris-backend bash -c 'export PYTHONPATH=src:. && poetry ru
 
 ```bash
 # Ejecutar smoke tests con hard delete
-docker compose exec osiris-backend bash -c "export PYTHONPATH=src:. TEST_HARD_DELETE=true && poetry run pytest tests/smoke/ -v"
+docker compose exec osiris-backend bash -c "TEST_HARD_DELETE=true poetry run pytest tests/smoke/ -v"
 
 # O exportar la variable antes
 export TEST_HARD_DELETE=true

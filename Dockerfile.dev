@@ -22,8 +22,8 @@ RUN poetry config virtualenvs.create false && \
     poetry install --no-root
 
 COPY src ./src
+COPY osiris ./osiris
 COPY conf ./conf
 
-ENV PYTHONPATH=/app/src
 EXPOSE 8000
 CMD ["poetry","run","uvicorn","osiris.main:app","--host","0.0.0.0","--port","8000","--reload"]

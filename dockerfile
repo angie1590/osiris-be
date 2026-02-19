@@ -8,6 +8,7 @@ COPY pyproject.toml poetry.lock* ./
 COPY lib ./lib
 RUN poetry install --only main --no-root
 COPY src ./src
+COPY osiris ./osiris
 COPY conf ./conf
 
 # runtime
@@ -17,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 && rm -r
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/src /app/src
+COPY --from=build /app/osiris /app/osiris
 COPY --from=build /app/conf /app/conf
-ENV PYTHONPATH=/app/src
 EXPOSE 8000
-CMD ["uvicorn","src.osiris.main:app","--host","0.0.0.0","--port","8000"]
+CMD ["uvicorn","osiris.main:app","--host","0.0.0.0","--port","8000"]

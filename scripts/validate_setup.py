@@ -187,16 +187,14 @@ def check_env_file():
     if env_file.exists():
         print_success(f".env.development encontrado: {env_file.absolute()}")
 
-        # Verificar variables críticas
+        # Verificar variables críticas base
         required_vars = [
             "ENVIRONMENT",
             "POSTGRES_USER",
             "POSTGRES_PASSWORD",
             "POSTGRES_DB",
             "DATABASE_URL",
-            "FEEC_P12_PATH",
-            "FEEC_P12_PASSWORD",
-            "FEEC_XSD_PATH",
+            "SRI_MODO_EMISION",
             "FEEC_AMBIENTE",
             "FEEC_TIPO_EMISION",
             "FEEC_REGIMEN",
@@ -205,10 +203,24 @@ def check_env_file():
         with open(env_file, 'r') as f:
             content = f.read()
 
+        env_vars = {}
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            env_vars[key.strip()] = value.strip().strip('"').strip("'")
+
         missing_vars = []
         for var in required_vars:
-            if f"{var}=" not in content:
+            if var not in env_vars:
                 missing_vars.append(var)
+
+        # FE-EC electrónica requiere certificados.
+        if env_vars.get("SRI_MODO_EMISION", "").upper() == "ELECTRONICO":
+            for var in ("FEEC_P12_PATH", "FEEC_P12_PASSWORD", "FEEC_XSD_PATH"):
+                if var not in env_vars:
+                    missing_vars.append(var)
 
         if missing_vars:
             print_error(f"Variables faltantes en .env.development: {', '.join(missing_vars)}")
@@ -271,9 +283,9 @@ def check_required_files():
     return all_present
 
 
-def check_pythonpath_dockerfile():
-    """Verifica configuración correcta de PYTHONPATH en Dockerfile"""
-    print_header("Configuración de PYTHONPATH")
+def check_docker_import_path():
+    """Verifica que Docker use el mismo import path que local (sin hacks de PYTHONPATH)."""
+    print_header("Configuración de Import Path")
 
     dockerfile = Path("Dockerfile.dev")
     if not dockerfile.exists():
@@ -283,22 +295,28 @@ def check_pythonpath_dockerfile():
     with open(dockerfile, 'r') as f:
         content = f.read()
 
-    # Verificar PYTHONPATH
-    if "ENV PYTHONPATH=/app/src" in content:
-        print_success("PYTHONPATH=/app/src configurado en Dockerfile")
-    else:
-        print_error("PYTHONPATH no está configurado correctamente")
+    # No usar PYTHONPATH manual; importar paquete igual que en local.
+    if "ENV PYTHONPATH=" in content:
+        print_error("Dockerfile.dev define PYTHONPATH manualmente (no recomendado)")
+        print_info("Usa imports `osiris.*` sin hacks de path")
         return False
+    else:
+        print_success("Dockerfile.dev no depende de PYTHONPATH manual")
 
     # Verificar CMD
     if '"osiris.main:app"' in content:
         print_success('CMD usa "osiris.main:app" (correcto)')
     elif '"src.osiris.main:app"' in content:
         print_error('CMD usa "src.osiris.main:app" (INCORRECTO)')
-        print_info("Debe ser: osiris.main:app para coincidir con PYTHONPATH=/app/src")
+        print_info("Debe ser: osiris.main:app para coincidir con local y Docker")
         return False
     else:
         print_warning("No se pudo verificar el módulo en CMD")
+
+    if "COPY osiris ./osiris" in content:
+        print_success("Dockerfile.dev copia paquete puente `osiris/`")
+    else:
+        print_warning("Dockerfile.dev no copia `osiris/`; verifica imports en runtime")
 
     return True
 
@@ -351,7 +369,7 @@ def main():
     files_ok = check_required_files()
 
     # Configuración
-    pythonpath_ok = check_pythonpath_dockerfile()
+    import_path_ok = check_docker_import_path()
     compose_config_ok = check_docker_compose_config()
 
     # Resumen final
@@ -363,7 +381,7 @@ def main():
         ("WSL2 activo (Windows)", wsl_ok),
         (".env.development configurado", env_ok),
         ("Archivos del proyecto presentes", files_ok),
-        ("PYTHONPATH correcto en Dockerfile", pythonpath_ok),
+        ("Import path Docker/local consistente", import_path_ok),
         ("docker-compose.yml compatible", compose_config_ok),
     ]
 

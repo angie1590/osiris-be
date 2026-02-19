@@ -96,19 +96,26 @@ fi
 # Verificar Dockerfile.dev
 echo ""
 echo "Verificando Dockerfile.dev..."
-if grep -q 'ENV PYTHONPATH=/app/src' Dockerfile.dev; then
-    success "PYTHONPATH=/app/src configurado"
-else
-    error "PYTHONPATH no está configurado en Dockerfile.dev"
+if grep -q 'ENV PYTHONPATH=' Dockerfile.dev; then
+    error "Dockerfile.dev define PYTHONPATH manualmente (no permitido)"
+    echo "  Usa imports osiris.* sin hacks de path"
     exit 1
+else
+    success "Dockerfile.dev no depende de PYTHONPATH manual"
 fi
 
 if grep -q '"osiris.main:app"' Dockerfile.dev; then
     success 'CMD usa "osiris.main:app" (correcto)'
 elif grep -q '"src.osiris.main:app"' Dockerfile.dev; then
     error 'CMD usa "src.osiris.main:app" (INCORRECTO)'
-    echo "  Debe ser: osiris.main:app para coincidir con PYTHONPATH"
+    echo "  Debe ser: osiris.main:app para coincidir con local y Docker"
     exit 1
+fi
+
+if grep -q 'COPY osiris ./osiris' Dockerfile.dev; then
+    success 'Dockerfile.dev copia paquete puente osiris/'
+else
+    warning 'Dockerfile.dev no copia osiris/ (revisar imports en runtime)'
 fi
 
 # Resumen

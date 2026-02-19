@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from dotenv import dotenv_values
-from pydantic import Field, ValidationError, field_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # .../src
@@ -20,10 +20,11 @@ class Settings(BaseSettings):
     )
 
     # Facturacion electronica / FE-EC
-    FEEC_P12_PATH: Path
-    FEEC_P12_PASSWORD: str
-    FEEC_XSD_PATH: Path
+    FEEC_P12_PATH: Path | None = None
+    FEEC_P12_PASSWORD: str | None = None
+    FEEC_XSD_PATH: Path | None = None
     FEEC_AMBIENTE: str = Field(default="pruebas")  # pruebas | produccion
+    SRI_MODO_EMISION: str = Field(default="ELECTRONICO")
     FEEC_TIPO_EMISION: str
     FEEC_REGIMEN: str
 
@@ -45,6 +46,16 @@ class Settings(BaseSettings):
         if value not in {"pruebas", "produccion"}:
             raise ValueError("FEEC_AMBIENTE debe ser 'pruebas' o 'produccion'")
         return value
+
+    @field_validator("SRI_MODO_EMISION")
+    @classmethod
+    def _check_sri_modo_emision(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in {"ELECTRONICO", "NO_ELECTRONICO"}:
+            raise ValueError(
+                "SRI_MODO_EMISION debe ser 'ELECTRONICO' o 'NO_ELECTRONICO'"
+            )
+        return normalized
 
     @field_validator("FEEC_TIPO_EMISION")
     @classmethod
@@ -68,13 +79,37 @@ class Settings(BaseSettings):
             raise ValueError(f"FEEC_REGIMEN invalido. Valores permitidos: {allowed_values}")
         return normalized
 
-    @field_validator("FEEC_P12_PATH", "FEEC_XSD_PATH")
-    @classmethod
-    def _file_exists(cls, value: Path, info):
-        resolved_path = value if value.is_absolute() else (PROJECT_ROOT / value).resolve()
-        if not resolved_path.exists():
-            raise ValueError(f"Archivo no encontrado en `{info.field_name}`: {resolved_path}")
-        return resolved_path
+    @model_validator(mode="after")
+    def _validate_feec_files(self):
+        if self.SRI_MODO_EMISION == "ELECTRONICO":
+            missing_fields = []
+            if not self.FEEC_P12_PATH:
+                missing_fields.append("FEEC_P12_PATH")
+            if not self.FEEC_XSD_PATH:
+                missing_fields.append("FEEC_XSD_PATH")
+            if not self.FEEC_P12_PASSWORD:
+                missing_fields.append("FEEC_P12_PASSWORD")
+
+            if missing_fields:
+                missing_list = ", ".join(missing_fields)
+                raise ValueError(
+                    "Variables requeridas cuando SRI_MODO_EMISION=ELECTRONICO: "
+                    f"{missing_list}"
+                )
+
+        # Si se proveen rutas, validar existencia siempre.
+        for field_name in ("FEEC_P12_PATH", "FEEC_XSD_PATH"):
+            path_value = getattr(self, field_name)
+            if path_value is None:
+                continue
+            resolved_path = (
+                path_value if path_value.is_absolute() else (PROJECT_ROOT / path_value).resolve()
+            )
+            if not resolved_path.exists():
+                raise ValueError(f"Archivo no encontrado en `{field_name}`: {resolved_path}")
+            setattr(self, field_name, resolved_path)
+
+        return self
 
     @field_validator("DATABASE_URL", "DB_URL_ALEMBIC", mode="before")
     @classmethod
@@ -121,7 +156,7 @@ def load_settings() -> Settings:
                 )
             else:
                 lines.append(f" - {field}: {err['msg']}")
-        raise RuntimeError("\n".join(lines)) from exc
+        raise ValueError("\n".join(lines)) from exc
 
 
 @lru_cache

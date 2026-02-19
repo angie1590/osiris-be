@@ -80,6 +80,7 @@ FEEC_P12_PATH=conf/firma.p12
 FEEC_P12_PASSWORD=clave123
 FEEC_XSD_PATH=conf/sri_docs/factura_V1_1.xsd
 FEEC_AMBIENTE=pruebas
+SRI_MODO_EMISION=ELECTRONICO
 FEEC_TIPO_EMISION=1
 FEEC_REGIMEN=GENERAL
 
@@ -149,7 +150,7 @@ El proyecto está configurado para funcionar en **Mac, Windows 11 y Linux** sin 
 ✅ **Cambios aplicados para compatibilidad:**
 - Docker detecta automáticamente la arquitectura (ARM64/AMD64)
 - Variables de entorno se pasan con `-e` (compatible con todos los sistemas)
-- El PYTHONPATH se define en el Dockerfile (no se redefine en comandos)
+- Imports estandarizados a `osiris.*` (sin hacks de `PYTHONPATH`)
 - Rutas de archivos usan formato Linux dentro del contenedor
 
 ⚠️ **Requisitos por sistema operativo:**
@@ -196,7 +197,7 @@ El script verifica:
 - ✓ Docker y Docker Compose instalados
 - ✓ WSL2 activo (Windows - warning si no responde pero Docker funciona)
 - ✓ Archivo `.env.development` presente y completo
-- ✓ Configuración correcta de PYTHONPATH
+- ✓ Import path consistente entre local y Docker
 - ✓ Compatibilidad multiplataforma (sin platform hardcodeado)
 
 **Nota Windows:** Si `make validate` da error, ejecuta directamente:
