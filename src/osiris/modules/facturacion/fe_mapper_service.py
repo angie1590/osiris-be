@@ -1,9 +1,20 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from uuid import UUID
+
+from fastapi import HTTPException
+from sqlmodel import Session
 
 from osiris.modules.common.empresa.entity import RegimenTributario
-from osiris.modules.facturacion.entity import FormaPagoSRI, TipoIdentificacionSRI, TipoImpuestoMVP
+from osiris.modules.facturacion.entity import (
+    DocumentoElectronico,
+    DocumentoElectronicoHistorial,
+    EstadoDocumentoElectronico,
+    FormaPagoSRI,
+    TipoIdentificacionSRI,
+    TipoImpuestoMVP,
+)
 from osiris.modules.facturacion.models import VentaRead, q2
 
 
@@ -139,3 +150,44 @@ class FEMapperService:
                 ]
             }
         return payload
+
+    def registrar_respuesta_sri(
+        self,
+        session: Session,
+        documento_electronico_id: UUID,
+        estado_nuevo: EstadoDocumentoElectronico | str,
+        *,
+        mensaje_sri: str,
+        usuario_id: str | None = None,
+    ) -> DocumentoElectronico:
+        documento = session.get(DocumentoElectronico, documento_electronico_id)
+        if not documento or not documento.activo:
+            raise HTTPException(status_code=404, detail="Documento electronico no encontrado")
+
+        destino = (
+            estado_nuevo
+            if isinstance(estado_nuevo, EstadoDocumentoElectronico)
+            else EstadoDocumentoElectronico(estado_nuevo)
+        )
+        anterior = documento.estado.value if hasattr(documento.estado, "value") else str(documento.estado)
+        motivo = (mensaje_sri or "").strip()
+
+        if destino == EstadoDocumentoElectronico.RECHAZADO and not motivo:
+            raise ValueError("motivo_cambio es obligatorio cuando el SRI rechaza el comprobante")
+        if not motivo:
+            motivo = f"Respuesta SRI: {destino.value}"
+
+        documento.estado = destino
+        session.add(documento)
+        session.add(
+            DocumentoElectronicoHistorial(
+                entidad_id=documento.id,
+                estado_anterior=anterior,
+                estado_nuevo=destino.value,
+                motivo_cambio=motivo,
+                usuario_id=usuario_id,
+            )
+        )
+        session.commit()
+        session.refresh(documento)
+        return documento
