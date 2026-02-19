@@ -36,6 +36,7 @@ class MovimientoInventario(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
         max_length=20,
     )
     referencia_documento: str | None = Field(default=None, max_length=120)
+    motivo_ajuste: str | None = Field(default=None, max_length=255)
 
 
 class MovimientoInventarioDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

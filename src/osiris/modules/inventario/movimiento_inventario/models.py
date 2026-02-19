@@ -31,6 +31,7 @@ class MovimientoInventarioCreate(BaseModel):
     tipo_movimiento: TipoMovimientoInventario
     estado: EstadoMovimientoInventario = EstadoMovimientoInventario.BORRADOR
     referencia_documento: str | None = Field(default=None, max_length=120)
+    motivo_ajuste: str | None = Field(default=None, max_length=255)
     usuario_auditoria: str | None = None
     detalles: list[MovimientoInventarioDetalleCreate] = Field(..., min_length=1)
 
@@ -50,7 +51,13 @@ class MovimientoInventarioRead(BaseModel):
     tipo_movimiento: TipoMovimientoInventario
     estado: EstadoMovimientoInventario
     referencia_documento: str | None = None
+    motivo_ajuste: str | None = None
     detalles: list[MovimientoInventarioDetalleRead]
+
+
+class MovimientoInventarioConfirmRequest(BaseModel):
+    motivo_ajuste: str | None = Field(default=None, max_length=255)
+    usuario_auditoria: str | None = None
 
 
 class KardexMovimientoRead(BaseModel):

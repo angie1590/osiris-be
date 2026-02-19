@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
@@ -15,7 +16,12 @@ from osiris.modules.inventario.movimiento_inventario.entity import (
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
-from osiris.modules.inventario.movimiento_inventario.models import MovimientoInventarioCreate
+from osiris.modules.inventario.movimiento_inventario.models import (
+    MovimientoInventarioCreate,
+    MovimientoInventarioDetalleRead,
+    MovimientoInventarioRead,
+)
+from osiris.modules.common.audit_log.entity import AuditLog
 
 
 Q4 = Decimal("0.0001")
@@ -39,6 +45,7 @@ class MovimientoInventarioService:
             tipo_movimiento=payload.tipo_movimiento,
             estado=EstadoMovimientoInventario.BORRADOR,
             referencia_documento=payload.referencia_documento,
+            motivo_ajuste=payload.motivo_ajuste,
             usuario_auditoria=payload.usuario_auditoria,
             activo=True,
         )
@@ -69,6 +76,8 @@ class MovimientoInventarioService:
         session: Session,
         movimiento_id,
         *,
+        motivo_ajuste: str | None = None,
+        usuario_autorizador: str | None = None,
         commit: bool = True,
         rollback_on_error: bool = True,
     ) -> MovimientoInventario:
@@ -77,6 +86,20 @@ class MovimientoInventarioService:
             raise HTTPException(status_code=404, detail="Movimiento de inventario no encontrado")
         if movimiento.estado != EstadoMovimientoInventario.BORRADOR:
             raise HTTPException(status_code=400, detail="Solo se puede confirmar movimientos en BORRADOR")
+
+        if usuario_autorizador:
+            movimiento.usuario_auditoria = usuario_autorizador
+        if motivo_ajuste is not None:
+            motivo_limpio = motivo_ajuste.strip()
+            movimiento.motivo_ajuste = motivo_limpio or None
+        if (
+            movimiento.tipo_movimiento == TipoMovimientoInventario.AJUSTE
+            and (not movimiento.motivo_ajuste or not movimiento.motivo_ajuste.strip())
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="motivo_ajuste es obligatorio para confirmar movimientos de tipo AJUSTE.",
+            )
 
         detalles = list(
             session.exec(
@@ -89,6 +112,7 @@ class MovimientoInventarioService:
         if not detalles:
             raise ValueError("No se puede confirmar un movimiento sin detalles")
 
+        estado_anterior = movimiento.estado.value
         try:
             for detalle in detalles:
                 if movimiento.tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}:
@@ -98,6 +122,12 @@ class MovimientoInventarioService:
 
             movimiento.estado = EstadoMovimientoInventario.CONFIRMADO
             session.add(movimiento)
+            if movimiento.tipo_movimiento == TipoMovimientoInventario.AJUSTE:
+                self._registrar_auditoria_ajuste(
+                    session,
+                    movimiento=movimiento,
+                    estado_anterior=estado_anterior,
+                )
             if commit:
                 session.commit()
                 session.refresh(movimiento)
@@ -108,6 +138,38 @@ class MovimientoInventarioService:
             if rollback_on_error:
                 session.rollback()
             raise
+
+    def _registrar_auditoria_ajuste(
+        self,
+        session: Session,
+        *,
+        movimiento: MovimientoInventario,
+        estado_anterior: str,
+    ) -> None:
+        usuario_autorizador = movimiento.usuario_auditoria or movimiento.updated_by or movimiento.created_by
+        estado_nuevo = {
+            "estado": movimiento.estado.value,
+            "tipo_movimiento": movimiento.tipo_movimiento.value,
+            "bodega_id": str(movimiento.bodega_id),
+            "motivo_ajuste": movimiento.motivo_ajuste,
+            "usuario_autorizador": usuario_autorizador,
+        }
+        session.add(
+            AuditLog(
+                tabla_afectada="tbl_movimiento_inventario",
+                registro_id=str(movimiento.id),
+                entidad="MovimientoInventario",
+                entidad_id=movimiento.id,
+                accion="AJUSTE",
+                estado_anterior={"estado": estado_anterior},
+                estado_nuevo=estado_nuevo,
+                before_json={"estado": estado_anterior},
+                after_json=estado_nuevo,
+                usuario_id=usuario_autorizador,
+                usuario_auditoria=usuario_autorizador,
+                fecha=datetime.utcnow(),
+            )
+        )
 
     def _aplicar_egreso_con_lock(
         self,
@@ -333,3 +395,38 @@ class MovimientoInventarioService:
             "bodegas": list(agrupado.values()),
             "total_global": total_global,
         }
+
+    def obtener_movimiento_read(self, session: Session, movimiento_id) -> MovimientoInventarioRead:
+        movimiento = session.get(MovimientoInventario, movimiento_id)
+        if not movimiento or not movimiento.activo:
+            raise HTTPException(status_code=404, detail="Movimiento de inventario no encontrado")
+
+        detalles = list(
+            session.exec(
+                select(MovimientoInventarioDetalle).where(
+                    MovimientoInventarioDetalle.movimiento_inventario_id == movimiento.id,
+                    MovimientoInventarioDetalle.activo.is_(True),
+                )
+            ).all()
+        )
+        detalles_read = [
+            MovimientoInventarioDetalleRead(
+                id=detalle.id,
+                movimiento_inventario_id=detalle.movimiento_inventario_id,
+                producto_id=detalle.producto_id,
+                cantidad=detalle.cantidad,
+                costo_unitario=detalle.costo_unitario,
+            )
+            for detalle in detalles
+        ]
+
+        return MovimientoInventarioRead(
+            id=movimiento.id,
+            fecha=movimiento.fecha,
+            bodega_id=movimiento.bodega_id,
+            tipo_movimiento=movimiento.tipo_movimiento,
+            estado=movimiento.estado,
+            referencia_documento=movimiento.referencia_documento,
+            motivo_ajuste=movimiento.motivo_ajuste,
+            detalles=detalles_read,
+        )
