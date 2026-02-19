@@ -213,6 +213,8 @@ class PuntoEmisionService(BaseService):
             "delta": nuevo_secuencial - secuencial_anterior,
         }
         audit = AuditLog(
+            tabla_afectada="tbl_punto_emision_secuencial",
+            registro_id=str(secuencial.id),
             entidad="PuntoEmisionSecuencial",
             entidad_id=secuencial.id,
             accion="MANUAL_ADJUST",
@@ -220,7 +222,9 @@ class PuntoEmisionService(BaseService):
             estado_nuevo=estado_nuevo,
             before_json=estado_anterior,
             after_json=estado_nuevo,
+            usuario_id=str(usuario_id),
             usuario_auditoria=str(usuario_id),
+            fecha=datetime.utcnow(),
         )
 
         session.add(secuencial)

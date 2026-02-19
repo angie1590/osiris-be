@@ -13,6 +13,7 @@ from osiris.modules.common.rol.router import router as rol_router
 from osiris.modules.common.empresa.router import router as empresa_router
 from osiris.modules.common.sucursal.router import router as sucursal_router
 from osiris.modules.common.punto_emision.router import router as punto_emision_router
+from osiris.modules.common.audit_log.router import router as audit_log_router
 from osiris.modules.common.persona.router import router as persona_router
 from osiris.modules.common.tipo_cliente.router import router as tipo_cliente_router
 from osiris.modules.common.usuario.router import router as usuario_router
@@ -72,6 +73,7 @@ app.include_router(rol_router, prefix="/api")
 app.include_router(empresa_router, prefix="/api")
 app.include_router(sucursal_router, prefix="/api")
 app.include_router(punto_emision_router, prefix="/api")
+app.include_router(audit_log_router, prefix="/api/v1")
 app.include_router(persona_router, prefix="/api")
 app.include_router(tipo_cliente_router, prefix="/api")
 app.include_router(usuario_router, prefix="/api")
