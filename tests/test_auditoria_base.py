@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from osiris.core.db import get_session
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION, get_session
 from osiris.main import app
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.rol.repository import RolRepository
@@ -113,7 +113,12 @@ def test_soft_delete_exclusion():
             assert role_id not in ids_after
 
         with Session(engine) as session:
-            obj = session.exec(select(Rol).where(Rol.id == UUID(role_id))).first()
+            stmt = (
+                select(Rol)
+                .where(Rol.id == UUID(role_id))
+                .execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+            )
+            obj = session.exec(stmt).first()
             assert obj is not None
             assert obj.activo is False
     finally:

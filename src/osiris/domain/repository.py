@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+
 
 class BaseRepository:
     """
@@ -77,6 +79,13 @@ class BaseRepository:
 
         # Orden (Strategy/hook)
         ordered_stmt = self.apply_order(filtered_stmt, order_by=order_by)
+
+        # Con filtro global de soft-delete activo, cuando only_active=None/False
+        # se debe desactivar el criterio global para respetar el contrato del repo.
+        if hasattr(self.model, "activo") and only_active in {None, False}:
+            ordered_stmt = ordered_stmt.execution_options(
+                **{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True}
+            )
 
         # ---- TOTAL (seguro) ----
         # Contamos sobre un subquery que ya incluye todos los filtros (y joins si los hubiere)
