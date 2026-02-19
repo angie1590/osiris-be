@@ -17,6 +17,7 @@ from osiris.modules.common.empresa.entity import (
     Empresa,
     ModoEmisionEmpresa,
     RegimenTributario,
+    _registrar_auditoria_regimen_modo_after_update,
 )
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.repository import EmpresaRepository
@@ -74,6 +75,15 @@ def test_empresa_update_ruc_none_no_valida_y_es_permitido():
     dto = EmpresaUpdate(ruc=None, telefono="022345678")
     assert dto.ruc is None
     assert dto.telefono == "022345678"
+
+
+def test_empresa_update_regimen_modo_invalido_lanza_http_400():
+    with pytest.raises(HTTPException) as exc:
+        EmpresaUpdate(
+            regimen=RegimenTributario.GENERAL,
+            modo_emision=ModoEmisionEmpresa.NOTA_VENTA_FISICA,
+        )
+    assert exc.value.status_code == 400
 
 
 def test_empresa_regimen_modo_rules_invalido_para_regimen_general():
@@ -342,3 +352,67 @@ def test_empresa_update_puede_actualizar_logo():
     assert any(isinstance(call.args[0], AuditLog) for call in add_calls if call.args)
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(db_obj)
+
+
+def test_empresa_after_update_listener_registra_before_after_json():
+    connection = MagicMock()
+    target = Empresa(
+        razon_social="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
+
+    history_changed = MagicMock()
+    history_changed.deleted = [RegimenTributario.GENERAL]
+    history_changed.added = [RegimenTributario.RIMPE_NEGOCIO_POPULAR]
+    history_changed.has_changes.return_value = True
+
+    history_same = MagicMock()
+    history_same.deleted = []
+    history_same.added = []
+    history_same.has_changes.return_value = False
+
+    state = MagicMock()
+    state.attrs = {
+        "regimen": MagicMock(history=history_changed),
+        "modo_emision": MagicMock(history=history_same),
+    }
+
+    with patch("osiris.modules.common.empresa.entity.sa_inspect", return_value=state):
+        _registrar_auditoria_regimen_modo_after_update(MagicMock(), connection, target)
+
+    connection.execute.assert_called_once()
+    payload = connection.execute.call_args.args[0].compile().params
+    assert payload["before_json"]["regimen"] == "GENERAL"
+    assert payload["after_json"]["regimen"] == "RIMPE_NEGOCIO_POPULAR"
+    assert payload["before_json"]["modo_emision"] == "ELECTRONICO"
+    assert payload["after_json"]["modo_emision"] == "ELECTRONICO"
+
+
+def test_empresa_after_update_listener_no_registra_si_no_hay_cambio():
+    connection = MagicMock()
+    target = Empresa(
+        razon_social="Empresa",
+        ruc="1104680138001",
+        direccion_matriz="Dir",
+        tipo_contribuyente_id="01",
+        usuario_auditoria="tester",
+    )
+
+    history_same = MagicMock()
+    history_same.deleted = []
+    history_same.added = []
+    history_same.has_changes.return_value = False
+
+    state = MagicMock()
+    state.attrs = {
+        "regimen": MagicMock(history=history_same),
+        "modo_emision": MagicMock(history=history_same),
+    }
+
+    with patch("osiris.modules.common.empresa.entity.sa_inspect", return_value=state):
+        _registrar_auditoria_regimen_modo_after_update(MagicMock(), connection, target)
+
+    connection.execute.assert_not_called()

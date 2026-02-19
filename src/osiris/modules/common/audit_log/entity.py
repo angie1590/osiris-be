@@ -18,5 +18,7 @@ class AuditLog(BaseTable, table=True):
     accion: str = Field(nullable=False, max_length=20, default="UPDATE")
     estado_anterior: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     estado_nuevo: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
+    before_json: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    after_json: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     usuario_auditoria: str | None = Field(default=None, max_length=255)
     creado_en: datetime = Field(default_factory=datetime.utcnow, nullable=False)

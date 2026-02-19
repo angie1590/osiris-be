@@ -52,6 +52,8 @@ class EmpresaRepository(BaseRepository):
             accion="UPDATE",
             estado_anterior=old_state,
             estado_nuevo=new_state,
+            before_json=old_state,
+            after_json=new_state,
             usuario_auditoria=data.get("usuario_auditoria", getattr(db_obj, "usuario_auditoria", None)),
         )
 

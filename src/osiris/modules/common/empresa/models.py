@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Annotated
 from uuid import UUID
 
+from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator, model_validator
 from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 from .entity import RegimenTributario, ModoEmisionEmpresa
@@ -62,6 +63,23 @@ class EmpresaUpdate(BaseModel):
         if v is not None and not ValidacionCedulaRucService.es_identificacion_valida(v):
             raise ValueError("El RUC ingresado no es válido.")
         return v
+
+    @model_validator(mode="after")
+    def _validar_modo_emision_por_regimen(self):
+        if (
+            self.regimen is not None
+            and self.modo_emision is not None
+            and self.regimen != RegimenTributario.RIMPE_NEGOCIO_POPULAR
+            and self.modo_emision == ModoEmisionEmpresa.NOTA_VENTA_FISICA
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "NOTA_VENTA_FISICA solo está permitido para régimen "
+                    "RIMPE_NEGOCIO_POPULAR."
+                ),
+            )
+        return self
 
 class EmpresaRead(EmpresaBase):
     id: UUID
