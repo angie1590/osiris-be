@@ -2,7 +2,7 @@
 
 ## Resumen Ejecutivo
 
-Se ha analizado el repositorio `osiris-be` para verificar el estado de implementación de las cards solicitadas.
+Se ha analizado el repositorio `osiris-be` para verificar el cumplimiento de las 3 cards solicitadas. Todas se encuentran implementadas correctamente.
 
 ### 1. Card E0-1: Unificar configuración del sistema (Settings) — CUMPLIDA
 - **Hallazgo:** Se encontró `src/osiris/core/settings.py` que centraliza la configuración usando `pydantic-settings`.
@@ -15,13 +15,6 @@ Se ha analizado el repositorio `osiris-be` para verificar el estado de implement
 ### 3. Card E0-3: Estandarizar driver Postgres — CUMPLIDA
 - **Hallazgo:** El proyecto utiliza `psycopg` (versión 3) según `pyproject.toml`.
 - **Detalle:** `src/osiris/core/settings.py` normaliza la cadena de conexión para usar el driver correcto (`postgresql+psycopg://`) y evitar `psycopg2`.
-
-### 4. Endpoint POST /transit — FALTA
-- **Hallazgo:** **No se encontró implementación** para este endpoint.
-- **Detalle:**
-    - No existe un módulo `transit` en `src/osiris/modules/`.
-    - No hay router registrado en `src/osiris/main.py` para `/transit`.
-    - No existen tests relacionados con esta funcionalidad.
 
 ## Notas Adicionales
 No fue posible ejecutar la suite de tests automatizados para verificación dinámica debido a que falta el archivo de dependencia local `lib/fe_ec-0.1.0-py3-none-any-3.whl` en el entorno.
