@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import update
@@ -181,3 +182,142 @@ class MovimientoInventarioService:
         stock.cantidad_actual = nueva_cantidad
         stock.costo_promedio_vigente = nuevo_costo
         session.add(stock)
+
+    def obtener_kardex(
+        self,
+        session: Session,
+        *,
+        producto_id: UUID,
+        bodega_id: UUID,
+        fecha_inicio=None,
+        fecha_fin=None,
+    ) -> dict:
+        filtros_base = [
+            MovimientoInventario.bodega_id == bodega_id,
+            MovimientoInventario.estado == EstadoMovimientoInventario.CONFIRMADO,
+            MovimientoInventarioDetalle.producto_id == producto_id,
+            MovimientoInventario.activo.is_(True),
+            MovimientoInventarioDetalle.activo.is_(True),
+        ]
+
+        saldo_inicial = Decimal("0.0000")
+        if fecha_inicio is not None:
+            filas_saldo = session.exec(
+                select(
+                    MovimientoInventario.tipo_movimiento,
+                    MovimientoInventarioDetalle.cantidad,
+                )
+                .join(
+                    MovimientoInventarioDetalle,
+                    MovimientoInventarioDetalle.movimiento_inventario_id == MovimientoInventario.id,
+                )
+                .where(
+                    *filtros_base,
+                    MovimientoInventario.fecha < fecha_inicio,
+                )
+            ).all()
+            for tipo_movimiento, cantidad in filas_saldo:
+                cantidad_q = q4(cantidad)
+                if tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}:
+                    saldo_inicial = q4(saldo_inicial - cantidad_q)
+                else:
+                    saldo_inicial = q4(saldo_inicial + cantidad_q)
+
+        filtros_movimientos = list(filtros_base)
+        if fecha_inicio is not None:
+            filtros_movimientos.append(MovimientoInventario.fecha >= fecha_inicio)
+        if fecha_fin is not None:
+            filtros_movimientos.append(MovimientoInventario.fecha <= fecha_fin)
+
+        filas = session.exec(
+            select(MovimientoInventario, MovimientoInventarioDetalle)
+            .join(
+                MovimientoInventarioDetalle,
+                MovimientoInventarioDetalle.movimiento_inventario_id == MovimientoInventario.id,
+            )
+            .where(*filtros_movimientos)
+            .order_by(
+                MovimientoInventario.fecha.asc(),
+                MovimientoInventario.creado_en.asc(),
+                MovimientoInventarioDetalle.id.asc(),
+            )
+        ).all()
+
+        saldo = q4(saldo_inicial)
+        movimientos = []
+        for movimiento, detalle in filas:
+            cantidad = q4(detalle.cantidad)
+            costo = q4(detalle.costo_unitario)
+            if movimiento.tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}:
+                entrada = Decimal("0.0000")
+                salida = cantidad
+                saldo = q4(saldo - cantidad)
+                valor = q4(salida * costo)
+            else:
+                entrada = cantidad
+                salida = Decimal("0.0000")
+                saldo = q4(saldo + cantidad)
+                valor = q4(entrada * costo)
+
+            movimientos.append(
+                {
+                    "fecha": movimiento.fecha,
+                    "movimiento_id": movimiento.id,
+                    "tipo_movimiento": movimiento.tipo_movimiento,
+                    "referencia_documento": movimiento.referencia_documento,
+                    "cantidad_entrada": entrada,
+                    "cantidad_salida": salida,
+                    "saldo_cantidad": saldo,
+                    "costo_unitario_aplicado": costo,
+                    "valor_movimiento": valor,
+                }
+            )
+
+        return {
+            "producto_id": producto_id,
+            "bodega_id": bodega_id,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "saldo_inicial": saldo_inicial,
+            "movimientos": movimientos,
+        }
+
+    def obtener_valoracion(
+        self,
+        session: Session,
+    ) -> dict:
+        stocks = session.exec(
+            select(InventarioStock).where(InventarioStock.activo.is_(True))
+        ).all()
+
+        agrupado: dict[UUID, dict] = {}
+        total_global = Decimal("0.0000")
+        for stock in stocks:
+            cantidad = q4(stock.cantidad_actual)
+            costo = q4(stock.costo_promedio_vigente)
+            valor_total = q4(cantidad * costo)
+            total_global = q4(total_global + valor_total)
+
+            if stock.bodega_id not in agrupado:
+                agrupado[stock.bodega_id] = {
+                    "bodega_id": stock.bodega_id,
+                    "total_bodega": Decimal("0.0000"),
+                    "productos": [],
+                }
+
+            agrupado[stock.bodega_id]["productos"].append(
+                {
+                    "producto_id": stock.producto_id,
+                    "cantidad_actual": cantidad,
+                    "costo_promedio_vigente": costo,
+                    "valor_total": valor_total,
+                }
+            )
+            agrupado[stock.bodega_id]["total_bodega"] = q4(
+                agrupado[stock.bodega_id]["total_bodega"] + valor_total
+            )
+
+        return {
+            "bodegas": list(agrupado.values()),
+            "total_global": total_global,
+        }

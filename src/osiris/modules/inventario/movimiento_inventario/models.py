@@ -51,3 +51,42 @@ class MovimientoInventarioRead(BaseModel):
     estado: EstadoMovimientoInventario
     referencia_documento: str | None = None
     detalles: list[MovimientoInventarioDetalleRead]
+
+
+class KardexMovimientoRead(BaseModel):
+    fecha: date
+    movimiento_id: UUID
+    tipo_movimiento: TipoMovimientoInventario
+    referencia_documento: str | None = None
+    cantidad_entrada: Decimal
+    cantidad_salida: Decimal
+    saldo_cantidad: Decimal
+    costo_unitario_aplicado: Decimal
+    valor_movimiento: Decimal
+
+
+class KardexResponse(BaseModel):
+    producto_id: UUID
+    bodega_id: UUID
+    fecha_inicio: date | None = None
+    fecha_fin: date | None = None
+    saldo_inicial: Decimal
+    movimientos: list[KardexMovimientoRead]
+
+
+class ValoracionProductoRead(BaseModel):
+    producto_id: UUID
+    cantidad_actual: Decimal
+    costo_promedio_vigente: Decimal
+    valor_total: Decimal
+
+
+class ValoracionBodegaRead(BaseModel):
+    bodega_id: UUID
+    total_bodega: Decimal
+    productos: list[ValoracionProductoRead]
+
+
+class ValoracionResponse(BaseModel):
+    bodegas: list[ValoracionBodegaRead]
+    total_global: Decimal
