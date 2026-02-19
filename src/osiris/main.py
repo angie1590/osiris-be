@@ -2,6 +2,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from osiris.core.audit_context import (
+    extract_user_id_from_request_headers,
+    reset_current_user_id,
+    set_current_user_id,
+)
 from osiris.core.settings import get_settings
 from osiris.core.errors import NotFoundError
 from osiris.modules.common.rol.router import router as rol_router
@@ -43,6 +48,20 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def inject_audit_user_context(request: Request, call_next):
+    user_id = extract_user_id_from_request_headers(
+        authorization=request.headers.get("Authorization"),
+        x_user_id=request.headers.get("X-User-Id"),
+    )
+    token = set_current_user_id(user_id)
+    try:
+        return await call_next(request)
+    finally:
+        reset_current_user_id(token)
+
 
 @app.exception_handler(NotFoundError)
 async def not_found_handler(_req: Request, exc: NotFoundError):
