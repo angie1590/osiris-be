@@ -47,6 +47,8 @@ class EmpresaRepository(BaseRepository):
         new_state = self._snapshot(db_obj)
 
         audit = AuditLog(
+            tabla_afectada="tbl_empresa",
+            registro_id=str(db_obj.id),
             entidad="Empresa",
             entidad_id=db_obj.id,
             accion="UPDATE",
@@ -54,7 +56,9 @@ class EmpresaRepository(BaseRepository):
             estado_nuevo=new_state,
             before_json=old_state,
             after_json=new_state,
+            usuario_id=data.get("usuario_auditoria", getattr(db_obj, "usuario_auditoria", None)),
             usuario_auditoria=data.get("usuario_auditoria", getattr(db_obj, "usuario_auditoria", None)),
+            fecha=datetime.utcnow(),
         )
 
         session.add(db_obj)

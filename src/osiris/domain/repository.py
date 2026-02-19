@@ -54,7 +54,7 @@ class BaseRepository:
         self,
         session: Session,
         *,
-        only_active: Optional[bool] = None,
+        only_active: Optional[bool] = True,
         limit: int = 50,
         offset: int = 0,
         order_by: Optional[Iterable] = None,
@@ -91,7 +91,10 @@ class BaseRepository:
         return items, total
 
     def get(self, session: Session, item_id: Any) -> Any:
-        return session.get(self.model, item_id)
+        obj = session.get(self.model, item_id)
+        if obj is not None and hasattr(obj, "activo") and getattr(obj, "activo") is False:
+            return None
+        return obj
 
     # ------------------------------
     # 🆕 Handler genérico de integridad

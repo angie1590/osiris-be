@@ -2,12 +2,26 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlmodel import Session
+from osiris.core.audit_context import (
+    extract_user_id_from_request_headers,
+    reset_current_user_id,
+    set_current_user_id,
+)
+from osiris.core.db import engine
 from osiris.core.settings import get_settings
 from osiris.core.errors import NotFoundError
+from osiris.core.security_audit import (
+    is_user_authorized_for_rule,
+    log_unauthorized_access,
+    match_sensitive_rule,
+    parse_attempted_payload,
+)
 from osiris.modules.common.rol.router import router as rol_router
 from osiris.modules.common.empresa.router import router as empresa_router
 from osiris.modules.common.sucursal.router import router as sucursal_router
 from osiris.modules.common.punto_emision.router import router as punto_emision_router
+from osiris.modules.common.audit_log.router import router as audit_log_router
 from osiris.modules.common.persona.router import router as persona_router
 from osiris.modules.common.tipo_cliente.router import router as tipo_cliente_router
 from osiris.modules.common.usuario.router import router as usuario_router
@@ -43,6 +57,92 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+app.state.security_audit_engine = engine
+
+
+@app.middleware("http")
+async def inject_audit_user_context(request: Request, call_next):
+    user_id = extract_user_id_from_request_headers(
+        authorization=request.headers.get("Authorization"),
+        x_user_id=request.headers.get("X-User-Id"),
+    )
+    token = set_current_user_id(user_id)
+    try:
+        return await call_next(request)
+    finally:
+        reset_current_user_id(token)
+
+
+@app.middleware("http")
+async def enforce_sensitive_access_control(request: Request, call_next):
+    rule = match_sensitive_rule(request.method, request.url.path)
+    if not rule:
+        return await call_next(request)
+
+    raw_body = await request.body()
+    payload = parse_attempted_payload(raw_body)
+
+    async def receive() -> dict:
+        return {"type": "http.request", "body": raw_body, "more_body": False}
+
+    request._receive = receive  # type: ignore[attr-defined]
+
+    user_id = extract_user_id_from_request_headers(
+        authorization=request.headers.get("Authorization"),
+        x_user_id=request.headers.get("X-User-Id"),
+    )
+    security_engine = getattr(request.app.state, "security_audit_engine", engine)
+
+    if not user_id:
+        with Session(security_engine) as security_session:
+            log_unauthorized_access(
+                security_session,
+                request=request,
+                user_id=None,
+                payload=payload,
+                reason="Usuario no autenticado para endpoint sensible.",
+                rule=rule,
+            )
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Acceso denegado a endpoint sensible."},
+        )
+
+    with Session(security_engine) as security_session:
+        authorized = is_user_authorized_for_rule(
+            security_session,
+            user_id=user_id,
+            rule=rule,
+        )
+
+    if not authorized:
+        with Session(security_engine) as security_session:
+            log_unauthorized_access(
+                security_session,
+                request=request,
+                user_id=user_id,
+                payload=payload,
+                reason="Permisos insuficientes para endpoint sensible.",
+                rule=rule,
+            )
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "No tiene permisos para esta operación."},
+        )
+
+    response = await call_next(request)
+    if response.status_code == 403:
+        with Session(security_engine) as security_session:
+            log_unauthorized_access(
+                security_session,
+                request=request,
+                user_id=user_id,
+                payload=payload,
+                reason="El endpoint sensible devolvió 403.",
+                rule=rule,
+            )
+    return response
+
 
 @app.exception_handler(NotFoundError)
 async def not_found_handler(_req: Request, exc: NotFoundError):
@@ -53,6 +153,7 @@ app.include_router(rol_router, prefix="/api")
 app.include_router(empresa_router, prefix="/api")
 app.include_router(sucursal_router, prefix="/api")
 app.include_router(punto_emision_router, prefix="/api")
+app.include_router(audit_log_router, prefix="/api/v1")
 app.include_router(persona_router, prefix="/api")
 app.include_router(tipo_cliente_router, prefix="/api")
 app.include_router(usuario_router, prefix="/api")
