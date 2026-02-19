@@ -30,6 +30,8 @@ class MovimientoInventarioService:
         self,
         session: Session,
         payload: MovimientoInventarioCreate,
+        *,
+        commit: bool = True,
     ) -> MovimientoInventario:
         movimiento = MovimientoInventario(
             fecha=payload.fecha,
@@ -55,14 +57,20 @@ class MovimientoInventarioService:
             session.add(movimiento_detalle)
 
         # Regla de la card E3-1: BORRADOR no altera stock.
-        session.commit()
-        session.refresh(movimiento)
+        if commit:
+            session.commit()
+            session.refresh(movimiento)
+        else:
+            session.flush()
         return movimiento
 
     def confirmar_movimiento(
         self,
         session: Session,
         movimiento_id,
+        *,
+        commit: bool = True,
+        rollback_on_error: bool = True,
     ) -> MovimientoInventario:
         movimiento = session.get(MovimientoInventario, movimiento_id)
         if not movimiento or not movimiento.activo:
@@ -90,11 +98,15 @@ class MovimientoInventarioService:
 
             movimiento.estado = EstadoMovimientoInventario.CONFIRMADO
             session.add(movimiento)
-            session.commit()
-            session.refresh(movimiento)
+            if commit:
+                session.commit()
+                session.refresh(movimiento)
+            else:
+                session.flush()
             return movimiento
         except Exception:
-            session.rollback()
+            if rollback_on_error:
+                session.rollback()
             raise
 
     def _aplicar_egreso_con_lock(
