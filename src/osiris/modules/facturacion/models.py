@@ -107,6 +107,7 @@ class VentaCompraDetalleRegistroCreate(BaseModel):
 
 class VentaCreate(BaseModel):
     fecha_emision: date = Field(default_factory=date.today)
+    bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
@@ -193,6 +194,7 @@ class VentaCreate(BaseModel):
 
 class VentaRegistroCreate(BaseModel):
     fecha_emision: date = Field(default_factory=date.today)
+    bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
@@ -203,6 +205,7 @@ class VentaRegistroCreate(BaseModel):
 
 class CompraCreate(BaseModel):
     fecha_emision: date = Field(default_factory=date.today)
+    bodega_id: UUID | None = None
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
@@ -273,6 +276,7 @@ class CompraCreate(BaseModel):
 
 class CompraRegistroCreate(BaseModel):
     fecha_emision: date = Field(default_factory=date.today)
+    bodega_id: UUID | None = None
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
