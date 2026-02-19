@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 from datetime import date
 from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import Column, Numeric
+from sqlalchemy import Column, Numeric, Text
 from sqlmodel import Field
 
 from osiris.domain.base_models import AuditMixin, BaseTable, SoftDeleteMixin
@@ -29,6 +30,24 @@ class TipoImpuestoMVP(str, Enum):
     ICE = "ICE"
 
 
+class EstadoVenta(str, Enum):
+    PENDIENTE = "PENDIENTE"
+    EMITIDA = "EMITIDA"
+    ANULADA = "ANULADA"
+
+
+class EstadoCompra(str, Enum):
+    PENDIENTE = "PENDIENTE"
+    PAGADA = "PAGADA"
+    ANULADA = "ANULADA"
+
+
+class EstadoDocumentoElectronico(str, Enum):
+    ENVIADO = "ENVIADO"
+    AUTORIZADO = "AUTORIZADO"
+    RECHAZADO = "RECHAZADO"
+
+
 class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_venta"
 
@@ -48,6 +67,7 @@ class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto_iva: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     monto_ice: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     valor_total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    estado: EstadoVenta = Field(default=EstadoVenta.EMITIDA, nullable=False, max_length=20)
 
 
 class VentaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -81,6 +101,40 @@ class VentaDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 VentaDetalleImpuestoSnapshot = VentaDetalleImpuesto
 
 
+class DocumentoElectronico(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_documento_electronico"
+
+    venta_id: UUID = Field(foreign_key="tbl_venta.id", nullable=False, index=True)
+    clave_acceso: str = Field(nullable=False, max_length=49, index=True)
+    estado: EstadoDocumentoElectronico = Field(
+        default=EstadoDocumentoElectronico.ENVIADO,
+        nullable=False,
+        max_length=20,
+    )
+
+
+class VentaEstadoHistorial(BaseTable, table=True):
+    __tablename__ = "tbl_venta_estado_historial"
+
+    entidad_id: UUID = Field(foreign_key="tbl_venta.id", nullable=False, index=True)
+    estado_anterior: str = Field(nullable=False, max_length=30)
+    estado_nuevo: str = Field(nullable=False, max_length=30)
+    motivo_cambio: str = Field(sa_column=Column(Text, nullable=False))
+    usuario_id: str | None = Field(default=None, max_length=255, index=True)
+    fecha: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
+
+
+class DocumentoElectronicoHistorial(BaseTable, table=True):
+    __tablename__ = "tbl_documento_electronico_historial"
+
+    entidad_id: UUID = Field(foreign_key="tbl_documento_electronico.id", nullable=False, index=True)
+    estado_anterior: str = Field(nullable=False, max_length=30)
+    estado_nuevo: str = Field(nullable=False, max_length=30)
+    motivo_cambio: str = Field(sa_column=Column(Text, nullable=False))
+    usuario_id: str | None = Field(default=None, max_length=255, index=True)
+    fecha: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
+
+
 class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_compra"
 
@@ -99,6 +153,7 @@ class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto_iva: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     monto_ice: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     valor_total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    estado: EstadoCompra = Field(default=EstadoCompra.PENDIENTE, nullable=False, max_length=20)
 
 
 class CompraDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -129,3 +184,14 @@ class CompraDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
 # Alias de compatibilidad para referencias existentes.
 CompraDetalleImpuestoSnapshot = CompraDetalleImpuesto
+
+
+class CompraEstadoHistorial(BaseTable, table=True):
+    __tablename__ = "tbl_compra_estado_historial"
+
+    entidad_id: UUID = Field(foreign_key="tbl_compra.id", nullable=False, index=True)
+    estado_anterior: str = Field(nullable=False, max_length=30)
+    estado_nuevo: str = Field(nullable=False, max_length=30)
+    motivo_cambio: str = Field(sa_column=Column(Text, nullable=False))
+    usuario_id: str | None = Field(default=None, max_length=255, index=True)
+    fecha: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)

@@ -92,6 +92,8 @@ def _registrar_auditoria_regimen_modo_after_update(_mapper, connection, target: 
     connection.execute(
         sa.insert(AuditLog.__table__).values(
             id=uuid4(),
+            tabla_afectada="tbl_empresa",
+            registro_id=str(target.id),
             entidad="Empresa",
             entidad_id=target.id,
             accion="UPDATE_REGIMEN_MODO",
@@ -99,7 +101,9 @@ def _registrar_auditoria_regimen_modo_after_update(_mapper, connection, target: 
             estado_nuevo=after_json,
             before_json=before_json,
             after_json=after_json,
+            usuario_id=getattr(target, "usuario_auditoria", None),
             usuario_auditoria=getattr(target, "usuario_auditoria", None),
+            fecha=datetime.utcnow(),
             creado_en=datetime.utcnow(),
         )
     )
