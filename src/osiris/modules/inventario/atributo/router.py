@@ -1,6 +1,6 @@
 # src/osiris/modules/inventario/atributo/router.py
 from fastapi import APIRouter
-from src.osiris.domain.router import register_crud_routes
+from osiris.domain.router import register_crud_routes
 from .models import AtributoCreate, AtributoUpdate, AtributoRead
 from .service import AtributoService
 

@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import EmailStr, StringConstraints, model_validator
 
 from osiris.domain.base_models import BaseOSModel
-from src.osiris.utils.validacion_identificacion import ValidacionCedulaRucService
+from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 
 
 class TipoIdentificacion(str, Enum):

@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .repository import PersonaRepository
 from .entity import Persona
 

@@ -4,7 +4,7 @@ from typing import Optional, Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
-from src.osiris.utils.validacion_identificacion import ValidacionCedulaRucService
+from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 
 
 # Atajos de tipos con restricciones

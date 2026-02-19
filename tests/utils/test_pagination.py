@@ -1,4 +1,4 @@
-from src.osiris.utils.pagination import build_pagination_meta
+from osiris.utils.pagination import build_pagination_meta
 
 def test_build_pagination_meta_middle_page():
     meta = build_pagination_meta(total=25, limit=10, offset=10)

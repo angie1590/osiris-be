@@ -52,6 +52,24 @@ class Settings(BaseSettings):
             raise ValueError(f"Archivo no encontrado en `{info.field_name}`: {resolved_path}")
         return resolved_path
 
+    @field_validator("DATABASE_URL", "DB_URL_ALEMBIC", mode="before")
+    @classmethod
+    def _normalize_postgres_driver(cls, value):
+        if value in (None, ""):
+            return value
+
+        db_url = str(value)
+        if db_url.startswith("postgresql+psycopg2://"):
+            return db_url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+        if db_url.startswith("postgresql://"):
+            return db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        if db_url.startswith("postgresql+psycopg://"):
+            return db_url
+
+        raise ValueError(
+            "URL de Postgres invalida: use el driver 'postgresql+psycopg://'."
+        )
+
 
 def _env_name() -> str:
     return os.getenv("ENVIRONMENT", "development")

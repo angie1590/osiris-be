@@ -1,6 +1,6 @@
 # src/osiris/modules/common/empresa/router.py
 from fastapi import APIRouter
-from src.osiris.domain.router import register_crud_routes
+from osiris.domain.router import register_crud_routes
 from .models import EmpresaCreate, EmpresaUpdate, EmpresaRead
 from .service import EmpresaService
 

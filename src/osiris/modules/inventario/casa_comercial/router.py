@@ -1,7 +1,7 @@
 # src/osiris/modules/inventario/casa_comercial/router.py
 
 from fastapi import APIRouter
-from src.osiris.domain.router import register_crud_routes
+from osiris.domain.router import register_crud_routes
 from .models import CasaComercialCreate, CasaComercialUpdate, CasaComercialRead
 from .service import CasaComercialService
 

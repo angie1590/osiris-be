@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlmodel import select
 
-from src.osiris.domain.repository import BaseRepository
+from osiris.domain.repository import BaseRepository
 from .entity import PuntoEmision
 
 class PuntoEmisionRepository(BaseRepository):

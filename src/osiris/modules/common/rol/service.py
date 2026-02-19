@@ -1,4 +1,4 @@
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .repository import RolRepository
 
 class RolService(BaseService):

@@ -1,4 +1,4 @@
-from src.osiris.domain.repository import BaseRepository
+from osiris.domain.repository import BaseRepository
 from .entity import Rol
 
 class RolRepository(BaseRepository):

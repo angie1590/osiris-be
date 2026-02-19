@@ -71,8 +71,8 @@ ENVIRONMENT=development
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=dev_password
 POSTGRES_DB=osiris_db
-DATABASE_URL=postgresql+psycopg2://postgres:dev_password@postgres/osiris_db
-DB_URL_ALEMBIC=postgresql+psycopg2://postgres:dev_password@postgres/osiris_db
+DATABASE_URL=postgresql+psycopg://postgres:dev_password@postgres/osiris_db
+DB_URL_ALEMBIC=postgresql+psycopg://postgres:dev_password@postgres/osiris_db
 
 # Facturación Electrónica Ecuador
 # Rutas relativas al directorio /app dentro del contenedor

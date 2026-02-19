@@ -11,7 +11,7 @@ from sqlmodel import SQLModel
 # modules that declare models. This is safe in unit tests where we mock sessions
 SQLModel.metadata.clear()
 
-from src.osiris.modules.inventario.categoria.service import CategoriaService
+from osiris.modules.inventario.categoria.service import CategoriaService
 from types import SimpleNamespace
 
 

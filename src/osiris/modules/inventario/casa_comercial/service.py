@@ -1,4 +1,4 @@
-from src.osiris.domain.service import BaseService
+from osiris.domain.service import BaseService
 from .repository import CasaComercialRepository
 
 class CasaComercialService(BaseService):

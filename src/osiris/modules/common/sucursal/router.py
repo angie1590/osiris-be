@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from src.osiris.domain.router import register_crud_routes
+from osiris.domain.router import register_crud_routes
 from .models import SucursalCreate, SucursalUpdate, SucursalRead
 from .service import SucursalService
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from src.osiris.domain.router import register_crud_routes
+from osiris.domain.router import register_crud_routes
 
 from .service import ProveedorPersonaService
 from .models import ProveedorPersonaCreate, ProveedorPersonaUpdate, ProveedorPersonaRead

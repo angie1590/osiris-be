@@ -1,5 +1,5 @@
 import pytest
-from src.osiris.utils.validacion_identificacion import ValidacionCedulaRucService
+from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 
 @pytest.mark.parametrize("identificacion, esperado", [
     ("0104815956", True),               # Cédula válida

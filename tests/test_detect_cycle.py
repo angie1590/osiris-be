@@ -2,7 +2,7 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from src.osiris.modules.inventario.categoria.service import CategoriaService
+from osiris.modules.inventario.categoria.service import CategoriaService
 from sqlmodel import SQLModel
 
 

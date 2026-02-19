@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.osiris.domain.repository import BaseRepository
+from osiris.domain.repository import BaseRepository
 from .entity import TipoCliente
 
 
