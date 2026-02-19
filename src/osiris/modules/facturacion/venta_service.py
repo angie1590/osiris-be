@@ -74,6 +74,7 @@ class VentaService:
                     cantidad=detalle.cantidad,
                     precio_unitario=detalle.precio_unitario,
                     descuento=detalle.descuento,
+                    es_actividad_excluida=detalle.es_actividad_excluida,
                     impuestos=impuestos,
                 )
             )
@@ -83,6 +84,7 @@ class VentaService:
             tipo_identificacion_comprador=payload.tipo_identificacion_comprador,
             identificacion_comprador=payload.identificacion_comprador,
             forma_pago=payload.forma_pago,
+            regimen_emisor=payload.regimen_emisor,
             usuario_auditoria=payload.usuario_auditoria,
             detalles=detalles,
         )
@@ -93,6 +95,7 @@ class VentaService:
             tipo_identificacion_comprador=payload.tipo_identificacion_comprador,
             identificacion_comprador=payload.identificacion_comprador,
             forma_pago=payload.forma_pago,
+            regimen_emisor=payload.regimen_emisor,
             subtotal_sin_impuestos=payload.subtotal_sin_impuestos,
             subtotal_12=payload.subtotal_12,
             subtotal_15=payload.subtotal_15,
@@ -115,6 +118,7 @@ class VentaService:
                 precio_unitario=detalle.precio_unitario,
                 descuento=detalle.descuento,
                 subtotal_sin_impuesto=q2(detalle.subtotal_sin_impuesto),
+                es_actividad_excluida=detalle.es_actividad_excluida,
                 usuario_auditoria=payload.usuario_auditoria,
             )
             session.add(detalle_db)
@@ -179,6 +183,7 @@ class VentaService:
                     precio_unitario=detalle.precio_unitario,
                     descuento=detalle.descuento,
                     subtotal_sin_impuesto=detalle.subtotal_sin_impuesto,
+                    es_actividad_excluida=detalle.es_actividad_excluida,
                     impuestos=impuestos_read,
                 )
             )
@@ -189,6 +194,7 @@ class VentaService:
             tipo_identificacion_comprador=venta.tipo_identificacion_comprador,
             identificacion_comprador=venta.identificacion_comprador,
             forma_pago=venta.forma_pago,
+            regimen_emisor=venta.regimen_emisor,
             subtotal_sin_impuestos=venta.subtotal_sin_impuestos,
             subtotal_12=venta.subtotal_12,
             subtotal_15=venta.subtotal_15,

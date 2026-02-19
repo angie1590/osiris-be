@@ -9,6 +9,7 @@ from sqlalchemy import Column, Numeric
 from sqlmodel import Field
 
 from osiris.domain.base_models import AuditMixin, BaseTable, SoftDeleteMixin
+from osiris.modules.common.empresa.entity import RegimenTributario
 
 
 class TipoIdentificacionSRI(str, Enum):
@@ -35,6 +36,7 @@ class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     tipo_identificacion_comprador: TipoIdentificacionSRI = Field(nullable=False, max_length=20)
     identificacion_comprador: str = Field(nullable=False, max_length=20, index=True)
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
+    regimen_emisor: RegimenTributario = Field(default=RegimenTributario.GENERAL, nullable=False)
 
     subtotal_sin_impuestos: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     subtotal_12: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
@@ -59,6 +61,7 @@ class VentaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     precio_unitario: Decimal = Field(sa_column=Column(Numeric(12, 4), nullable=False))
     descuento: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     subtotal_sin_impuesto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    es_actividad_excluida: bool = Field(default=False, nullable=False)
 
 
 class VentaDetalleImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

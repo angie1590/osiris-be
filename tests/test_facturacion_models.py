@@ -3,6 +3,10 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+from pydantic import ValidationError
+
+from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.models import (
     CompraCreate,
     ImpuestoAplicadoInput,
@@ -143,3 +147,50 @@ def test_iva_calcula_base_imponible_sobre_subtotal_mas_ice():
     assert detalle.monto_ice_detalle() == Decimal("5.00")
     assert detalle.base_imponible_impuesto(iva) == Decimal("105.00")
     assert detalle.valor_impuesto(iva) == Decimal("12.60")
+
+
+def test_venta_rimpe_negocio_popular_rechaza_iva_mayor_a_cero_en_actividad_incluyente():
+    with pytest.raises(ValidationError) as exc:
+        VentaCreate(
+            tipo_identificacion_comprador="RUC",
+            identificacion_comprador="1790012345001",
+            forma_pago="EFECTIVO",
+            regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+            usuario_auditoria="tester",
+            detalles=[
+                VentaCompraDetalleCreate(
+                    producto_id=uuid4(),
+                    descripcion="Servicio normal",
+                    cantidad=Decimal("1"),
+                    precio_unitario=Decimal("10.00"),
+                    es_actividad_excluida=False,
+                    impuestos=[_iva12()],
+                )
+            ],
+        )
+
+    assert (
+        "Los Negocios Populares solo pueden facturar con tarifa 0% de IVA para sus actividades incluyentes"
+        in str(exc.value)
+    )
+
+
+def test_venta_rimpe_negocio_popular_permite_iva_si_actividad_excluida():
+    venta = VentaCreate(
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Actividad excluida",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("10.00"),
+                es_actividad_excluida=True,
+                impuestos=[_iva12()],
+            )
+        ],
+    )
+    assert venta.monto_iva == Decimal("1.20")

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
+from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
     FormaPagoSRI,
     TipoIdentificacionSRI,
@@ -47,6 +48,7 @@ class VentaCompraDetalleCreate(BaseModel):
     cantidad: Decimal = Field(..., gt=Decimal("0"))
     precio_unitario: Decimal = Field(..., ge=Decimal("0"))
     descuento: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    es_actividad_excluida: bool = False
     impuestos: list[ImpuestoAplicadoInput] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -100,6 +102,7 @@ class VentaCompraDetalleRegistroCreate(BaseModel):
     cantidad: Decimal = Field(..., gt=Decimal("0"))
     precio_unitario: Decimal = Field(..., ge=Decimal("0"))
     descuento: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0"))
+    es_actividad_excluida: bool = False
 
 
 class VentaCreate(BaseModel):
@@ -107,8 +110,24 @@ class VentaCreate(BaseModel):
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleCreate] = Field(..., min_length=1)
+
+    @model_validator(mode="after")
+    def validar_iva_cero_para_negocio_popular(self):
+        if self.regimen_emisor != RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            return self
+
+        for detalle in self.detalles:
+            if detalle.es_actividad_excluida:
+                continue
+            iva = detalle.iva_impuesto()
+            if iva and q2(iva.tarifa) > Decimal("0.00"):
+                raise ValueError(
+                    "Los Negocios Populares solo pueden facturar con tarifa 0% de IVA para sus actividades incluyentes"
+                )
+        return self
 
     @computed_field(return_type=Decimal)
     def subtotal_sin_impuestos(self) -> Decimal:
@@ -177,6 +196,7 @@ class VentaRegistroCreate(BaseModel):
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
 
@@ -276,6 +296,7 @@ class VentaDetalleRead(BaseModel):
     precio_unitario: Decimal
     descuento: Decimal
     subtotal_sin_impuesto: Decimal
+    es_actividad_excluida: bool = False
     impuestos: list[VentaDetalleImpuestoRead]
 
 
@@ -285,6 +306,7 @@ class VentaRead(BaseModel):
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str
     forma_pago: FormaPagoSRI
+    regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
 
     subtotal_sin_impuestos: Decimal
     subtotal_12: Decimal

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import FormaPagoSRI, TipoIdentificacionSRI, TipoImpuestoMVP
 from osiris.modules.facturacion.models import VentaRead, q2
 
@@ -109,7 +110,7 @@ class FEMapperService:
                 "Inconsistencia tributaria: subtotal mas impuestos no coincide con el valor total."
             )
 
-        return {
+        payload = {
             "infoTributaria": {
                 "identificacionComprador": venta.identificacion_comprador,
                 "tipoIdentificacionComprador": IDENTIFICACION_SRI_CODE[venta.tipo_identificacion_comprador],
@@ -128,3 +129,13 @@ class FEMapperService:
             },
             "detalles": detalles_payload,
         }
+        if venta.regimen_emisor == RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            payload["infoAdicional"] = {
+                "campoAdicional": [
+                    {
+                        "nombre": "Contribuyente",
+                        "valor": "Contribuyente Negocio Popular - Régimen RIMPE",
+                    }
+                ]
+            }
+        return payload
