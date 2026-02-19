@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 import pytest
@@ -14,6 +15,7 @@ from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.movimiento_inventario.entity import (
     EstadoMovimientoInventario,
+    InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
@@ -37,6 +39,7 @@ def _build_test_engine():
         AuditLog.__table__,
         MovimientoInventario.__table__,
         MovimientoInventarioDetalle.__table__,
+        InventarioStock.__table__,
     ):
         if table.key not in SQLModel.metadata.tables:
             SQLModel.metadata._add_table(table.name, table.schema, table)  # type: ignore[attr-defined]
@@ -59,6 +62,7 @@ def _build_test_engine():
             # Tablas nuevas
             MovimientoInventario.__table__,
             MovimientoInventarioDetalle.__table__,
+            InventarioStock.__table__,
         ],
     )
     return engine
@@ -155,3 +159,300 @@ def test_validacion_cantidades_negativas(cantidad: Decimal):
                 }
             ],
         )
+
+
+def test_concurrencia_stock_negativo(tmp_path):
+    db_file = tmp_path / "inventario_stock_concurrencia.db"
+    engine = create_engine(
+        f"sqlite:///{db_file}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+
+    SQLModel.metadata.create_all(
+        engine,
+        tables=[
+            TipoContribuyente.__table__,
+            Empresa.__table__,
+            Sucursal.__table__,
+            Bodega.__table__,
+            CasaComercial.__table__,
+            Producto.__table__,
+            AuditLog.__table__,
+            MovimientoInventario.__table__,
+            MovimientoInventarioDetalle.__table__,
+            InventarioStock.__table__,
+        ],
+    )
+
+    service = MovimientoInventarioService()
+    with Session(engine) as session:
+        tipo_contribuyente = TipoContribuyente(codigo="01", nombre="SOCIEDAD", activo=True)
+        session.add(tipo_contribuyente)
+
+        empresa = Empresa(
+            razon_social="Empresa Concurrencia",
+            nombre_comercial="Empresa Concurrencia",
+            ruc="1790012345001",
+            direccion_matriz="Av. Quito",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+
+        bodega = Bodega(
+            codigo_bodega="BOD-002",
+            nombre_bodega="Bodega Concurrencia",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(bodega)
+
+        producto = Producto(
+            nombre="Producto Concurrencia",
+            tipo="BIEN",
+            pvp=Decimal("10.00"),
+            cantidad=15,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(producto)
+        session.flush()
+
+        stock = InventarioStock(
+            bodega_id=bodega.id,
+            producto_id=producto.id,
+            cantidad_actual=Decimal("15.0000"),
+            costo_promedio_vigente=Decimal("2.0000"),
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(stock)
+        session.commit()
+        bodega_id = bodega.id
+        producto_id = producto.id
+
+        movimiento_ids = []
+        for i in range(5):
+            payload = MovimientoInventarioCreate(
+                bodega_id=bodega_id,
+                tipo_movimiento=TipoMovimientoInventario.EGRESO,
+                referencia_documento=f"EGR-CONC-{i}",
+                usuario_auditoria="tester",
+                detalles=[
+                    {
+                        "producto_id": producto_id,
+                        "cantidad": Decimal("10.0000"),
+                        "costo_unitario": Decimal("2.0000"),
+                    }
+                ],
+            )
+            movimiento = service.crear_movimiento_borrador(session, payload)
+            movimiento_ids.append(movimiento.id)
+
+    def _worker_confirmar(movimiento_id):
+        with Session(engine) as worker_session:
+            worker_service = MovimientoInventarioService()
+            try:
+                worker_service.confirmar_movimiento(worker_session, movimiento_id)
+                return "ok"
+            except ValueError:
+                return "error"
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        resultados = list(executor.map(_worker_confirmar, movimiento_ids))
+
+    assert resultados.count("ok") == 1
+    assert resultados.count("error") == 4
+
+    with Session(engine) as session:
+        stock_final = (
+            session.query(InventarioStock)
+            .filter_by(bodega_id=bodega_id, producto_id=producto_id, activo=True)
+            .one()
+        )
+        assert stock_final.cantidad_actual == Decimal("5.0000")
+
+
+def test_calculo_promedio_ponderado():
+    engine = _build_test_engine()
+    service = MovimientoInventarioService()
+
+    with Session(engine) as session:
+        tipo_contribuyente = TipoContribuyente(codigo="01", nombre="SOCIEDAD", activo=True)
+        session.add(tipo_contribuyente)
+
+        empresa = Empresa(
+            razon_social="Empresa Promedio",
+            nombre_comercial="Empresa Promedio",
+            ruc="1790012345001",
+            direccion_matriz="Av. Quito",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+
+        bodega = Bodega(
+            codigo_bodega="BOD-003",
+            nombre_bodega="Bodega Promedio",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(bodega)
+
+        producto = Producto(
+            nombre="Producto Promedio",
+            tipo="BIEN",
+            pvp=Decimal("10.00"),
+            cantidad=0,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(producto)
+        session.commit()
+        session.refresh(bodega)
+        session.refresh(producto)
+
+        payload_1 = MovimientoInventarioCreate(
+            bodega_id=bodega.id,
+            tipo_movimiento=TipoMovimientoInventario.INGRESO,
+            referencia_documento="ING-1",
+            usuario_auditoria="tester",
+            detalles=[
+                {
+                    "producto_id": producto.id,
+                    "cantidad": Decimal("10.0000"),
+                    "costo_unitario": Decimal("10.0000"),
+                }
+            ],
+        )
+        mov_1 = service.crear_movimiento_borrador(session, payload_1)
+        service.confirmar_movimiento(session, mov_1.id)
+
+        payload_2 = MovimientoInventarioCreate(
+            bodega_id=bodega.id,
+            tipo_movimiento=TipoMovimientoInventario.INGRESO,
+            referencia_documento="ING-2",
+            usuario_auditoria="tester",
+            detalles=[
+                {
+                    "producto_id": producto.id,
+                    "cantidad": Decimal("10.0000"),
+                    "costo_unitario": Decimal("20.0000"),
+                }
+            ],
+        )
+        mov_2 = service.crear_movimiento_borrador(session, payload_2)
+        service.confirmar_movimiento(session, mov_2.id)
+
+        stock = (
+            session.query(InventarioStock)
+            .filter_by(bodega_id=bodega.id, producto_id=producto.id, activo=True)
+            .one()
+        )
+        assert stock.cantidad_actual == Decimal("20.0000")
+        assert stock.costo_promedio_vigente == Decimal("15.0000")
+
+
+def test_egreso_congela_costo():
+    engine = _build_test_engine()
+    service = MovimientoInventarioService()
+
+    with Session(engine) as session:
+        tipo_contribuyente = TipoContribuyente(codigo="01", nombre="SOCIEDAD", activo=True)
+        session.add(tipo_contribuyente)
+
+        empresa = Empresa(
+            razon_social="Empresa Egreso",
+            nombre_comercial="Empresa Egreso",
+            ruc="1790012345001",
+            direccion_matriz="Av. Quito",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+
+        bodega = Bodega(
+            codigo_bodega="BOD-004",
+            nombre_bodega="Bodega Egreso",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(bodega)
+
+        producto = Producto(
+            nombre="Producto Egreso",
+            tipo="BIEN",
+            pvp=Decimal("10.00"),
+            cantidad=0,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(producto)
+        session.flush()
+
+        stock = InventarioStock(
+            bodega_id=bodega.id,
+            producto_id=producto.id,
+            cantidad_actual=Decimal("30.0000"),
+            costo_promedio_vigente=Decimal("7.3456"),
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(stock)
+        session.commit()
+        session.refresh(bodega)
+        session.refresh(producto)
+
+        payload = MovimientoInventarioCreate(
+            bodega_id=bodega.id,
+            tipo_movimiento=TipoMovimientoInventario.EGRESO,
+            referencia_documento="EGR-1",
+            usuario_auditoria="tester",
+            detalles=[
+                {
+                    "producto_id": producto.id,
+                    "cantidad": Decimal("5.0000"),
+                    "costo_unitario": Decimal("99.9999"),
+                }
+            ],
+        )
+        movimiento = service.crear_movimiento_borrador(session, payload)
+        service.confirmar_movimiento(session, movimiento.id)
+
+        detalle = (
+            session.exec(
+                select(MovimientoInventarioDetalle).where(
+                    MovimientoInventarioDetalle.movimiento_inventario_id == movimiento.id
+                )
+            )
+            .all()[0]
+        )
+        stock_actualizado = (
+            session.query(InventarioStock)
+            .filter_by(bodega_id=bodega.id, producto_id=producto.id, activo=True)
+            .one()
+        )
+        assert detalle.costo_unitario == Decimal("7.3456")
+        assert stock_actualizado.costo_promedio_vigente == Decimal("7.3456")
+        assert stock_actualizado.cantidad_actual == Decimal("25.0000")
