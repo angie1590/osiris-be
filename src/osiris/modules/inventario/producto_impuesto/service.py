@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
 from sqlmodel import Session
 from fastapi import HTTPException
@@ -16,6 +17,14 @@ from osiris.modules.sri.impuesto_catalogo.repository import ImpuestoCatalogoRepo
 class ProductoImpuestoService(BaseService):
     repo = ProductoImpuestoRepository()
     impuesto_repo = ImpuestoCatalogoRepository()
+
+    @staticmethod
+    def _resolver_tarifa_principal(impuesto: ImpuestoCatalogo) -> Decimal:
+        if impuesto.tipo_impuesto.value == "IVA":
+            return Decimal(str(impuesto.porcentaje_iva or 0))
+        if impuesto.tipo_impuesto.value == "ICE":
+            return Decimal(str(impuesto.tarifa_ad_valorem or 0))
+        return Decimal("0")
 
     def asignar_impuesto(
         self,
@@ -66,6 +75,9 @@ class ProductoImpuestoService(BaseService):
         producto_impuesto = ProductoImpuesto(
             producto_id=producto_id,
             impuesto_catalogo_id=impuesto_catalogo_id,
+            codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
+            codigo_porcentaje_sri=impuesto.codigo_sri,
+            tarifa=self._resolver_tarifa_principal(impuesto),
             usuario_auditoria=usuario_auditoria
         )
 

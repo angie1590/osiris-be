@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+from datetime import date
+from decimal import Decimal
+from uuid import uuid4
+
+from osiris.modules.facturacion.fe_mapper_service import FEMapperService
+from osiris.modules.facturacion.models import (
+    VentaDetalleImpuestoSnapshotRead,
+    VentaDetalleRead,
+    VentaRead,
+)
+
+
+def test_fe_mapper_agrupa_total_con_impuestos_desde_snapshot():
+    mapper = FEMapperService()
+
+    venta = VentaRead(
+        id=uuid4(),
+        fecha_emision=date(2026, 2, 19),
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        subtotal_sin_impuestos=Decimal("110.00"),
+        subtotal_12=Decimal("110.00"),
+        subtotal_15=Decimal("0.00"),
+        subtotal_0=Decimal("0.00"),
+        subtotal_no_objeto=Decimal("0.00"),
+        monto_iva=Decimal("13.20"),
+        monto_ice=Decimal("2.50"),
+        valor_total=Decimal("125.70"),
+        detalles=[
+            VentaDetalleRead(
+                producto_id=uuid4(),
+                descripcion="DET 1",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("100"),
+                descuento=Decimal("0"),
+                subtotal_sin_impuesto=Decimal("100.00"),
+                impuestos=[
+                    VentaDetalleImpuestoSnapshotRead(
+                        tipo_impuesto="IVA",
+                        codigo_impuesto_sri="2",
+                        codigo_porcentaje_sri="2",
+                        tarifa=Decimal("12"),
+                        base_imponible=Decimal("100.00"),
+                        valor_impuesto=Decimal("12.00"),
+                    ),
+                    VentaDetalleImpuestoSnapshotRead(
+                        tipo_impuesto="ICE",
+                        codigo_impuesto_sri="3",
+                        codigo_porcentaje_sri="305",
+                        tarifa=Decimal("2.5"),
+                        base_imponible=Decimal("100.00"),
+                        valor_impuesto=Decimal("2.50"),
+                    ),
+                ],
+            ),
+            VentaDetalleRead(
+                producto_id=uuid4(),
+                descripcion="DET 2",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("10"),
+                descuento=Decimal("0"),
+                subtotal_sin_impuesto=Decimal("10.00"),
+                impuestos=[
+                    VentaDetalleImpuestoSnapshotRead(
+                        tipo_impuesto="IVA",
+                        codigo_impuesto_sri="2",
+                        codigo_porcentaje_sri="2",
+                        tarifa=Decimal("12"),
+                        base_imponible=Decimal("10.00"),
+                        valor_impuesto=Decimal("1.20"),
+                    )
+                ],
+            ),
+        ],
+    )
+
+    payload = mapper.venta_to_fe_payload(venta)
+    assert payload["infoFactura"]["importeTotal"] == "125.70"
+    assert payload["infoFactura"]["pagos"][0]["formaPago"] == "01"
+    assert payload["infoTributaria"]["tipoIdentificacionComprador"] == "04"
+
+    total_con_impuestos = payload["infoFactura"]["totalConImpuestos"]
+    assert {"codigo": "2", "codigoPorcentaje": "2", "baseImponible": "110.00", "valor": "13.20"} in total_con_impuestos
+    assert {"codigo": "3", "codigoPorcentaje": "305", "baseImponible": "100.00", "valor": "2.50"} in total_con_impuestos

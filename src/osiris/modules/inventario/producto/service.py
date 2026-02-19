@@ -113,9 +113,23 @@ class ProductoService(BaseService):
         # Asociar impuestos automáticamente
         if impuesto_ids:
             for imp_id in impuesto_ids:
+                impuesto = session.get(ImpuestoCatalogo, imp_id)
+                if not impuesto:
+                    raise HTTPException(status_code=400, detail=f"Impuesto {imp_id} no existe.")
+
+                if impuesto.tipo_impuesto.value == "IVA":
+                    tarifa = impuesto.porcentaje_iva or 0
+                elif impuesto.tipo_impuesto.value == "ICE":
+                    tarifa = impuesto.tarifa_ad_valorem or 0
+                else:
+                    tarifa = 0
+
                 producto_impuesto = ProductoImpuesto(
                     producto_id=pid,
                     impuesto_catalogo_id=imp_id,
+                    codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
+                    codigo_porcentaje_sri=impuesto.codigo_sri,
+                    tarifa=tarifa,
                     usuario_auditoria=usuario_auditoria
                 )
                 session.add(producto_impuesto)

@@ -58,6 +58,12 @@ class ProductoImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
     producto_id: UUID = Field(foreign_key="tbl_producto.id", index=True, nullable=False)
     impuesto_catalogo_id: UUID = Field(foreign_key="aux_impuesto_catalogo.id", index=True, nullable=False)
+    codigo_impuesto_sri: str = Field(nullable=False, max_length=10, default="2")
+    codigo_porcentaje_sri: str = Field(nullable=False, max_length=10, default="0")
+    tarifa: Decimal = Field(
+        sa_column=Column(Numeric(7, 4), nullable=False),
+        default=Decimal("0.0000"),
+    )
 
     # Restricción única: un impuesto específico solo se puede asignar una vez a un producto
     # Se implementará en la migración como UNIQUE(producto_id, impuesto_catalogo_id)
