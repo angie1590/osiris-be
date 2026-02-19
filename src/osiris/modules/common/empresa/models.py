@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Optional, Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator, model_validator
 from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
+from .entity import RegimenTributario, ModoEmisionEmpresa
 
 
 # Atajos de tipos con restricciones
@@ -25,6 +26,8 @@ class EmpresaBase(BaseModel):
     logo: Optional[str] = None
     codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: bool = False
+    regimen: RegimenTributario = RegimenTributario.GENERAL
+    modo_emision: ModoEmisionEmpresa = ModoEmisionEmpresa.ELECTRONICO
     tipo_contribuyente_id: TipoContribuyenteID
     usuario_auditoria: str
 
@@ -34,7 +37,6 @@ class EmpresaBase(BaseModel):
         if not ValidacionCedulaRucService.es_identificacion_valida(v):
             raise ValueError("El RUC ingresado no es válido.")
         return v
-
 
 class EmpresaCreate(EmpresaBase):
     """POST/PUT (reemplazo total)."""
@@ -49,6 +51,8 @@ class EmpresaUpdate(BaseModel):
     logo: Optional[str] = None
     codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: Optional[bool] = None
+    regimen: Optional[RegimenTributario] = None
+    modo_emision: Optional[ModoEmisionEmpresa] = None
     tipo_contribuyente_id: Optional[TipoContribuyenteID] = None
     usuario_auditoria: Optional[str] = None
 
@@ -59,8 +63,23 @@ class EmpresaUpdate(BaseModel):
             raise ValueError("El RUC ingresado no es válido.")
         return v
 
-
 class EmpresaRead(EmpresaBase):
     id: UUID
     activo: bool
     model_config = ConfigDict(from_attributes=True)
+
+
+class EmpresaRegimenModoRules(BaseModel):
+    regimen: RegimenTributario
+    modo_emision: ModoEmisionEmpresa
+
+    @model_validator(mode="after")
+    def _validar_modo_emision_por_regimen(self):
+        if (
+            self.regimen != RegimenTributario.RIMPE_NEGOCIO_POPULAR
+            and self.modo_emision == ModoEmisionEmpresa.NOTA_VENTA_FISICA
+        ):
+            raise ValueError(
+                "NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR."
+            )
+        return self

@@ -1,8 +1,20 @@
 from __future__ import annotations
+from enum import Enum
 from typing import Optional
 from sqlmodel import Field
 
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+
+
+class RegimenTributario(str, Enum):
+    GENERAL = "GENERAL"
+    RIMPE_EMPRENDEDOR = "RIMPE_EMPRENDEDOR"
+    RIMPE_NEGOCIO_POPULAR = "RIMPE_NEGOCIO_POPULAR"
+
+
+class ModoEmisionEmpresa(str, Enum):
+    ELECTRONICO = "ELECTRONICO"
+    NOTA_VENTA_FISICA = "NOTA_VENTA_FISICA"
 
 
 class Empresa(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -21,6 +33,8 @@ class Empresa(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     # Algunas implantaciones manejan esto a nivel Empresa; si no aplica, déjalo tal cual
     codigo_establecimiento: Optional[str] = Field(default=None, max_length=3)
     obligado_contabilidad: bool = Field(default=False)
+    regimen: RegimenTributario = Field(default=RegimenTributario.GENERAL, nullable=False)
+    modo_emision: ModoEmisionEmpresa = Field(default=ModoEmisionEmpresa.ELECTRONICO, nullable=False)
 
     # FK al catálogo (PK = 'codigo')
     tipo_contribuyente_id: str = Field(
