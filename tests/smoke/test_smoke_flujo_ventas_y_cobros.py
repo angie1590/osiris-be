@@ -19,6 +19,7 @@ from tests.smoke.flow_helpers import (
     crear_producto_minimo,
     registrar_compra_desde_productos,
     registrar_venta_desde_productos,
+    seed_stock_por_movimiento,
 )
 
 
@@ -90,33 +91,6 @@ def _registrar_pago_cxc(client, db_session, *, venta_id: UUID, monto: Decimal) -
         pytest.skip(f"No fue posible aplicar pago CxC en DB para smoke: {exc}")
 
 
-def _seed_stock_por_movimiento(client, *, producto_id: str, bodega_id: str, cantidad: str, costo: str) -> None:
-    crear_response = client.post(
-        "/v1/inventario/movimientos",
-        json={
-            "bodega_id": bodega_id,
-            "tipo_movimiento": "INGRESO",
-            "referencia_documento": "SMOKE-SEED-STOCK",
-            "usuario_auditoria": "smoke",
-            "detalles": [
-                {
-                    "producto_id": producto_id,
-                    "cantidad": cantidad,
-                    "costo_unitario": costo,
-                }
-            ],
-        },
-    )
-    assert crear_response.status_code == 201, crear_response.text
-    movimiento_id = crear_response.json()["id"]
-
-    confirmar_response = client.post(
-        f"/v1/inventario/movimientos/{movimiento_id}/confirmar",
-        json={"usuario_auditoria": "smoke"},
-    )
-    assert confirmar_response.status_code == 200, confirmar_response.text
-
-
 def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
     empresa_id = crear_empresa_general(client)
     bodega_id = crear_bodega(client, empresa_id)
@@ -132,12 +106,12 @@ def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
             precio_unitario="15.00",
         )
     except (AssertionError, httpx.HTTPError):
-        _seed_stock_por_movimiento(
+        seed_stock_por_movimiento(
             client,
             producto_id=producto_id,
             bodega_id=bodega_id,
             cantidad="10.0000",
-            costo="15.00",
+            costo_unitario="15.00",
         )
 
     venta = registrar_venta_desde_productos(

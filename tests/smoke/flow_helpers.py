@@ -209,3 +209,37 @@ def registrar_venta_desde_productos(
     response = client.post("/ventas/desde-productos", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def seed_stock_por_movimiento(
+    client: httpx.Client,
+    *,
+    producto_id: str,
+    bodega_id: str,
+    cantidad: str = "10.0000",
+    costo_unitario: str = "10.00",
+) -> None:
+    crear_response = client.post(
+        "/v1/inventario/movimientos",
+        json={
+            "bodega_id": bodega_id,
+            "tipo_movimiento": "INGRESO",
+            "referencia_documento": "SMOKE-SEED-STOCK",
+            "usuario_auditoria": "smoke",
+            "detalles": [
+                {
+                    "producto_id": producto_id,
+                    "cantidad": cantidad,
+                    "costo_unitario": costo_unitario,
+                }
+            ],
+        },
+    )
+    assert crear_response.status_code == 201, crear_response.text
+    movimiento_id = crear_response.json()["id"]
+
+    confirmar_response = client.post(
+        f"/v1/inventario/movimientos/{movimiento_id}/confirmar",
+        json={"usuario_auditoria": "smoke"},
+    )
+    assert confirmar_response.status_code == 200, confirmar_response.text
