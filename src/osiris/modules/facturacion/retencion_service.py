@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlmodel import Session, select
 
 from osiris.modules.facturacion.entity import (
@@ -30,11 +30,13 @@ from osiris.modules.facturacion.models import (
     RetencionSugeridaRead,
     q2,
 )
+from osiris.modules.facturacion.sri_async_service import SriAsyncService
 
 
 class RetencionService:
     def __init__(self) -> None:
         self.fe_mapper_service = FEMapperService()
+        self.sri_async_service = SriAsyncService()
 
     def _obtener_compra(self, session: Session, compra_id: UUID) -> Compra:
         compra = session.get(Compra, compra_id)
@@ -185,6 +187,8 @@ class RetencionService:
         compra_id: UUID,
         payload: RetencionCreate,
         *,
+        encolar_sri: bool = False,
+        background_tasks: BackgroundTasks | None = None,
         commit: bool = True,
         rollback_on_error: bool = True,
     ) -> RetencionRead:
@@ -195,7 +199,7 @@ class RetencionService:
             retencion = Retencion(
                 compra_id=compra_id,
                 fecha_emision=payload.fecha_emision,
-                estado=EstadoRetencion.BORRADOR,
+                estado=EstadoRetencion.REGISTRADA,
                 total_retenido=payload.total_retenido,
                 usuario_auditoria=payload.usuario_auditoria,
                 activo=True,
@@ -221,6 +225,18 @@ class RetencionService:
                 session.commit()
             else:
                 session.flush()
+            if encolar_sri:
+                return self.emitir_retencion(
+                    session,
+                    retencion.id,
+                    RetencionEmitRequest(
+                        usuario_auditoria=payload.usuario_auditoria,
+                        encolar=True,
+                    ),
+                    background_tasks=background_tasks,
+                    commit=commit,
+                    rollback_on_error=rollback_on_error,
+                )
             return self.obtener_retencion_read(session, retencion.id)
         except Exception:
             if rollback_on_error:
@@ -233,6 +249,7 @@ class RetencionService:
         retencion_id: UUID,
         payload: RetencionEmitRequest,
         *,
+        background_tasks: BackgroundTasks | None = None,
         commit: bool = True,
         rollback_on_error: bool = True,
     ) -> RetencionRead:
@@ -253,6 +270,15 @@ class RetencionService:
             retencion.usuario_auditoria = payload.usuario_auditoria
             session.add(retencion)
 
+            if payload.encolar:
+                self.sri_async_service.encolar_retencion(
+                    session,
+                    retencion_id=retencion.id,
+                    usuario_id=payload.usuario_auditoria,
+                    background_tasks=background_tasks,
+                    commit=False,
+                )
+
             if commit:
                 session.commit()
             else:
@@ -271,6 +297,9 @@ class RetencionService:
             compra_id=retencion.compra_id,
             fecha_emision=retencion.fecha_emision,
             estado=retencion.estado,
+            estado_sri=retencion.estado_sri,
+            sri_intentos=retencion.sri_intentos,
+            sri_ultimo_error=retencion.sri_ultimo_error,
             total_retenido=retencion.total_retenido,
             detalles=[
                 RetencionDetalleRead.model_validate(detalle, from_attributes=True) for detalle in detalles

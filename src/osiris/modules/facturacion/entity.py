@@ -36,6 +36,7 @@ class TipoRetencionSRI(str, Enum):
 
 
 class EstadoRetencion(str, Enum):
+    REGISTRADA = "REGISTRADA"
     BORRADOR = "BORRADOR"
     ENCOLADA = "ENCOLADA"
     EMITIDA = "EMITIDA"
@@ -74,6 +75,22 @@ class EstadoDocumentoElectronico(str, Enum):
     ENVIADO = "ENVIADO"
     AUTORIZADO = "AUTORIZADO"
     RECHAZADO = "RECHAZADO"
+
+
+class EstadoSriDocumento(str, Enum):
+    PENDIENTE = "PENDIENTE"
+    REINTENTO = "REINTENTO"
+    AUTORIZADO = "AUTORIZADO"
+    RECHAZADO = "RECHAZADO"
+    ERROR = "ERROR"
+
+
+class EstadoColaSri(str, Enum):
+    PENDIENTE = "PENDIENTE"
+    PROCESANDO = "PROCESANDO"
+    REINTENTO_PROGRAMADO = "REINTENTO_PROGRAMADO"
+    COMPLETADO = "COMPLETADO"
+    FALLIDO = "FALLIDO"
 
 
 class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -261,6 +278,13 @@ class Retencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     compra_id: UUID = Field(foreign_key="tbl_compra.id", nullable=False, index=True, unique=True)
     fecha_emision: date = Field(default_factory=date.today, nullable=False, index=True)
     estado: EstadoRetencion = Field(default=EstadoRetencion.BORRADOR, nullable=False, max_length=20)
+    estado_sri: EstadoSriDocumento = Field(
+        default=EstadoSriDocumento.PENDIENTE,
+        nullable=False,
+        max_length=20,
+    )
+    sri_intentos: int = Field(default=0, nullable=False)
+    sri_ultimo_error: str | None = Field(default=None, max_length=1000)
     total_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
 
 
@@ -273,6 +297,30 @@ class RetencionDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     porcentaje: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
     base_calculo: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+class RetencionEstadoHistorial(BaseTable, table=True):
+    __tablename__ = "tbl_retencion_estado_historial"
+
+    entidad_id: UUID = Field(foreign_key="tbl_retencion.id", nullable=False, index=True)
+    estado_anterior: str = Field(nullable=False, max_length=30)
+    estado_nuevo: str = Field(nullable=False, max_length=30)
+    motivo_cambio: str = Field(sa_column=Column(Text, nullable=False))
+    usuario_id: str | None = Field(default=None, max_length=255, index=True)
+    fecha: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
+
+
+class DocumentoSriCola(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_documento_sri_cola"
+
+    entidad_id: UUID = Field(nullable=False, index=True)
+    tipo_documento: str = Field(nullable=False, max_length=30, index=True)
+    estado: EstadoColaSri = Field(default=EstadoColaSri.PENDIENTE, nullable=False, max_length=30)
+    intentos_realizados: int = Field(default=0, nullable=False)
+    max_intentos: int = Field(default=3, nullable=False)
+    proximo_intento_en: datetime | None = Field(default=None, nullable=True, index=True)
+    ultimo_error: str | None = Field(default=None, max_length=1000)
+    payload_json: str = Field(sa_column=Column(Text, nullable=False))
 
 
 # Alias de compatibilidad para referencias existentes.

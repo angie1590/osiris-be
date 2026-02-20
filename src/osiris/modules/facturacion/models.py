@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoSriDocumento,
     EstadoRetencion,
     EstadoCompra,
     FormaPagoSRI,
@@ -448,6 +449,9 @@ class RetencionRead(BaseModel):
     compra_id: UUID
     fecha_emision: date
     estado: EstadoRetencion
+    estado_sri: EstadoSriDocumento
+    sri_intentos: int = 0
+    sri_ultimo_error: str | None = None
     total_retenido: Decimal
     detalles: list[RetencionDetalleRead]
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlmodel import Session
 
 from osiris.core.db import get_session
@@ -150,9 +150,16 @@ def guardar_plantilla_retencion_desde_compra(
 def crear_retencion_compra(
     compra_id: UUID,
     payload: RetencionCreate,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
 ):
-    return retencion_service.crear_retencion(session, compra_id, payload)
+    return retencion_service.crear_retencion(
+        session,
+        compra_id,
+        payload,
+        encolar_sri=True,
+        background_tasks=background_tasks,
+    )
 
 
 @router.post(
@@ -163,9 +170,15 @@ def crear_retencion_compra(
 def emitir_retencion(
     retencion_id: UUID,
     payload: RetencionEmitRequest,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
 ):
-    return retencion_service.emitir_retencion(session, retencion_id, payload)
+    return retencion_service.emitir_retencion(
+        session,
+        retencion_id,
+        payload,
+        background_tasks=background_tasks,
+    )
 
 
 @router.get(
