@@ -11,6 +11,7 @@ def test_facturacion_router_publica_endpoints_ventas():
     assert "/api/ventas" in paths
     assert "/api/ventas/desde-productos" in paths
     assert "/api/ventas/{venta_id}" in paths
+    assert "/api/ventas/{venta_id}/emitir" in paths
     assert "/api/ventas/{venta_id}/fe-payload" in paths
     assert "/api/v1/compras/{compra_id}/sugerir-retencion" in paths
     assert "/api/v1/compras/{compra_id}/guardar-plantilla-retencion" in paths

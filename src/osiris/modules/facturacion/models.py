@@ -246,6 +246,10 @@ class VentaUpdate(BaseModel):
     usuario_auditoria: str
 
 
+class VentaEmitRequest(BaseModel):
+    usuario_auditoria: str
+
+
 class CompraCreate(BaseModel):
     proveedor_id: UUID
     secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")

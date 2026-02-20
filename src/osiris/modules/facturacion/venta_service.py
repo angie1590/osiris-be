@@ -11,6 +11,8 @@ from osiris.modules.common.punto_emision.entity import PuntoEmision, TipoDocumen
 from osiris.modules.common.punto_emision.service import PuntoEmisionService
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.facturacion.entity import (
+    CuentaPorCobrar,
+    EstadoCuentaPorCobrar,
     EstadoVenta,
     TipoEmisionVenta,
     Venta,
@@ -33,7 +35,7 @@ from osiris.modules.inventario.movimiento_inventario.entity import (
     TipoMovimientoInventario,
 )
 from osiris.modules.inventario.movimiento_inventario.models import MovimientoInventarioCreate
-from osiris.modules.inventario.movimiento_inventario.service import MovimientoInventarioService
+from osiris.modules.inventario.movimiento_inventario.service import MovimientoInventarioService, q4
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto
 
 
@@ -283,6 +285,151 @@ class VentaService:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    def _resolver_bodega_para_emitir_venta(self, session: Session, detalles: list[VentaDetalle]):
+        if not detalles:
+            raise ValueError("No se puede emitir una venta sin detalles.")
+
+        producto_referencia = detalles[0].producto_id
+        stocks_referencia = list(
+            session.exec(
+                select(InventarioStock).where(
+                    InventarioStock.producto_id == producto_referencia,
+                    InventarioStock.activo.is_(True),
+                )
+            ).all()
+        )
+        if not stocks_referencia:
+            raise ValueError(f"Stock insuficiente para el producto {producto_referencia}")
+        bodega_id = stocks_referencia[0].bodega_id
+
+        for detalle in detalles:
+            stock_detalle = session.exec(
+                select(InventarioStock).where(
+                    InventarioStock.bodega_id == bodega_id,
+                    InventarioStock.producto_id == detalle.producto_id,
+                    InventarioStock.activo.is_(True),
+                )
+            ).one_or_none()
+            if stock_detalle is None:
+                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
+        return bodega_id
+
+    def _validar_stock_para_emision(
+        self,
+        session: Session,
+        *,
+        bodega_id: UUID,
+        detalles: list[VentaDetalle],
+    ) -> None:
+        for detalle in detalles:
+            stock = session.exec(
+                select(InventarioStock)
+                .where(
+                    InventarioStock.bodega_id == bodega_id,
+                    InventarioStock.producto_id == detalle.producto_id,
+                    InventarioStock.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if stock is None:
+                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
+
+            if q4(stock.cantidad_actual) - q4(detalle.cantidad) < Decimal("0.0000"):
+                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
+
+    def emitir_venta(
+        self,
+        session: Session,
+        venta_id,
+        *,
+        usuario_auditoria: str,
+    ) -> Venta:
+        try:
+            venta = session.exec(
+                select(Venta)
+                .where(
+                    Venta.id == venta_id,
+                    Venta.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not venta:
+                raise HTTPException(status_code=404, detail="Venta no encontrada")
+            if venta.estado == EstadoVenta.EMITIDA:
+                raise HTTPException(status_code=400, detail="La venta ya está emitida.")
+            if venta.estado == EstadoVenta.ANULADA:
+                raise HTTPException(status_code=400, detail="No se puede emitir una venta ANULADA.")
+
+            detalles = list(
+                session.exec(
+                    select(VentaDetalle).where(
+                        VentaDetalle.venta_id == venta.id,
+                        VentaDetalle.activo.is_(True),
+                    )
+                ).all()
+            )
+            bodega_id = self._resolver_bodega_para_emitir_venta(session, detalles)
+            self._validar_stock_para_emision(session, bodega_id=bodega_id, detalles=detalles)
+
+            movimiento_payload = MovimientoInventarioCreate(
+                bodega_id=bodega_id,
+                tipo_movimiento=TipoMovimientoInventario.EGRESO,
+                referencia_documento=f"VENTA:{venta.id}",
+                usuario_auditoria=usuario_auditoria,
+                detalles=[
+                    {
+                        "producto_id": detalle.producto_id,
+                        "cantidad": detalle.cantidad,
+                        "costo_unitario": detalle.precio_unitario,
+                    }
+                    for detalle in detalles
+                ],
+            )
+            movimiento = self.movimiento_service.crear_movimiento_borrador(
+                session,
+                movimiento_payload,
+                commit=False,
+            )
+            self.movimiento_service.confirmar_movimiento(
+                session,
+                movimiento.id,
+                commit=False,
+                rollback_on_error=False,
+            )
+
+            cxc_existente = session.exec(
+                select(CuentaPorCobrar).where(
+                    CuentaPorCobrar.venta_id == venta.id,
+                    CuentaPorCobrar.activo.is_(True),
+                )
+            ).one_or_none()
+            if cxc_existente is not None:
+                raise HTTPException(status_code=400, detail="La venta ya tiene una cuenta por cobrar activa.")
+
+            total_factura = q2(venta.valor_total)
+            cxc = CuentaPorCobrar(
+                venta_id=venta.id,
+                valor_total_factura=total_factura,
+                valor_retenido=Decimal("0.00"),
+                pagos_acumulados=Decimal("0.00"),
+                saldo_pendiente=total_factura,
+                estado=EstadoCuentaPorCobrar.PENDIENTE,
+                usuario_auditoria=usuario_auditoria,
+                activo=True,
+            )
+            session.add(cxc)
+
+            venta.estado = EstadoVenta.EMITIDA
+            venta.usuario_auditoria = usuario_auditoria
+            session.add(venta)
+            session.commit()
+            session.refresh(venta)
+            return venta
+        except Exception:
+            if self._es_session_real(session):
+                session.rollback()
+            raise
 
     def registrar_venta(self, session: Session, payload: VentaCreate) -> Venta:
         try:

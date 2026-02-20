@@ -14,6 +14,7 @@ from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
 from osiris.modules.facturacion.entity import FormaPagoSRI, TipoIdentificacionSRI, Venta, VentaDetalle, VentaDetalleImpuesto
 from osiris.modules.facturacion.models import ImpuestoAplicadoInput, VentaCompraDetalleCreate, VentaCreate, VentaUpdate
 from osiris.modules.facturacion.venta_service import VentaService
+from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
@@ -29,6 +30,7 @@ def _build_test_engine():
         tables=[
             TipoContribuyente.__table__,
             Empresa.__table__,
+            CasaComercial.__table__,
             Producto.__table__,
             Venta.__table__,
             VentaDetalle.__table__,

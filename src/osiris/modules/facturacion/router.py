@@ -24,6 +24,7 @@ from osiris.modules.facturacion.models import (
     RetencionRecibidaRead,
     RetencionSugeridaRead,
     VentaCreate,
+    VentaEmitRequest,
     VentaRead,
     VentaRegistroCreate,
     VentaUpdate,
@@ -93,6 +94,24 @@ def actualizar_venta_parcial(
     session: Session = Depends(get_session),
 ):
     venta = venta_service.actualizar_venta(session, venta_id, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.post(
+    "/ventas/{venta_id}/emitir",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def emitir_venta(
+    venta_id: UUID,
+    payload: VentaEmitRequest,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.emitir_venta(
+        session,
+        venta_id,
+        usuario_auditoria=payload.usuario_auditoria,
+    )
     return venta_service.obtener_venta_read(session, venta.id)
 
 
