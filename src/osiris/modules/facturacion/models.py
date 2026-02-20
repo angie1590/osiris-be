@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_fiel
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoVenta,
     EstadoRetencionRecibida,
     EstadoSriDocumento,
     EstadoRetencion,
@@ -16,6 +17,7 @@ from osiris.modules.facturacion.entity import (
     FormaPagoSRI,
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
+    TipoEmisionVenta,
     TipoImpuestoMVP,
     TipoRetencionSRI,
 )
@@ -112,19 +114,38 @@ class VentaCompraDetalleRegistroCreate(BaseModel):
 
 
 class VentaCreate(BaseModel):
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
+    secuencial_formateado: str | None = Field(default=None, max_length=20)
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta | None = None
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleCreate] = Field(..., min_length=1)
 
     @model_validator(mode="after")
-    def validar_iva_cero_para_negocio_popular(self):
+    def validar_regimen_y_tipo_emision(self):
         if self.regimen_emisor != RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            if self.tipo_emision == TipoEmisionVenta.NOTA_VENTA_FISICA:
+                raise ValueError(
+                    "NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR."
+                )
+            if self.tipo_emision is None:
+                self.tipo_emision = TipoEmisionVenta.ELECTRONICA
             return self
+
+        tiene_actividad_excluida = any(d.es_actividad_excluida for d in self.detalles)
+        if tiene_actividad_excluida:
+            if self.tipo_emision is None:
+                self.tipo_emision = TipoEmisionVenta.ELECTRONICA
+        else:
+            # Regla SRI solicitada: RIMPE NP se emite como nota de venta física por defecto.
+            self.tipo_emision = TipoEmisionVenta.NOTA_VENTA_FISICA
 
         for detalle in self.detalles:
             if detalle.es_actividad_excluida:
@@ -197,16 +218,32 @@ class VentaCreate(BaseModel):
     def valor_total(self) -> Decimal:
         return q2(self.subtotal_sin_impuestos + self.monto_iva + self.monto_ice)
 
+    @computed_field(return_type=Decimal)
+    def total(self) -> Decimal:
+        return self.valor_total
+
 
 class VentaRegistroCreate(BaseModel):
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta | None = None
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
+
+
+class VentaUpdate(BaseModel):
+    tipo_identificacion_comprador: TipoIdentificacionSRI | None = None
+    identificacion_comprador: str | None = Field(default=None, min_length=3, max_length=20)
+    forma_pago: FormaPagoSRI | None = None
+    tipo_emision: TipoEmisionVenta | None = None
+    usuario_auditoria: str
 
 
 class CompraCreate(BaseModel):
@@ -568,11 +605,17 @@ class VentaDetalleRead(BaseModel):
 
 class VentaRead(BaseModel):
     id: UUID
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
+    secuencial_formateado: str | None = None
     fecha_emision: date
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta = TipoEmisionVenta.ELECTRONICA
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
+    estado: EstadoVenta = EstadoVenta.EMITIDA
 
     subtotal_sin_impuestos: Decimal
     subtotal_12: Decimal
@@ -582,6 +625,7 @@ class VentaRead(BaseModel):
     monto_iva: Decimal
     monto_ice: Decimal
     valor_total: Decimal
+    total: Decimal | None = None
 
     detalles: list[VentaDetalleRead]
     creado_en: Optional[datetime] = None

@@ -26,6 +26,7 @@ from osiris.modules.facturacion.models import (
     VentaCreate,
     VentaRead,
     VentaRegistroCreate,
+    VentaUpdate,
 )
 from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
@@ -64,6 +65,34 @@ def crear_venta_desde_productos(
     session: Session = Depends(get_session),
 ):
     venta = venta_service.registrar_venta_desde_productos(session, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.put(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def actualizar_venta(
+    venta_id: UUID,
+    payload: VentaUpdate,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.actualizar_venta(session, venta_id, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.patch(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def actualizar_venta_parcial(
+    venta_id: UUID,
+    payload: VentaUpdate,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.actualizar_venta(session, venta_id, payload)
     return venta_service.obtener_venta_read(session, venta.id)
 
 

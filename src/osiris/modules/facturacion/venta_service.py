@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+from decimal import Decimal
+from uuid import UUID
+
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from osiris.modules.facturacion.entity import Venta, VentaDetalle, VentaDetalleImpuesto
+from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
+from osiris.modules.common.punto_emision.entity import PuntoEmision, TipoDocumentoSRI
+from osiris.modules.common.punto_emision.service import PuntoEmisionService
+from osiris.modules.common.sucursal.entity import Sucursal
+from osiris.modules.facturacion.entity import (
+    EstadoVenta,
+    TipoEmisionVenta,
+    Venta,
+    VentaDetalle,
+    VentaDetalleImpuesto,
+)
 from osiris.modules.facturacion.models import (
     ImpuestoAplicadoInput,
     VentaCompraDetalleCreate,
@@ -12,6 +25,7 @@ from osiris.modules.facturacion.models import (
     VentaDetalleRead,
     VentaRead,
     VentaRegistroCreate,
+    VentaUpdate,
     q2,
 )
 from osiris.modules.inventario.movimiento_inventario.entity import (
@@ -26,6 +40,7 @@ from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto
 class VentaService:
     def __init__(self) -> None:
         self.movimiento_service = MovimientoInventarioService()
+        self.punto_emision_service = PuntoEmisionService()
 
     @staticmethod
     def _es_session_real(session: Session) -> bool:
@@ -93,15 +108,107 @@ class VentaService:
             )
 
         return VentaCreate(
+            cliente_id=payload.cliente_id,
+            empresa_id=payload.empresa_id,
+            punto_emision_id=payload.punto_emision_id,
             fecha_emision=payload.fecha_emision,
             bodega_id=payload.bodega_id,
             tipo_identificacion_comprador=payload.tipo_identificacion_comprador,
             identificacion_comprador=payload.identificacion_comprador,
             forma_pago=payload.forma_pago,
+            tipo_emision=payload.tipo_emision,
             regimen_emisor=payload.regimen_emisor,
             usuario_auditoria=payload.usuario_auditoria,
             detalles=detalles,
         )
+
+    @staticmethod
+    def _validar_iva_rimpe_negocio_popular(payload: VentaCreate) -> None:
+        for detalle in payload.detalles:
+            if detalle.es_actividad_excluida:
+                continue
+            iva = detalle.iva_impuesto()
+            if iva and q2(iva.tarifa) > Decimal("0.00"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Los Negocios Populares solo pueden facturar con tarifa 0% "
+                        "de IVA para sus actividades incluyentes"
+                    ),
+                )
+
+    def _resolver_contexto_tributario(self, session: Session, payload: VentaCreate) -> tuple[UUID | None, RegimenTributario, TipoEmisionVenta]:
+        empresa_id = payload.empresa_id
+        regimen_emisor = payload.regimen_emisor
+
+        if empresa_id is None and payload.punto_emision_id is not None:
+            punto = session.get(PuntoEmision, payload.punto_emision_id)
+            if not punto or not punto.activo:
+                raise HTTPException(status_code=404, detail="Punto de emisión no encontrado o inactivo.")
+            empresa_id = punto.empresa_id
+
+        if empresa_id is not None:
+            empresa = session.get(Empresa, empresa_id)
+            if not empresa or not empresa.activo:
+                raise HTTPException(status_code=404, detail="Empresa no encontrada o inactiva.")
+            regimen_emisor = empresa.regimen
+
+        tipo_emision = payload.tipo_emision
+        if regimen_emisor == RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            self._validar_iva_rimpe_negocio_popular(payload)
+            tiene_actividad_excluida = any(d.es_actividad_excluida for d in payload.detalles)
+            if tiene_actividad_excluida:
+                tipo_emision = tipo_emision or TipoEmisionVenta.ELECTRONICA
+            else:
+                tipo_emision = TipoEmisionVenta.NOTA_VENTA_FISICA
+        else:
+            if tipo_emision == TipoEmisionVenta.NOTA_VENTA_FISICA:
+                raise HTTPException(
+                    status_code=400,
+                    detail="NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR.",
+                )
+            tipo_emision = tipo_emision or TipoEmisionVenta.ELECTRONICA
+
+        return empresa_id, regimen_emisor, tipo_emision
+
+    def _resolver_secuencial_formateado(
+        self,
+        session: Session,
+        payload: VentaCreate,
+        empresa_id_actual: UUID | None,
+    ) -> tuple[UUID | None, str | None]:
+        if payload.punto_emision_id is None:
+            return empresa_id_actual, payload.secuencial_formateado
+
+        punto = session.get(PuntoEmision, payload.punto_emision_id)
+        if not punto or not punto.activo:
+            raise HTTPException(status_code=404, detail="Punto de emisión no encontrado o inactivo.")
+
+        if empresa_id_actual is not None and punto.empresa_id != empresa_id_actual:
+            raise HTTPException(
+                status_code=400,
+                detail="El punto de emisión no pertenece a la empresa indicada en la venta.",
+            )
+        empresa_id = empresa_id_actual or punto.empresa_id
+
+        secuencial_row = self.punto_emision_service._get_or_create_locked_secuencial(
+            session,
+            punto_emision_id=punto.id,
+            tipo_documento=TipoDocumentoSRI.FACTURA,
+            usuario_auditoria=payload.usuario_auditoria,
+        )
+        secuencial_row.secuencial_actual += 1
+        session.add(secuencial_row)
+        secuencial = str(secuencial_row.secuencial_actual).zfill(9)
+
+        establecimiento = "001"
+        if punto.sucursal_id:
+            sucursal = session.get(Sucursal, punto.sucursal_id)
+            if sucursal and sucursal.codigo:
+                establecimiento = sucursal.codigo
+
+        secuencial_formateado = f"{establecimiento}-{punto.codigo}-{secuencial}"
+        return empresa_id, secuencial_formateado
 
     def _resolver_bodega_para_venta(self, session: Session, payload: VentaCreate):
         if payload.bodega_id is not None:
@@ -179,12 +286,23 @@ class VentaService:
 
     def registrar_venta(self, session: Session, payload: VentaCreate) -> Venta:
         try:
+            empresa_id, regimen_emisor, tipo_emision = self._resolver_contexto_tributario(session, payload)
+            empresa_id, secuencial_formateado = self._resolver_secuencial_formateado(
+                session,
+                payload,
+                empresa_id,
+            )
             venta = Venta(
+                cliente_id=payload.cliente_id,
+                empresa_id=empresa_id,
+                punto_emision_id=payload.punto_emision_id,
+                secuencial_formateado=secuencial_formateado,
                 fecha_emision=payload.fecha_emision,
                 tipo_identificacion_comprador=payload.tipo_identificacion_comprador,
                 identificacion_comprador=payload.identificacion_comprador,
                 forma_pago=payload.forma_pago,
-                regimen_emisor=payload.regimen_emisor,
+                regimen_emisor=regimen_emisor,
+                tipo_emision=tipo_emision,
                 subtotal_sin_impuestos=payload.subtotal_sin_impuestos,
                 subtotal_12=payload.subtotal_12,
                 subtotal_15=payload.subtotal_15,
@@ -240,6 +358,36 @@ class VentaService:
         venta_create = self.hidratar_venta_desde_productos(session, payload)
         return self.registrar_venta(session, venta_create)
 
+    def actualizar_venta(self, session: Session, venta_id, payload: VentaUpdate) -> Venta:
+        venta = session.get(Venta, venta_id)
+        if not venta or not venta.activo:
+            raise HTTPException(status_code=404, detail="Venta no encontrada")
+        if venta.estado == EstadoVenta.EMITIDA:
+            raise HTTPException(status_code=400, detail="No se puede editar una venta en estado EMITIDA.")
+
+        if payload.tipo_identificacion_comprador is not None:
+            venta.tipo_identificacion_comprador = payload.tipo_identificacion_comprador
+        if payload.identificacion_comprador is not None:
+            venta.identificacion_comprador = payload.identificacion_comprador
+        if payload.forma_pago is not None:
+            venta.forma_pago = payload.forma_pago
+        if payload.tipo_emision is not None:
+            if (
+                payload.tipo_emision == TipoEmisionVenta.NOTA_VENTA_FISICA
+                and venta.regimen_emisor != RegimenTributario.RIMPE_NEGOCIO_POPULAR
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR.",
+                )
+            venta.tipo_emision = payload.tipo_emision
+
+        venta.usuario_auditoria = payload.usuario_auditoria
+        session.add(venta)
+        session.commit()
+        session.refresh(venta)
+        return venta
+
     def obtener_venta_read(self, session: Session, venta_id) -> VentaRead:
         venta = session.get(Venta, venta_id)
         if not venta or not venta.activo:
@@ -285,11 +433,17 @@ class VentaService:
 
         return VentaRead(
             id=venta.id,
+            cliente_id=venta.cliente_id,
+            empresa_id=venta.empresa_id,
+            punto_emision_id=venta.punto_emision_id,
+            secuencial_formateado=venta.secuencial_formateado,
             fecha_emision=venta.fecha_emision,
             tipo_identificacion_comprador=venta.tipo_identificacion_comprador,
             identificacion_comprador=venta.identificacion_comprador,
             forma_pago=venta.forma_pago,
+            tipo_emision=venta.tipo_emision,
             regimen_emisor=venta.regimen_emisor,
+            estado=venta.estado,
             subtotal_sin_impuestos=venta.subtotal_sin_impuestos,
             subtotal_12=venta.subtotal_12,
             subtotal_15=venta.subtotal_15,
@@ -298,6 +452,7 @@ class VentaService:
             monto_iva=venta.monto_iva,
             monto_ice=venta.monto_ice,
             valor_total=venta.valor_total,
+            total=venta.valor_total,
             detalles=detalles_read,
             creado_en=venta.creado_en,
             actualizado_en=venta.actualizado_en,

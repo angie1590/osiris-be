@@ -44,9 +44,16 @@ class EstadoRetencion(str, Enum):
 
 
 class EstadoVenta(str, Enum):
-    PENDIENTE = "PENDIENTE"
+    BORRADOR = "BORRADOR"
     EMITIDA = "EMITIDA"
     ANULADA = "ANULADA"
+    # Alias de compatibilidad con etapas previas.
+    PENDIENTE = BORRADOR
+
+
+class TipoEmisionVenta(str, Enum):
+    ELECTRONICA = "ELECTRONICA"
+    NOTA_VENTA_FISICA = "NOTA_VENTA_FISICA"
 
 
 class EstadoCompra(str, Enum):
@@ -109,11 +116,21 @@ class EstadoRetencionRecibida(str, Enum):
 class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_venta"
 
+    cliente_id: UUID | None = Field(default=None, nullable=True, index=True)
+    empresa_id: UUID | None = Field(default=None, foreign_key="tbl_empresa.id", nullable=True, index=True)
+    punto_emision_id: UUID | None = Field(
+        default=None,
+        foreign_key="tbl_punto_emision.id",
+        nullable=True,
+        index=True,
+    )
+    secuencial_formateado: str | None = Field(default=None, max_length=20, nullable=True, index=True)
     fecha_emision: date = Field(default_factory=date.today, nullable=False)
     tipo_identificacion_comprador: TipoIdentificacionSRI = Field(nullable=False, max_length=20)
     identificacion_comprador: str = Field(nullable=False, max_length=20, index=True)
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
     regimen_emisor: RegimenTributario = Field(default=RegimenTributario.GENERAL, nullable=False)
+    tipo_emision: TipoEmisionVenta = Field(default=TipoEmisionVenta.ELECTRONICA, nullable=False, max_length=25)
 
     subtotal_sin_impuestos: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     subtotal_12: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
