@@ -15,6 +15,7 @@ from osiris.modules.facturacion.entity import (
     RetencionRecibidaDetalle,
     Venta,
 )
+from osiris.modules.facturacion.cxc_service import CuentaPorCobrarService
 from osiris.modules.facturacion.models import (
     RetencionRecibidaCreate,
     RetencionRecibidaDetalleRead,
@@ -24,6 +25,9 @@ from osiris.modules.facturacion.models import (
 
 
 class RetencionRecibidaService:
+    def __init__(self) -> None:
+        self.cxc_service = CuentaPorCobrarService()
+
     def _validar_venta(self, session: Session, venta_id: UUID) -> Venta:
         venta = session.get(Venta, venta_id)
         if not venta or not venta.activo:
@@ -127,21 +131,7 @@ class RetencionRecibidaService:
             if cxc.estado == EstadoCuentaPorCobrar.ANULADA:
                 raise HTTPException(status_code=400, detail="No se puede aplicar retencion sobre una CxC ANULADA.")
 
-            valor_aplicar = q2(retencion.total_retenido)
-            saldo_actual = q2(cxc.saldo_pendiente)
-            if valor_aplicar > saldo_actual:
-                raise ValueError("La retención supera el saldo de la factura")
-
-            cxc.valor_retenido = q2(cxc.valor_retenido + valor_aplicar)
-            nuevo_saldo = q2(cxc.valor_total_factura - cxc.valor_retenido - cxc.pagos_acumulados)
-            if nuevo_saldo < q2("0"):
-                raise ValueError("La retención supera el saldo de la factura")
-
-            cxc.saldo_pendiente = nuevo_saldo
-            if nuevo_saldo == q2("0"):
-                cxc.estado = EstadoCuentaPorCobrar.PAGADA
-            else:
-                cxc.estado = EstadoCuentaPorCobrar.PARCIAL
+            self.cxc_service.aplicar_retencion_en_cxc(cxc, retencion.total_retenido)
             session.add(cxc)
 
             retencion.estado = EstadoRetencionRecibida.APLICADA
@@ -195,22 +185,7 @@ class RetencionRecibidaService:
             if cxc.estado == EstadoCuentaPorCobrar.ANULADA:
                 raise HTTPException(status_code=400, detail="No se puede anular en una CxC ANULADA.")
 
-            valor_reverso = q2(retencion.total_retenido)
-            if valor_reverso > q2(cxc.valor_retenido):
-                raise ValueError("La retención supera el saldo de la factura")
-
-            cxc.valor_retenido = q2(cxc.valor_retenido - valor_reverso)
-            nuevo_saldo = q2(cxc.valor_total_factura - cxc.valor_retenido - cxc.pagos_acumulados)
-            if nuevo_saldo < q2("0"):
-                raise ValueError("La retención supera el saldo de la factura")
-            cxc.saldo_pendiente = nuevo_saldo
-
-            if nuevo_saldo == q2("0"):
-                cxc.estado = EstadoCuentaPorCobrar.PAGADA
-            elif q2(cxc.pagos_acumulados) > q2("0"):
-                cxc.estado = EstadoCuentaPorCobrar.PARCIAL
-            else:
-                cxc.estado = EstadoCuentaPorCobrar.PENDIENTE
+            self.cxc_service.revertir_retencion_en_cxc(cxc, retencion.total_retenido)
             session.add(cxc)
 
             estado_anterior = retencion.estado

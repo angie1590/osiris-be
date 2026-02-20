@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
@@ -14,6 +14,7 @@ from osiris.modules.facturacion.entity import (
     EstadoSriDocumento,
     EstadoRetencion,
     EstadoCompra,
+    EstadoCuentaPorCobrar,
     FormaPagoSRI,
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
@@ -250,6 +251,12 @@ class VentaEmitRequest(BaseModel):
     usuario_auditoria: str
 
 
+class VentaAnularRequest(BaseModel):
+    usuario_auditoria: str
+    confirmado_portal_sri: bool = False
+    motivo: str | None = Field(default=None, max_length=500)
+
+
 class CompraCreate(BaseModel):
     proveedor_id: UUID
     secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
@@ -392,6 +399,38 @@ class PagoCxPRead(BaseModel):
     monto: Decimal
     fecha: date
     forma_pago: FormaPagoSRI
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CuentaPorCobrarRead(BaseModel):
+    id: UUID
+    venta_id: UUID
+    valor_total_factura: Decimal
+    valor_retenido: Decimal
+    pagos_acumulados: Decimal
+    saldo_pendiente: Decimal
+    estado: EstadoCuentaPorCobrar
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PagoCxCCreate(BaseModel):
+    monto: Decimal = Field(..., gt=Decimal("0"))
+    fecha: date = Field(default_factory=date.today)
+    forma_pago_sri: FormaPagoSRI = Field(
+        ...,
+        validation_alias=AliasChoices("forma_pago_sri", "forma_pago"),
+    )
+    usuario_auditoria: str
+
+
+class PagoCxCRead(BaseModel):
+    id: UUID
+    cuenta_por_cobrar_id: UUID
+    monto: Decimal
+    fecha: date
+    forma_pago_sri: FormaPagoSRI
 
     model_config = ConfigDict(from_attributes=True)
 

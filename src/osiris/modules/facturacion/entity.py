@@ -300,6 +300,15 @@ class CuentaPorCobrar(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     estado: EstadoCuentaPorCobrar = Field(default=EstadoCuentaPorCobrar.PENDIENTE, nullable=False, max_length=20)
 
 
+class PagoCxC(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_pago_cxc"
+
+    cuenta_por_cobrar_id: UUID = Field(foreign_key="tbl_cuenta_por_cobrar.id", nullable=False, index=True)
+    monto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    fecha: date = Field(default_factory=date.today, nullable=False, index=True)
+    forma_pago_sri: FormaPagoSRI = Field(nullable=False, max_length=20)
+
+
 class PlantillaRetencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_plantilla_retencion"
 

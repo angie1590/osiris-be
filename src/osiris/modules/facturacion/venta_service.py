@@ -13,12 +13,14 @@ from osiris.modules.common.punto_emision.service import PuntoEmisionService
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.facturacion.entity import (
     CuentaPorCobrar,
+    EstadoSriDocumento,
     EstadoCuentaPorCobrar,
     EstadoVenta,
     TipoEmisionVenta,
     Venta,
     VentaDetalle,
     VentaDetalleImpuesto,
+    VentaEstadoHistorial,
 )
 from osiris.modules.facturacion.models import (
     ImpuestoAplicadoInput,
@@ -32,8 +34,12 @@ from osiris.modules.facturacion.models import (
     q2,
 )
 from osiris.modules.facturacion.venta_sri_async_service import VentaSriAsyncService
+from osiris.modules.common.audit_log.entity import AuditAction, AuditLog
 from osiris.modules.inventario.movimiento_inventario.entity import (
+    EstadoMovimientoInventario,
     InventarioStock,
+    MovimientoInventario,
+    MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
 from osiris.modules.inventario.movimiento_inventario.models import MovimientoInventarioCreate
@@ -341,6 +347,35 @@ class VentaService:
             if q4(stock.cantidad_actual) - q4(detalle.cantidad) < Decimal("0.0000"):
                 raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
 
+    @staticmethod
+    def _obtener_egreso_inventario_venta(session: Session, venta_id: UUID) -> tuple[MovimientoInventario | None, dict[UUID, Decimal]]:
+        movimiento = session.exec(
+            select(MovimientoInventario)
+            .where(
+                MovimientoInventario.referencia_documento == f"VENTA:{venta_id}",
+                MovimientoInventario.tipo_movimiento == TipoMovimientoInventario.EGRESO,
+                MovimientoInventario.estado == EstadoMovimientoInventario.CONFIRMADO,
+                MovimientoInventario.activo.is_(True),
+            )
+            .order_by(MovimientoInventario.fecha.desc(), MovimientoInventario.creado_en.desc())
+        ).first()
+        if movimiento is None:
+            return None, {}
+
+        detalles_movimiento = list(
+            session.exec(
+                select(MovimientoInventarioDetalle).where(
+                    MovimientoInventarioDetalle.movimiento_inventario_id == movimiento.id,
+                    MovimientoInventarioDetalle.activo.is_(True),
+                )
+            ).all()
+        )
+        costos_por_producto: dict[UUID, Decimal] = {}
+        for det in detalles_movimiento:
+            if det.producto_id not in costos_por_producto:
+                costos_por_producto[det.producto_id] = det.costo_unitario
+        return movimiento, costos_por_producto
+
     def emitir_venta(
         self,
         session: Session,
@@ -437,6 +472,168 @@ class VentaService:
                     background_tasks=background_tasks,
                     commit=False,
                 )
+            session.commit()
+            session.refresh(venta)
+            return venta
+        except Exception:
+            if self._es_session_real(session):
+                session.rollback()
+            raise
+
+    def anular_venta(
+        self,
+        session: Session,
+        venta_id: UUID,
+        *,
+        usuario_auditoria: str,
+        confirmado_portal_sri: bool = False,
+        motivo: str | None = None,
+    ) -> Venta:
+        try:
+            venta = session.exec(
+                select(Venta)
+                .where(
+                    Venta.id == venta_id,
+                    Venta.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not venta:
+                raise HTTPException(status_code=404, detail="Venta no encontrada")
+            if venta.estado == EstadoVenta.ANULADA:
+                raise HTTPException(status_code=400, detail="La venta ya está ANULADA.")
+            if venta.estado != EstadoVenta.EMITIDA:
+                raise HTTPException(status_code=400, detail="Solo se puede anular ventas en estado EMITIDA.")
+
+            motivo_limpio = (motivo or "").strip()
+            if (
+                venta.tipo_emision == TipoEmisionVenta.ELECTRONICA
+                and venta.estado_sri == EstadoSriDocumento.AUTORIZADO
+            ):
+                if not confirmado_portal_sri:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Debe confirmar anulación previa en portal SRI "
+                            "con confirmado_portal_sri=true para facturas AUTORIZADAS."
+                        ),
+                    )
+                if not motivo_limpio:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="El motivo es obligatorio para anular una factura electrónica AUTORIZADA.",
+                    )
+
+            motivo_auditoria = motivo_limpio or "Anulación de venta"
+
+            cxc = session.exec(
+                select(CuentaPorCobrar)
+                .where(
+                    CuentaPorCobrar.venta_id == venta.id,
+                    CuentaPorCobrar.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if cxc and (
+                q2(cxc.pagos_acumulados) > Decimal("0.00")
+                or q2(cxc.valor_retenido) > Decimal("0.00")
+            ):
+                raise ValueError("No se puede anular una venta con cobros registrados")
+
+            detalles_venta = list(
+                session.exec(
+                    select(VentaDetalle).where(
+                        VentaDetalle.venta_id == venta.id,
+                        VentaDetalle.activo.is_(True),
+                    )
+                ).all()
+            )
+            if not detalles_venta:
+                raise HTTPException(status_code=400, detail="No se puede anular una venta sin detalles.")
+
+            movimiento_egreso, costos_por_producto = self._obtener_egreso_inventario_venta(session, venta.id)
+            if movimiento_egreso is not None:
+                bodega_id = movimiento_egreso.bodega_id
+            else:
+                bodega_id = self._resolver_bodega_para_emitir_venta(session, detalles_venta)
+
+            movimiento_reverso_payload = MovimientoInventarioCreate(
+                bodega_id=bodega_id,
+                tipo_movimiento=TipoMovimientoInventario.AJUSTE,
+                referencia_documento=f"ANULACION_VENTA:{venta.id}",
+                motivo_ajuste=motivo_auditoria,
+                usuario_auditoria=usuario_auditoria,
+                detalles=[
+                    {
+                        "producto_id": detalle.producto_id,
+                        "cantidad": detalle.cantidad,
+                        "costo_unitario": costos_por_producto.get(detalle.producto_id, detalle.precio_unitario),
+                    }
+                    for detalle in detalles_venta
+                ],
+            )
+            movimiento_reverso = self.movimiento_service.crear_movimiento_borrador(
+                session,
+                movimiento_reverso_payload,
+                commit=False,
+            )
+            self.movimiento_service.confirmar_movimiento(
+                session,
+                movimiento_reverso.id,
+                motivo_ajuste=motivo_auditoria,
+                usuario_autorizador=usuario_auditoria,
+                commit=False,
+                rollback_on_error=False,
+            )
+
+            estado_anterior = venta.estado.value if isinstance(venta.estado, EstadoVenta) else str(venta.estado)
+            venta.estado = EstadoVenta.ANULADA
+            venta.usuario_auditoria = usuario_auditoria
+            session.add(venta)
+            session.add(
+                VentaEstadoHistorial(
+                    entidad_id=venta.id,
+                    estado_anterior=estado_anterior,
+                    estado_nuevo=EstadoVenta.ANULADA.value,
+                    motivo_cambio=motivo_auditoria,
+                    usuario_id=usuario_auditoria,
+                )
+            )
+
+            if cxc:
+                cxc.saldo_pendiente = Decimal("0.00")
+                cxc.estado = EstadoCuentaPorCobrar.ANULADA
+                cxc.usuario_auditoria = usuario_auditoria
+                session.add(cxc)
+
+            estado_anterior_audit = {
+                "estado": estado_anterior,
+                "estado_sri": venta.estado_sri.value if hasattr(venta.estado_sri, "value") else str(venta.estado_sri),
+            }
+            estado_nuevo_audit = {
+                "estado": EstadoVenta.ANULADA.value,
+                "estado_sri": venta.estado_sri.value if hasattr(venta.estado_sri, "value") else str(venta.estado_sri),
+                "motivo": motivo_auditoria,
+                "confirmado_portal_sri": confirmado_portal_sri,
+            }
+            session.add(
+                AuditLog(
+                    tabla_afectada=Venta.__tablename__,
+                    registro_id=str(venta.id),
+                    entidad=Venta.__tablename__,
+                    entidad_id=venta.id,
+                    accion=AuditAction.ANULAR.value,
+                    estado_anterior=estado_anterior_audit,
+                    estado_nuevo=estado_nuevo_audit,
+                    before_json=estado_anterior_audit,
+                    after_json=estado_nuevo_audit,
+                    usuario_id=usuario_auditoria,
+                    usuario_auditoria=usuario_auditoria,
+                    created_by=usuario_auditoria,
+                    updated_by=usuario_auditoria,
+                )
+            )
+
             session.commit()
             session.refresh(venta)
             return venta

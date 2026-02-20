@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -13,11 +14,13 @@ from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.facturacion.entity import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
+    EstadoSriDocumento,
     EstadoVenta,
     FormaPagoSRI,
     TipoIdentificacionSRI,
     Venta,
     VentaDetalle,
+    VentaEstadoHistorial,
 )
 from osiris.modules.facturacion.models import q2
 from osiris.modules.facturacion.venta_service import VentaService
@@ -54,6 +57,7 @@ def _build_test_engine():
             MovimientoInventarioDetalle.__table__,
             InventarioStock.__table__,
             CuentaPorCobrar.__table__,
+            VentaEstadoHistorial.__table__,
             AuditLog.__table__,
         ],
     )
@@ -218,3 +222,97 @@ def test_emitir_venta_flujo_exitoso():
         assert cxc is not None
         assert cxc.estado == EstadoCuentaPorCobrar.PENDIENTE
         assert cxc.saldo_pendiente == Decimal("50.00")
+
+
+def test_anulacion_fe_exige_confirmacion():
+    engine = _build_test_engine()
+    service = VentaService()
+
+    with Session(engine) as session:
+        venta, _, _ = _seed_data(
+            session,
+            stock_inicial=Decimal("10.0000"),
+            cantidad_venta=Decimal("2.0000"),
+        )
+        emitted = service.emitir_venta(
+            session,
+            venta.id,
+            usuario_auditoria="tester",
+        )
+        emitted.estado_sri = EstadoSriDocumento.AUTORIZADO
+        session.add(emitted)
+        session.commit()
+        session.refresh(emitted)
+
+        with pytest.raises(HTTPException) as exc:
+            service.anular_venta(
+                session,
+                emitted.id,
+                usuario_auditoria="tester",
+                confirmado_portal_sri=False,
+                motivo=None,
+            )
+
+        assert exc.value.status_code == 400
+        assert "confirmado_portal_sri=true" in str(exc.value.detail)
+
+        session.refresh(emitted)
+        assert emitted.estado == EstadoVenta.EMITIDA
+
+
+def test_anulacion_reversa_inventario():
+    engine = _build_test_engine()
+    service = VentaService()
+    kardex_service = MovimientoInventarioService()
+
+    with Session(engine) as session:
+        venta, bodega, producto = _seed_data(
+            session,
+            stock_inicial=Decimal("15.0000"),
+            cantidad_venta=Decimal("5.0000"),
+        )
+        emitted = service.emitir_venta(
+            session,
+            venta.id,
+            usuario_auditoria="tester",
+        )
+
+        stock_emitida = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_emitida.cantidad_actual == Decimal("10.0000")
+
+        anulada = service.anular_venta(
+            session,
+            emitted.id,
+            usuario_auditoria="tester",
+            motivo="Anulación por error de digitación",
+            confirmado_portal_sri=False,
+        )
+
+        assert anulada.estado == EstadoVenta.ANULADA
+
+        stock_final = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_final.cantidad_actual == Decimal("15.0000")
+
+        kardex = kardex_service.obtener_kardex(
+            session,
+            producto_id=producto.id,
+            bodega_id=bodega.id,
+        )
+        assert kardex["movimientos"][-1]["cantidad_entrada"] == Decimal("5.0000")
+
+        cxc = session.exec(
+            select(CuentaPorCobrar).where(CuentaPorCobrar.venta_id == venta.id)
+        ).one_or_none()
+        assert cxc is not None
+        assert cxc.estado == EstadoCuentaPorCobrar.ANULADA
+        assert cxc.saldo_pendiente == Decimal("0.00")
