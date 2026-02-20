@@ -334,6 +334,23 @@ class CompraRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PagoCxPCreate(BaseModel):
+    monto: Decimal = Field(..., gt=Decimal("0"))
+    fecha: date = Field(default_factory=date.today)
+    forma_pago: FormaPagoSRI
+    usuario_auditoria: str
+
+
+class PagoCxPRead(BaseModel):
+    id: UUID
+    cuenta_por_pagar_id: UUID
+    monto: Decimal
+    fecha: date
+    forma_pago: FormaPagoSRI
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class VentaDetalleImpuestoRead(BaseModel):
     tipo_impuesto: TipoImpuestoMVP
     codigo_impuesto_sri: str

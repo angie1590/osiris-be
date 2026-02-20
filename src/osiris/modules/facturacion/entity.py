@@ -47,6 +47,7 @@ class EstadoCompra(str, Enum):
 
 class EstadoCuentaPorPagar(str, Enum):
     PENDIENTE = "PENDIENTE"
+    PARCIAL = "PARCIAL"
     PAGADA = "PAGADA"
     ANULADA = "ANULADA"
 
@@ -210,6 +211,15 @@ class CuentaPorPagar(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     pagos_acumulados: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     saldo_pendiente: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     estado: EstadoCuentaPorPagar = Field(default=EstadoCuentaPorPagar.PENDIENTE, nullable=False, max_length=20)
+
+
+class PagoCxP(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_pago_cxp"
+
+    cuenta_por_pagar_id: UUID = Field(foreign_key="tbl_cuenta_por_pagar.id", nullable=False, index=True)
+    monto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    fecha: date = Field(default_factory=date.today, nullable=False, index=True)
+    forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
 
 
 # Alias de compatibilidad para referencias existentes.
