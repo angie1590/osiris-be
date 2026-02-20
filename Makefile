@@ -21,18 +21,18 @@ shell:
 
 test:
 	@echo "Aplicando migraciones (alembic upgrade head)..."
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'ENVIRONMENT=development poetry run alembic upgrade head'
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'ENVIRONMENT=development DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
 	@echo "Limpiando datos de prueba..."
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
 	@echo "Ejecutando suite de pruebas..."
 	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest -v
 
 db-upgrade:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run alembic upgrade head
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
 
 db-makemigration:
-	docker compose --env-file .env.development exec -e ENVIRONMENT=development osiris-backend poetry run alembic revision --autogenerate -m "$(mensaje)"
-	docker compose --env-file .env.development exec osiris-backend poetry run alembic upgrade head
+	docker compose --env-file .env.development exec -e ENVIRONMENT=development osiris-backend bash -lc 'DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic revision --autogenerate -m "$(mensaje)"'
+	docker compose --env-file .env.development exec osiris-backend bash -lc 'DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
 
 db-recreate:
 	docker compose --env-file .env.development exec postgres bash -lc '\
@@ -50,7 +50,7 @@ db-recreate:
 	  else \
 	    echo \"DB $$POSTGRES_DB ya existe, skip CREATE\"; \
 	  fi'
-	docker compose --env-file .env.development exec osiris-backend bash -lc 'set -euo pipefail; poetry run alembic upgrade head'
+	docker compose --env-file .env.development exec osiris-backend bash -lc 'set -euo pipefail; DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
 	docker compose --env-file .env.development exec postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost -c "\dt"'
 	docker compose --env-file .env.development exec postgres bash -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost -c "select * from alembic_version;"'
 
@@ -94,19 +94,19 @@ smoke-ci:
 	docker compose --env-file $(ENV_FILE) down
 
 seed:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/seed_complete_data.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development PYTHONPATH=src poetry run python scripts/seed_complete_data.py"
 
 seed-sample:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run python scripts/seed_sample_product.py
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "PYTHONPATH=src poetry run python scripts/seed_sample_product.py"
 
 verify-seed:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/check_seed_data.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development PYTHONPATH=src poetry run python scripts/check_seed_data.py"
 
 verify-relations:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/check_producto_relations.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development PYTHONPATH=src poetry run python scripts/check_producto_relations.py"
 
 cleanup-test-data:
-	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development PYTHONPATH=src poetry run python scripts/cleanup_test_data.py"
 
 validate:
-	python scripts/validate_setup.py
+	poetry run python scripts/validate_setup.py
