@@ -265,9 +265,9 @@ def test_registrar_pago_cxp_usa_bloqueo_pesimista():
         usuario_auditoria="seed",
         activo=True,
     )
-    query = MagicMock()
-    query.with_for_update.return_value.filter_by.return_value.one.return_value = cxp
-    session.query.return_value = query
+    scalar_result = MagicMock()
+    scalar_result.one_or_none.return_value = cxp
+    session.exec.return_value = scalar_result
 
     pago = service.registrar_pago_cxp(
         session,
@@ -281,8 +281,8 @@ def test_registrar_pago_cxp_usa_bloqueo_pesimista():
         commit=False,
     )
 
-    session.query.assert_called_once_with(CuentaPorPagar)
-    query.with_for_update.assert_called_once()
-    query.with_for_update.return_value.filter_by.assert_called_once_with(id=cxp_id, activo=True)
+    session.exec.assert_called_once()
+    stmt = session.exec.call_args.args[0]
+    assert getattr(stmt, "_for_update_arg", None) is not None
     session.flush.assert_called_once()
     assert isinstance(pago, PagoCxP)
