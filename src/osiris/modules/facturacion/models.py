@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoRetencionRecibida,
     EstadoSriDocumento,
     EstadoRetencion,
     EstadoCompra,
@@ -454,6 +455,59 @@ class RetencionRead(BaseModel):
     sri_ultimo_error: str | None = None
     total_retenido: Decimal
     detalles: list[RetencionDetalleRead]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionRecibidaDetalleCreate(BaseModel):
+    codigo_impuesto_sri: str = Field(..., pattern=r"^(1|2)$")
+    porcentaje_aplicado: Decimal = Field(..., ge=Decimal("0"))
+    base_imponible: Decimal = Field(..., ge=Decimal("0"))
+    valor_retenido: Decimal = Field(..., ge=Decimal("0"))
+
+    @model_validator(mode="after")
+    def normalizar_montos(self):
+        self.porcentaje_aplicado = q2(self.porcentaje_aplicado)
+        self.base_imponible = q2(self.base_imponible)
+        self.valor_retenido = q2(self.valor_retenido)
+        return self
+
+
+class RetencionRecibidaCreate(BaseModel):
+    venta_id: UUID
+    cliente_id: UUID
+    numero_retencion: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
+    clave_acceso_sri: str | None = Field(default=None, pattern=r"^\d{49}$")
+    fecha_emision: date = Field(default_factory=date.today)
+    estado: EstadoRetencionRecibida = EstadoRetencionRecibida.BORRADOR
+    usuario_auditoria: str
+    detalles: list[RetencionRecibidaDetalleCreate] = Field(..., min_length=1)
+
+    @computed_field(return_type=Decimal)
+    def total_retenido(self) -> Decimal:
+        return q2(sum((d.valor_retenido for d in self.detalles), Decimal("0.00")))
+
+
+class RetencionRecibidaDetalleRead(BaseModel):
+    id: UUID
+    codigo_impuesto_sri: str
+    porcentaje_aplicado: Decimal
+    base_imponible: Decimal
+    valor_retenido: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionRecibidaRead(BaseModel):
+    id: UUID
+    venta_id: UUID
+    cliente_id: UUID
+    numero_retencion: str
+    clave_acceso_sri: str | None
+    fecha_emision: date
+    estado: EstadoRetencionRecibida
+    total_retenido: Decimal
+    detalles: list[RetencionRecibidaDetalleRead]
 
     model_config = ConfigDict(from_attributes=True)
 

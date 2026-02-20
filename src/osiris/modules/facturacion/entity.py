@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import Column, Numeric, Text
+from sqlalchemy import Column, Numeric, Text, UniqueConstraint
 from sqlmodel import Field
 
 from osiris.domain.base_models import AuditMixin, BaseTable, SoftDeleteMixin
@@ -91,6 +91,12 @@ class EstadoColaSri(str, Enum):
     REINTENTO_PROGRAMADO = "REINTENTO_PROGRAMADO"
     COMPLETADO = "COMPLETADO"
     FALLIDO = "FALLIDO"
+
+
+class EstadoRetencionRecibida(str, Enum):
+    BORRADOR = "BORRADOR"
+    APLICADA = "APLICADA"
+    ANULADA = "ANULADA"
 
 
 class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -321,6 +327,43 @@ class DocumentoSriCola(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     proximo_intento_en: datetime | None = Field(default=None, nullable=True, index=True)
     ultimo_error: str | None = Field(default=None, max_length=1000)
     payload_json: str = Field(sa_column=Column(Text, nullable=False))
+
+
+class RetencionRecibida(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_retencion_recibida"
+    __table_args__ = (
+        UniqueConstraint(
+            "cliente_id",
+            "numero_retencion",
+            name="uq_retencion_recibida_cliente_numero",
+        ),
+    )
+
+    venta_id: UUID = Field(foreign_key="tbl_venta.id", nullable=False, index=True)
+    cliente_id: UUID = Field(nullable=False, index=True)
+    numero_retencion: str = Field(nullable=False, max_length=20)
+    clave_acceso_sri: str | None = Field(default=None, max_length=49, nullable=True, index=True)
+    fecha_emision: date = Field(default_factory=date.today, nullable=False, index=True)
+    estado: EstadoRetencionRecibida = Field(
+        default=EstadoRetencionRecibida.BORRADOR,
+        nullable=False,
+        max_length=20,
+    )
+    total_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+class RetencionRecibidaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_retencion_recibida_detalle"
+
+    retencion_recibida_id: UUID = Field(
+        foreign_key="tbl_retencion_recibida.id",
+        nullable=False,
+        index=True,
+    )
+    codigo_impuesto_sri: str = Field(nullable=False, max_length=5)
+    porcentaje_aplicado: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
+    base_imponible: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
 
 
 # Alias de compatibilidad para referencias existentes.

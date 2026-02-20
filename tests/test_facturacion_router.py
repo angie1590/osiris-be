@@ -16,6 +16,7 @@ def test_facturacion_router_publica_endpoints_ventas():
     assert "/api/v1/compras/{compra_id}/retenciones" in paths
     assert "/api/v1/retenciones/{retencion_id}/emitir" in paths
     assert "/api/v1/retenciones/{retencion_id}/fe-payload" in paths
+    assert "/api/v1/retenciones-recibidas" in paths
 
 
 def test_post_api_ventas_rechaza_iva_para_rimpe_negocio_popular():
