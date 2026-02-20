@@ -7,7 +7,11 @@ from pydantic import ValidationError
 from sqlmodel import Session, select
 
 from osiris.modules.facturacion.entity import (
+    CuentaPorCobrar,
+    EstadoCuentaPorCobrar,
+    EstadoRetencionRecibida,
     RetencionRecibida,
+    RetencionRecibidaEstadoHistorial,
     RetencionRecibidaDetalle,
     Venta,
 )
@@ -91,6 +95,143 @@ class RetencionRecibidaService:
 
         session.commit()
         return self.obtener_retencion_recibida_read(session, retencion.id)
+
+    def aplicar_retencion_recibida(self, session: Session, retencion_id: UUID) -> RetencionRecibidaRead:
+        try:
+            retencion = session.exec(
+                select(RetencionRecibida)
+                .where(
+                    RetencionRecibida.id == retencion_id,
+                    RetencionRecibida.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not retencion:
+                raise HTTPException(status_code=404, detail="Retencion recibida no encontrada")
+            if retencion.estado != EstadoRetencionRecibida.BORRADOR:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Solo se puede aplicar una retencion recibida en estado BORRADOR.",
+                )
+
+            cxc = session.exec(
+                select(CuentaPorCobrar)
+                .where(
+                    CuentaPorCobrar.venta_id == retencion.venta_id,
+                    CuentaPorCobrar.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not cxc:
+                raise HTTPException(status_code=404, detail="Cuenta por cobrar no encontrada para la venta")
+            if cxc.estado == EstadoCuentaPorCobrar.ANULADA:
+                raise HTTPException(status_code=400, detail="No se puede aplicar retencion sobre una CxC ANULADA.")
+
+            valor_aplicar = q2(retencion.total_retenido)
+            saldo_actual = q2(cxc.saldo_pendiente)
+            if valor_aplicar > saldo_actual:
+                raise ValueError("La retención supera el saldo de la factura")
+
+            cxc.valor_retenido = q2(cxc.valor_retenido + valor_aplicar)
+            nuevo_saldo = q2(cxc.valor_total_factura - cxc.valor_retenido - cxc.pagos_acumulados)
+            if nuevo_saldo < q2("0"):
+                raise ValueError("La retención supera el saldo de la factura")
+
+            cxc.saldo_pendiente = nuevo_saldo
+            if nuevo_saldo == q2("0"):
+                cxc.estado = EstadoCuentaPorCobrar.PAGADA
+            else:
+                cxc.estado = EstadoCuentaPorCobrar.PARCIAL
+            session.add(cxc)
+
+            retencion.estado = EstadoRetencionRecibida.APLICADA
+            session.add(retencion)
+
+            session.commit()
+            return self.obtener_retencion_recibida_read(session, retencion.id)
+        except Exception:
+            session.rollback()
+            raise
+
+    def anular_retencion_recibida(
+        self,
+        session: Session,
+        retencion_id: UUID,
+        *,
+        motivo: str,
+        usuario_auditoria: str,
+    ) -> RetencionRecibidaRead:
+        try:
+            motivo_limpio = (motivo or "").strip()
+            if not motivo_limpio:
+                raise HTTPException(status_code=400, detail="El motivo de anulación es obligatorio.")
+
+            retencion = session.exec(
+                select(RetencionRecibida)
+                .where(
+                    RetencionRecibida.id == retencion_id,
+                    RetencionRecibida.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not retencion:
+                raise HTTPException(status_code=404, detail="Retencion recibida no encontrada")
+            if retencion.estado != EstadoRetencionRecibida.APLICADA:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Solo se puede anular una retencion recibida en estado APLICADA.",
+                )
+
+            cxc = session.exec(
+                select(CuentaPorCobrar)
+                .where(
+                    CuentaPorCobrar.venta_id == retencion.venta_id,
+                    CuentaPorCobrar.activo.is_(True),
+                )
+                .with_for_update()
+            ).one_or_none()
+            if not cxc:
+                raise HTTPException(status_code=404, detail="Cuenta por cobrar no encontrada para la venta")
+            if cxc.estado == EstadoCuentaPorCobrar.ANULADA:
+                raise HTTPException(status_code=400, detail="No se puede anular en una CxC ANULADA.")
+
+            valor_reverso = q2(retencion.total_retenido)
+            if valor_reverso > q2(cxc.valor_retenido):
+                raise ValueError("La retención supera el saldo de la factura")
+
+            cxc.valor_retenido = q2(cxc.valor_retenido - valor_reverso)
+            nuevo_saldo = q2(cxc.valor_total_factura - cxc.valor_retenido - cxc.pagos_acumulados)
+            if nuevo_saldo < q2("0"):
+                raise ValueError("La retención supera el saldo de la factura")
+            cxc.saldo_pendiente = nuevo_saldo
+
+            if nuevo_saldo == q2("0"):
+                cxc.estado = EstadoCuentaPorCobrar.PAGADA
+            elif q2(cxc.pagos_acumulados) > q2("0"):
+                cxc.estado = EstadoCuentaPorCobrar.PARCIAL
+            else:
+                cxc.estado = EstadoCuentaPorCobrar.PENDIENTE
+            session.add(cxc)
+
+            estado_anterior = retencion.estado
+            retencion.estado = EstadoRetencionRecibida.ANULADA
+            retencion.usuario_auditoria = usuario_auditoria
+            session.add(retencion)
+            session.add(
+                RetencionRecibidaEstadoHistorial(
+                    entidad_id=retencion.id,
+                    estado_anterior=estado_anterior.value,
+                    estado_nuevo=EstadoRetencionRecibida.ANULADA.value,
+                    motivo_cambio=motivo_limpio,
+                    usuario_id=usuario_auditoria,
+                )
+            )
+
+            session.commit()
+            return self.obtener_retencion_recibida_read(session, retencion.id)
+        except Exception:
+            session.rollback()
+            raise
 
     def obtener_retencion_recibida_read(
         self,

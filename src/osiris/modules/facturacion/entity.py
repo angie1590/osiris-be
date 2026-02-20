@@ -65,6 +65,13 @@ class EstadoCuentaPorPagar(str, Enum):
     ANULADA = "ANULADA"
 
 
+class EstadoCuentaPorCobrar(str, Enum):
+    PENDIENTE = "PENDIENTE"
+    PARCIAL = "PARCIAL"
+    PAGADA = "PAGADA"
+    ANULADA = "ANULADA"
+
+
 class SustentoTributarioSRI(str, Enum):
     CREDITO_TRIBUTARIO_BIENES = "01"
     CREDITO_TRIBUTARIO_SERVICIOS = "02"
@@ -257,6 +264,17 @@ class PagoCxP(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
 
 
+class CuentaPorCobrar(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_cuenta_por_cobrar"
+
+    venta_id: UUID = Field(foreign_key="tbl_venta.id", nullable=False, index=True, unique=True)
+    valor_total_factura: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
+    pagos_acumulados: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
+    saldo_pendiente: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    estado: EstadoCuentaPorCobrar = Field(default=EstadoCuentaPorCobrar.PENDIENTE, nullable=False, max_length=20)
+
+
 class PlantillaRetencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_plantilla_retencion"
 
@@ -364,6 +382,17 @@ class RetencionRecibidaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=Tru
     porcentaje_aplicado: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
     base_imponible: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+class RetencionRecibidaEstadoHistorial(BaseTable, table=True):
+    __tablename__ = "tbl_retencion_recibida_estado_historial"
+
+    entidad_id: UUID = Field(foreign_key="tbl_retencion_recibida.id", nullable=False, index=True)
+    estado_anterior: str = Field(nullable=False, max_length=30)
+    estado_nuevo: str = Field(nullable=False, max_length=30)
+    motivo_cambio: str = Field(sa_column=Column(Text, nullable=False))
+    usuario_id: str | None = Field(default=None, max_length=255, index=True)
+    fecha: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
 
 
 # Alias de compatibilidad para referencias existentes.

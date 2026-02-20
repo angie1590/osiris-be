@@ -517,6 +517,11 @@ class RetencionRecibidaCreate(BaseModel):
         return self
 
 
+class RetencionRecibidaAnularRequest(BaseModel):
+    motivo: str = Field(..., min_length=1, max_length=500)
+    usuario_auditoria: str
+
+
 class RetencionRecibidaDetalleRead(BaseModel):
     id: UUID
     codigo_impuesto_sri: str

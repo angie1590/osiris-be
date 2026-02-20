@@ -19,6 +19,7 @@ from osiris.modules.facturacion.models import (
     RetencionCreate,
     RetencionEmitRequest,
     RetencionRead,
+    RetencionRecibidaAnularRequest,
     RetencionRecibidaCreate,
     RetencionRecibidaRead,
     RetencionSugeridaRead,
@@ -207,6 +208,24 @@ def crear_retencion_recibida(
     session: Session = Depends(get_session),
 ):
     return retencion_recibida_service.crear_retencion_recibida(session, payload)
+
+
+@router.post(
+    "/v1/retenciones-recibidas/{retencion_id}/anular",
+    response_model=RetencionRecibidaRead,
+    tags=["Facturacion"],
+)
+def anular_retencion_recibida(
+    retencion_id: UUID,
+    payload: RetencionRecibidaAnularRequest,
+    session: Session = Depends(get_session),
+):
+    return retencion_recibida_service.anular_retencion_recibida(
+        session,
+        retencion_id,
+        motivo=payload.motivo,
+        usuario_auditoria=payload.usuario_auditoria,
+    )
 
 
 @router.get(
