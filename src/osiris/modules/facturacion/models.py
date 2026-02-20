@@ -620,6 +620,9 @@ class VentaRead(BaseModel):
     tipo_emision: TipoEmisionVenta = TipoEmisionVenta.ELECTRONICA
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     estado: EstadoVenta = EstadoVenta.EMITIDA
+    estado_sri: EstadoSriDocumento = EstadoSriDocumento.PENDIENTE
+    sri_intentos: int = 0
+    sri_ultimo_error: str | None = None
 
     subtotal_sin_impuestos: Decimal
     subtotal_12: Decimal

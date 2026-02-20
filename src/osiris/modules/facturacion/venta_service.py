@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
+from fastapi import BackgroundTasks
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
@@ -30,6 +31,7 @@ from osiris.modules.facturacion.models import (
     VentaUpdate,
     q2,
 )
+from osiris.modules.facturacion.venta_sri_async_service import VentaSriAsyncService
 from osiris.modules.inventario.movimiento_inventario.entity import (
     InventarioStock,
     TipoMovimientoInventario,
@@ -43,6 +45,7 @@ class VentaService:
     def __init__(self) -> None:
         self.movimiento_service = MovimientoInventarioService()
         self.punto_emision_service = PuntoEmisionService()
+        self.venta_sri_async_service = VentaSriAsyncService()
 
     @staticmethod
     def _es_session_real(session: Session) -> bool:
@@ -344,6 +347,8 @@ class VentaService:
         venta_id,
         *,
         usuario_auditoria: str,
+        background_tasks: BackgroundTasks | None = None,
+        encolar_sri: bool = False,
     ) -> Venta:
         try:
             venta = session.exec(
@@ -423,6 +428,15 @@ class VentaService:
             venta.estado = EstadoVenta.EMITIDA
             venta.usuario_auditoria = usuario_auditoria
             session.add(venta)
+
+            if encolar_sri and venta.tipo_emision == TipoEmisionVenta.ELECTRONICA:
+                self.venta_sri_async_service.encolar_venta(
+                    session,
+                    venta_id=venta.id,
+                    usuario_id=usuario_auditoria,
+                    background_tasks=background_tasks,
+                    commit=False,
+                )
             session.commit()
             session.refresh(venta)
             return venta
@@ -591,6 +605,9 @@ class VentaService:
             tipo_emision=venta.tipo_emision,
             regimen_emisor=venta.regimen_emisor,
             estado=venta.estado,
+            estado_sri=venta.estado_sri,
+            sri_intentos=venta.sri_intentos,
+            sri_ultimo_error=venta.sri_ultimo_error,
             subtotal_sin_impuestos=venta.subtotal_sin_impuestos,
             subtotal_12=venta.subtotal_12,
             subtotal_15=venta.subtotal_15,

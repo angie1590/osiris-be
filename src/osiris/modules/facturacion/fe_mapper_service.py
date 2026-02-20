@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from decimal import Decimal
 from uuid import UUID
+from datetime import date
 
 from fastapi import HTTPException
 from sqlmodel import Session
 
+from osiris.core.settings import get_settings
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
     DocumentoElectronico,
@@ -16,6 +18,11 @@ from osiris.modules.facturacion.entity import (
     TipoImpuestoMVP,
 )
 from osiris.modules.facturacion.models import RetencionRead, VentaRead, q2
+
+try:
+    from src.fe_ec.utils.generador_clave_acceso import GeneradorClaveAcceso
+except Exception:  # pragma: no cover - fallback cuando no está la librería FE-EC local.
+    GeneradorClaveAcceso = None
 
 
 FORMA_PAGO_SRI_CODE = {
@@ -53,6 +60,112 @@ def _totales_impuestos_desde_detalle(venta: VentaRead) -> tuple[Decimal, Decimal
 
 
 class FEMapperService:
+    @staticmethod
+    def _generar_clave_acceso(
+        *,
+        fecha_emision: date,
+        ruc: str,
+        estab: str,
+        pto_emi: str,
+        secuencial: str,
+        ambiente: str,
+        tipo_emision: str,
+    ) -> str:
+        if GeneradorClaveAcceso is None:
+            return f"{fecha_emision.strftime('%d%m%Y')}{ruc}{estab}{pto_emi}{secuencial}".ljust(49, "0")[:49]
+
+        return GeneradorClaveAcceso.generar(
+            fecha_emision=fecha_emision.strftime("%d/%m/%Y"),
+            tipo_comprobante="01",
+            ruc=ruc,
+            tipo_ambiente=ambiente,
+            serie=f"{estab}{pto_emi}",
+            secuencial=secuencial,
+            tipo_emision=tipo_emision,
+        )
+
+    def venta_to_fe_ec_payload(
+        self,
+        venta: VentaRead,
+        *,
+        ruc_emisor: str,
+        razon_social: str,
+        nombre_comercial: str | None,
+        dir_matriz: str,
+        obligado_contabilidad: bool,
+        estab: str = "001",
+        pto_emi: str = "001",
+        dir_establecimiento: str | None = None,
+        email_cliente: str | None = None,
+    ) -> dict:
+        settings = get_settings()
+        ambiente_code = "1" if settings.FEEC_AMBIENTE == "pruebas" else "2"
+        tipo_emision = settings.FEEC_TIPO_EMISION
+
+        secuencial = "000000001"
+        if venta.secuencial_formateado:
+            parts = venta.secuencial_formateado.split("-")
+            if len(parts) == 3:
+                estab = parts[0].zfill(3)
+                pto_emi = parts[1].zfill(3)
+                secuencial = parts[2].zfill(9)
+
+        clave_acceso = self._generar_clave_acceso(
+            fecha_emision=venta.fecha_emision,
+            ruc=ruc_emisor,
+            estab=estab,
+            pto_emi=pto_emi,
+            secuencial=secuencial,
+            ambiente=ambiente_code,
+            tipo_emision=tipo_emision,
+        )
+
+        payload_base = self.venta_to_fe_payload(venta)
+        info_adicional = payload_base.get("infoAdicional", {"campoAdicional": []})
+        if email_cliente:
+            info_adicional.setdefault("campoAdicional", [])
+            info_adicional["campoAdicional"].append({"nombre": "email", "valor": email_cliente})
+
+        return {
+            "infoTributaria": {
+                "ambiente": ambiente_code,
+                "tipoEmision": tipo_emision,
+                "razonSocial": razon_social,
+                "nombreComercial": nombre_comercial or razon_social,
+                "ruc": ruc_emisor,
+                "claveAcceso": clave_acceso,
+                "codDoc": "01",
+                "estab": estab,
+                "ptoEmi": pto_emi,
+                "secuencial": secuencial,
+                "dirMatriz": dir_matriz,
+            },
+            "infoFactura": {
+                "fechaEmision": venta.fecha_emision.strftime("%d/%m/%Y"),
+                "dirEstablecimiento": dir_establecimiento or dir_matriz,
+                "obligadoContabilidad": "SI" if obligado_contabilidad else "NO",
+                "tipoIdentificacionComprador": IDENTIFICACION_SRI_CODE[venta.tipo_identificacion_comprador],
+                "razonSocialComprador": venta.identificacion_comprador,
+                "identificacionComprador": venta.identificacion_comprador,
+                "totalSinImpuestos": _fmt(venta.subtotal_sin_impuestos),
+                "totalDescuento": "0.00",
+                "totalConImpuestos": {"totalImpuesto": payload_base["infoFactura"]["totalConImpuestos"]},
+                "propina": "0.00",
+                "importeTotal": _fmt(venta.valor_total),
+                "moneda": "DOLAR",
+                "pagos": [
+                    {
+                        "formaPago": FORMA_PAGO_SRI_CODE[venta.forma_pago],
+                        "total": _fmt(venta.valor_total),
+                        "plazo": "0",
+                        "unidadTiempo": "DIAS",
+                    }
+                ],
+            },
+            "detalles": payload_base["detalles"],
+            "infoAdicional": info_adicional,
+        }
+
     def venta_to_fe_payload(self, venta: VentaRead) -> dict:
         total_con_impuestos: dict[tuple[str, str], dict[str, Decimal]] = {}
         detalles_payload: list[dict] = []

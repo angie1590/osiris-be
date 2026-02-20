@@ -105,12 +105,15 @@ def actualizar_venta_parcial(
 def emitir_venta(
     venta_id: UUID,
     payload: VentaEmitRequest,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
 ):
     venta = venta_service.emitir_venta(
         session,
         venta_id,
         usuario_auditoria=payload.usuario_auditoria,
+        background_tasks=background_tasks,
+        encolar_sri=True,
     )
     return venta_service.obtener_venta_read(session, venta.id)
 
