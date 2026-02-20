@@ -14,16 +14,21 @@ from osiris.modules.facturacion.models import (
     CompraRead,
     CompraRegistroCreate,
     CompraUpdate,
+    GuardarPlantillaRetencionRequest,
+    PlantillaRetencionRead,
+    RetencionSugeridaRead,
     VentaCreate,
     VentaRead,
     VentaRegistroCreate,
 )
+from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.venta_service import VentaService
 
 router = APIRouter()
 venta_service = VentaService()
 compra_service = CompraService()
 fe_mapper_service = FEMapperService()
+retencion_service = RetencionService()
 
 
 @router.post(
@@ -106,6 +111,31 @@ def anular_compra(
     session: Session = Depends(get_session),
 ):
     return compra_service.anular_compra(session, compra_id, payload)
+
+
+@router.get(
+    "/v1/compras/{compra_id}/sugerir-retencion",
+    response_model=RetencionSugeridaRead,
+    tags=["Facturacion"],
+)
+def sugerir_retencion_compra(
+    compra_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return retencion_service.sugerir_retencion(session, compra_id)
+
+
+@router.post(
+    "/v1/compras/{compra_id}/guardar-plantilla-retencion",
+    response_model=PlantillaRetencionRead,
+    tags=["Facturacion"],
+)
+def guardar_plantilla_retencion_desde_compra(
+    compra_id: UUID,
+    payload: GuardarPlantillaRetencionRequest,
+    session: Session = Depends(get_session),
+):
+    return retencion_service.guardar_plantilla_desde_retencion_digitada(session, compra_id, payload)
 
 
 @router.get(

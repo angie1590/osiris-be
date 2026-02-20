@@ -30,6 +30,11 @@ class TipoImpuestoMVP(str, Enum):
     ICE = "ICE"
 
 
+class TipoRetencionSRI(str, Enum):
+    RENTA = "RENTA"
+    IVA = "IVA"
+
+
 class EstadoVenta(str, Enum):
     PENDIENTE = "PENDIENTE"
     EMITIDA = "EMITIDA"
@@ -220,6 +225,27 @@ class PagoCxP(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     fecha: date = Field(default_factory=date.today, nullable=False, index=True)
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
+
+
+class PlantillaRetencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_plantilla_retencion"
+
+    proveedor_id: UUID | None = Field(default=None, nullable=True, index=True)
+    nombre: str = Field(nullable=False, max_length=150, default="Plantilla Retencion")
+    es_global: bool = Field(default=False, nullable=False, index=True)
+
+
+class PlantillaRetencionDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_plantilla_retencion_detalle"
+
+    plantilla_retencion_id: UUID = Field(
+        foreign_key="tbl_plantilla_retencion.id",
+        nullable=False,
+        index=True,
+    )
+    codigo_retencion_sri: str = Field(nullable=False, min_length=1, max_length=10)
+    tipo: TipoRetencionSRI = Field(nullable=False, max_length=20)
+    porcentaje: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
 
 
 # Alias de compatibilidad para referencias existentes.

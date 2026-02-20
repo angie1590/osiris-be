@@ -14,6 +14,7 @@ from osiris.modules.facturacion.entity import (
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
     TipoImpuestoMVP,
+    TipoRetencionSRI,
 )
 
 
@@ -349,6 +350,59 @@ class PagoCxPRead(BaseModel):
     forma_pago: FormaPagoSRI
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PlantillaRetencionDetalleInput(BaseModel):
+    codigo_retencion_sri: str = Field(..., min_length=1, max_length=10)
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal = Field(..., gt=Decimal("0"))
+
+    @model_validator(mode="after")
+    def normalizar_porcentaje(self):
+        self.porcentaje = q2(self.porcentaje)
+        return self
+
+
+class GuardarPlantillaRetencionRequest(BaseModel):
+    usuario_auditoria: str
+    nombre: str = Field(default="Plantilla Retencion", min_length=1, max_length=150)
+    es_global: bool = False
+    detalles: list[PlantillaRetencionDetalleInput] = Field(..., min_length=1)
+
+
+class PlantillaRetencionDetalleRead(BaseModel):
+    id: UUID
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PlantillaRetencionRead(BaseModel):
+    id: UUID
+    proveedor_id: UUID | None
+    nombre: str
+    es_global: bool
+    detalles: list[PlantillaRetencionDetalleRead]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionSugeridaDetalleRead(BaseModel):
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+    base_calculo: Decimal
+    valor_retenido: Decimal
+
+
+class RetencionSugeridaRead(BaseModel):
+    compra_id: UUID
+    plantilla_id: UUID
+    proveedor_id: UUID | None
+    detalles: list[RetencionSugeridaDetalleRead]
+    total_retenido: Decimal
 
 
 class VentaDetalleImpuestoRead(BaseModel):
