@@ -15,7 +15,7 @@ from osiris.modules.facturacion.entity import (
     TipoIdentificacionSRI,
     TipoImpuestoMVP,
 )
-from osiris.modules.facturacion.models import VentaRead, q2
+from osiris.modules.facturacion.models import RetencionRead, VentaRead, q2
 
 
 FORMA_PAGO_SRI_CODE = {
@@ -150,6 +150,32 @@ class FEMapperService:
                 ]
             }
         return payload
+
+    def retencion_to_fe_payload(self, retencion: RetencionRead) -> dict:
+        impuestos = [
+            {
+                "codigoRetencion": detalle.codigo_retencion_sri,
+                "tipo": detalle.tipo.value if hasattr(detalle.tipo, "value") else str(detalle.tipo),
+                "baseImponible": _fmt(detalle.base_calculo),
+                "porcentajeRetener": _fmt(detalle.porcentaje),
+                "valorRetenido": _fmt(detalle.valor_retenido),
+            }
+            for detalle in retencion.detalles
+        ]
+
+        total = q2(sum((detalle.valor_retenido for detalle in retencion.detalles), Decimal("0.00")))
+        if total != q2(retencion.total_retenido):
+            raise ValueError("Inconsistencia tributaria: el total retenido no cuadra con los detalles.")
+
+        return {
+            "retencion": {
+                "compraId": str(retencion.compra_id),
+                "fechaEmision": retencion.fecha_emision.isoformat(),
+                "estado": retencion.estado.value if hasattr(retencion.estado, "value") else str(retencion.estado),
+                "totalRetenido": _fmt(retencion.total_retenido),
+                "impuestos": impuestos,
+            }
+        }
 
     def registrar_respuesta_sri(
         self,

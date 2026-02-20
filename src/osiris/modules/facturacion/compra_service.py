@@ -3,10 +3,21 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from osiris.modules.facturacion.entity import Compra, CompraDetalle, CompraDetalleImpuesto
+from decimal import Decimal
+
+from osiris.modules.facturacion.entity import (
+    Compra,
+    CompraDetalle,
+    CompraDetalleImpuesto,
+    CuentaPorPagar,
+    EstadoCompra,
+    EstadoCuentaPorPagar,
+)
 from osiris.modules.facturacion.models import (
+    CompraAnularRequest,
     CompraCreate,
     CompraRegistroCreate,
+    CompraUpdate,
     ImpuestoAplicadoInput,
     VentaCompraDetalleCreate,
     q2,
@@ -88,8 +99,12 @@ class CompraService:
             )
 
         return CompraCreate(
+            proveedor_id=payload.proveedor_id,
+            secuencial_factura=payload.secuencial_factura,
+            autorizacion_sri=payload.autorizacion_sri,
             fecha_emision=payload.fecha_emision,
             bodega_id=payload.bodega_id,
+            sustento_tributario=payload.sustento_tributario,
             tipo_identificacion_proveedor=payload.tipo_identificacion_proveedor,
             identificacion_proveedor=payload.identificacion_proveedor,
             forma_pago=payload.forma_pago,
@@ -145,7 +160,11 @@ class CompraService:
     def registrar_compra(self, session: Session, payload: CompraCreate) -> Compra:
         try:
             compra = Compra(
+                proveedor_id=payload.proveedor_id,
+                secuencial_factura=payload.secuencial_factura,
+                autorizacion_sri=payload.autorizacion_sri,
                 fecha_emision=payload.fecha_emision,
+                sustento_tributario=payload.sustento_tributario,
                 tipo_identificacion_proveedor=payload.tipo_identificacion_proveedor,
                 identificacion_proveedor=payload.identificacion_proveedor,
                 forma_pago=payload.forma_pago,
@@ -157,6 +176,7 @@ class CompraService:
                 monto_iva=payload.monto_iva,
                 monto_ice=payload.monto_ice,
                 valor_total=payload.valor_total,
+                estado=EstadoCompra.REGISTRADA,
                 usuario_auditoria=payload.usuario_auditoria,
             )
             session.add(compra)
@@ -190,6 +210,7 @@ class CompraService:
                     session.add(snapshot)
 
             self._orquestar_ingreso_inventario(session, compra, payload)
+            self._crear_cxp_inicial(session, compra, payload.usuario_auditoria)
 
             session.commit()
             session.refresh(compra)
@@ -202,3 +223,53 @@ class CompraService:
     def registrar_compra_desde_productos(self, session: Session, payload: CompraRegistroCreate) -> Compra:
         compra_create = self.hidratar_compra_desde_productos(session, payload)
         return self.registrar_compra(session, compra_create)
+
+    def _crear_cxp_inicial(self, session: Session, compra: Compra, usuario_auditoria: str) -> None:
+        total = q2(compra.valor_total)
+        cuenta = CuentaPorPagar(
+            compra_id=compra.id,
+            valor_total_factura=total,
+            valor_retenido=Decimal("0.00"),
+            pagos_acumulados=Decimal("0.00"),
+            saldo_pendiente=total,
+            estado=EstadoCuentaPorPagar.PENDIENTE,
+            usuario_auditoria=usuario_auditoria,
+            activo=True,
+        )
+        session.add(cuenta)
+
+    def obtener_compra(self, session: Session, compra_id) -> Compra:
+        compra = session.get(Compra, compra_id)
+        if not compra or not compra.activo:
+            raise HTTPException(status_code=404, detail="Compra no encontrada")
+        return compra
+
+    def actualizar_compra(self, session: Session, compra_id, payload: CompraUpdate) -> Compra:
+        compra = self.obtener_compra(session, compra_id)
+        if compra.estado == EstadoCompra.REGISTRADA:
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede editar una compra en estado REGISTRADA; solo se permite anular.",
+            )
+
+        data = payload.model_dump(exclude_unset=True)
+        usuario_auditoria = data.pop("usuario_auditoria", None)
+        if usuario_auditoria:
+            compra.usuario_auditoria = usuario_auditoria
+
+        for key, value in data.items():
+            setattr(compra, key, value)
+
+        session.add(compra)
+        session.commit()
+        session.refresh(compra)
+        return compra
+
+    def anular_compra(self, session: Session, compra_id, payload: CompraAnularRequest) -> Compra:
+        compra = self.obtener_compra(session, compra_id)
+        compra.estado = EstadoCompra.ANULADA
+        compra.usuario_auditoria = payload.usuario_auditoria
+        session.add(compra)
+        session.commit()
+        session.refresh(compra)
+        return compra

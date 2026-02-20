@@ -9,9 +9,14 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoSriDocumento,
+    EstadoRetencion,
+    EstadoCompra,
     FormaPagoSRI,
+    SustentoTributarioSRI,
     TipoIdentificacionSRI,
     TipoImpuestoMVP,
+    TipoRetencionSRI,
 )
 
 
@@ -204,8 +209,12 @@ class VentaRegistroCreate(BaseModel):
 
 
 class CompraCreate(BaseModel):
+    proveedor_id: UUID
+    secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
+    sustento_tributario: SustentoTributarioSRI
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
@@ -275,13 +284,178 @@ class CompraCreate(BaseModel):
 
 
 class CompraRegistroCreate(BaseModel):
+    proveedor_id: UUID
+    secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
+    sustento_tributario: SustentoTributarioSRI
     tipo_identificacion_proveedor: TipoIdentificacionSRI
     identificacion_proveedor: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
+
+
+class CompraUpdate(BaseModel):
+    secuencial_factura: str | None = Field(default=None, pattern=r"^\d{3}-\d{3}-\d{9}$")
+    autorizacion_sri: str | None = Field(default=None, pattern=r"^\d{37}$|^\d{49}$")
+    fecha_emision: date | None = None
+    sustento_tributario: SustentoTributarioSRI | None = None
+    tipo_identificacion_proveedor: TipoIdentificacionSRI | None = None
+    identificacion_proveedor: str | None = Field(default=None, min_length=3, max_length=20)
+    forma_pago: FormaPagoSRI | None = None
+    usuario_auditoria: str
+
+
+class CompraAnularRequest(BaseModel):
+    usuario_auditoria: str
+
+
+class CompraRead(BaseModel):
+    id: UUID
+    proveedor_id: UUID
+    secuencial_factura: str
+    autorizacion_sri: str
+    fecha_emision: date
+    sustento_tributario: SustentoTributarioSRI
+    tipo_identificacion_proveedor: TipoIdentificacionSRI
+    identificacion_proveedor: str
+    forma_pago: FormaPagoSRI
+    subtotal_sin_impuestos: Decimal
+    subtotal_12: Decimal
+    subtotal_15: Decimal
+    subtotal_0: Decimal
+    subtotal_no_objeto: Decimal
+    monto_iva: Decimal
+    monto_ice: Decimal
+    valor_total: Decimal
+    estado: EstadoCompra
+    creado_en: Optional[datetime] = None
+    actualizado_en: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PagoCxPCreate(BaseModel):
+    monto: Decimal = Field(..., gt=Decimal("0"))
+    fecha: date = Field(default_factory=date.today)
+    forma_pago: FormaPagoSRI
+    usuario_auditoria: str
+
+
+class PagoCxPRead(BaseModel):
+    id: UUID
+    cuenta_por_pagar_id: UUID
+    monto: Decimal
+    fecha: date
+    forma_pago: FormaPagoSRI
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PlantillaRetencionDetalleInput(BaseModel):
+    codigo_retencion_sri: str = Field(..., min_length=1, max_length=10)
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal = Field(..., gt=Decimal("0"))
+
+    @model_validator(mode="after")
+    def normalizar_porcentaje(self):
+        self.porcentaje = q2(self.porcentaje)
+        return self
+
+
+class GuardarPlantillaRetencionRequest(BaseModel):
+    usuario_auditoria: str
+    nombre: str = Field(default="Plantilla Retencion", min_length=1, max_length=150)
+    es_global: bool = False
+    detalles: list[PlantillaRetencionDetalleInput] = Field(..., min_length=1)
+
+
+class PlantillaRetencionDetalleRead(BaseModel):
+    id: UUID
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PlantillaRetencionRead(BaseModel):
+    id: UUID
+    proveedor_id: UUID | None
+    nombre: str
+    es_global: bool
+    detalles: list[PlantillaRetencionDetalleRead]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionSugeridaDetalleRead(BaseModel):
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+    base_calculo: Decimal
+    valor_retenido: Decimal
+
+
+class RetencionSugeridaRead(BaseModel):
+    compra_id: UUID
+    plantilla_id: UUID
+    proveedor_id: UUID | None
+    detalles: list[RetencionSugeridaDetalleRead]
+    total_retenido: Decimal
+
+
+class RetencionDetalleCreate(BaseModel):
+    codigo_retencion_sri: str = Field(..., min_length=1, max_length=10)
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal = Field(..., gt=Decimal("0"))
+    base_calculo: Decimal = Field(..., ge=Decimal("0"))
+
+    @computed_field(return_type=Decimal)
+    def valor_retenido(self) -> Decimal:
+        return q2(q2(self.base_calculo) * q2(self.porcentaje) / Decimal("100"))
+
+
+class RetencionCreate(BaseModel):
+    fecha_emision: date = Field(default_factory=date.today)
+    usuario_auditoria: str
+    detalles: list[RetencionDetalleCreate] = Field(..., min_length=1)
+
+    @computed_field(return_type=Decimal)
+    def total_retenido(self) -> Decimal:
+        return q2(sum((d.valor_retenido for d in self.detalles), Decimal("0.00")))
+
+
+class RetencionEmitRequest(BaseModel):
+    usuario_auditoria: str
+    encolar: bool = False
+
+
+class RetencionDetalleRead(BaseModel):
+    id: UUID
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+    base_calculo: Decimal
+    valor_retenido: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionRead(BaseModel):
+    id: UUID
+    compra_id: UUID
+    fecha_emision: date
+    estado: EstadoRetencion
+    estado_sri: EstadoSriDocumento
+    sri_intentos: int = 0
+    sri_ultimo_error: str | None = None
+    total_retenido: Decimal
+    detalles: list[RetencionDetalleRead]
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class VentaDetalleImpuestoRead(BaseModel):

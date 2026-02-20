@@ -102,8 +102,12 @@ def test_venta_create_calcula_totales_e_impuestos_al_centavo():
 
 def test_compra_create_calcula_totales_redondeados():
     compra = CompraCreate(
+        proveedor_id=uuid4(),
+        secuencial_factura="001-001-123456789",
+        autorizacion_sri="1" * 49,
         tipo_identificacion_proveedor="RUC",
         identificacion_proveedor="1790099988001",
+        sustento_tributario="01",
         forma_pago="TRANSFERENCIA",
         usuario_auditoria="tester",
         detalles=[
@@ -131,6 +135,42 @@ def test_compra_create_calcula_totales_redondeados():
     assert compra.monto_iva == Decimal("0.36")
     assert compra.monto_ice == Decimal("0.00")
     assert compra.valor_total == Decimal("13.33")
+
+
+def test_compra_calcula_totales():
+    compra = CompraCreate(
+        proveedor_id=uuid4(),
+        secuencial_factura="001-001-987654321",
+        autorizacion_sri="2" * 37,
+        tipo_identificacion_proveedor="RUC",
+        identificacion_proveedor="1790099988001",
+        sustento_tributario="01",
+        forma_pago="EFECTIVO",
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Materia prima",
+                cantidad=Decimal("2"),
+                precio_unitario=Decimal("10.00"),
+                impuestos=[_iva12()],
+            ),
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Servicio exento",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("5.00"),
+                impuestos=[],
+            ),
+        ],
+    )
+
+    assert compra.subtotal_sin_impuestos == Decimal("25.00")
+    assert compra.subtotal_12 == Decimal("20.00")
+    assert compra.subtotal_no_objeto == Decimal("5.00")
+    assert compra.monto_iva == Decimal("2.40")
+    assert compra.monto_ice == Decimal("0.00")
+    assert compra.valor_total == Decimal("27.40")
 
 
 def test_iva_calcula_base_imponible_sobre_subtotal_mas_ice():
