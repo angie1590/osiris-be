@@ -218,6 +218,6 @@ def get_or_create_iva_for_tests(client: httpx.Client) -> str:
                 return str(items[0]["id"])
     except Exception as exc:
         logging.warning(f"Error buscando IVA via API: {exc}")
-    
+
     # Fallback: asumir un UUID conocido del seed o lanzar error
     raise RuntimeError("No se pudo encontrar un IVA activo. Ejecutar 'make seed' primero.")
