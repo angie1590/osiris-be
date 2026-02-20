@@ -31,6 +31,9 @@ strict = true
 addopts = "-v"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+    "smoke: smoke tests de flujos críticos E0-E5",
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

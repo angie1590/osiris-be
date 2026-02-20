@@ -1,7 +1,7 @@
+import contextlib
 import socket
 import uuid
 import pytest
-import httpx
 
 BASE = "http://localhost:8000/api"
 TIMEOUT = 5.0
@@ -16,8 +16,8 @@ def is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
-def test_roles_crud():
-    with httpx.Client(timeout=TIMEOUT) as client:
+def test_roles_crud(client):
+    with contextlib.nullcontext(client):
         # Clean list
         r = client.get(f"{BASE}/roles")
         assert r.status_code == 200
@@ -59,8 +59,8 @@ def test_roles_crud():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
-def test_persona_and_cliente_flow():
-    with httpx.Client(timeout=TIMEOUT) as client:
+def test_persona_and_cliente_flow(client):
+    with contextlib.nullcontext(client):
         # Create or find tipo cliente
         tipo = {"nombre": "smoke-tipo", "descuento": 0, "usuario_auditoria": "ci"}
         r = client.post(f"{BASE}/tipos-cliente", json=tipo)
@@ -104,8 +104,8 @@ def test_persona_and_cliente_flow():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
-def test_inventory_categories_flow():
-    with httpx.Client(timeout=TIMEOUT) as client:
+def test_inventory_categories_flow(client):
+    with contextlib.nullcontext(client):
         try:
             # Create parent category
             payload = {
@@ -191,8 +191,8 @@ def test_inventory_categories_flow():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
-def test_casas_comerciales_crud():
-    with httpx.Client(timeout=TIMEOUT) as client:
+def test_casas_comerciales_crud(client):
+    with contextlib.nullcontext(client):
         # Clean list
         r = client.get(f"{BASE}/casas-comerciales")
         assert r.status_code == 200
@@ -232,8 +232,8 @@ def test_casas_comerciales_crud():
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
-def test_users_employees_and_providers_flow():
-    with httpx.Client(timeout=TIMEOUT) as client:
+def test_users_employees_and_providers_flow(client):
+    with contextlib.nullcontext(client):
         # Create role for user/employee (or find existing)
         role_name = f"smoke-role-{uuid.uuid4().hex[:8]}"
         payload = {"nombre": role_name, "descripcion": "role for tests", "usuario_auditoria": "ci"}
