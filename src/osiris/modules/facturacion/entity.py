@@ -44,9 +44,16 @@ class EstadoRetencion(str, Enum):
 
 
 class EstadoVenta(str, Enum):
-    PENDIENTE = "PENDIENTE"
+    BORRADOR = "BORRADOR"
     EMITIDA = "EMITIDA"
     ANULADA = "ANULADA"
+    # Alias de compatibilidad con etapas previas.
+    PENDIENTE = BORRADOR
+
+
+class TipoEmisionVenta(str, Enum):
+    ELECTRONICA = "ELECTRONICA"
+    NOTA_VENTA_FISICA = "NOTA_VENTA_FISICA"
 
 
 class EstadoCompra(str, Enum):
@@ -86,6 +93,7 @@ class EstadoDocumentoElectronico(str, Enum):
 
 class EstadoSriDocumento(str, Enum):
     PENDIENTE = "PENDIENTE"
+    ENVIADO = "ENVIADO"
     REINTENTO = "REINTENTO"
     AUTORIZADO = "AUTORIZADO"
     RECHAZADO = "RECHAZADO"
@@ -109,11 +117,21 @@ class EstadoRetencionRecibida(str, Enum):
 class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_venta"
 
+    cliente_id: UUID | None = Field(default=None, nullable=True, index=True)
+    empresa_id: UUID | None = Field(default=None, foreign_key="tbl_empresa.id", nullable=True, index=True)
+    punto_emision_id: UUID | None = Field(
+        default=None,
+        foreign_key="tbl_punto_emision.id",
+        nullable=True,
+        index=True,
+    )
+    secuencial_formateado: str | None = Field(default=None, max_length=20, nullable=True, index=True)
     fecha_emision: date = Field(default_factory=date.today, nullable=False)
     tipo_identificacion_comprador: TipoIdentificacionSRI = Field(nullable=False, max_length=20)
     identificacion_comprador: str = Field(nullable=False, max_length=20, index=True)
     forma_pago: FormaPagoSRI = Field(nullable=False, max_length=20)
     regimen_emisor: RegimenTributario = Field(default=RegimenTributario.GENERAL, nullable=False)
+    tipo_emision: TipoEmisionVenta = Field(default=TipoEmisionVenta.ELECTRONICA, nullable=False, max_length=25)
 
     subtotal_sin_impuestos: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     subtotal_12: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
@@ -126,6 +144,13 @@ class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto_ice: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     valor_total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     estado: EstadoVenta = Field(default=EstadoVenta.EMITIDA, nullable=False, max_length=20)
+    estado_sri: EstadoSriDocumento = Field(
+        default=EstadoSriDocumento.PENDIENTE,
+        nullable=False,
+        max_length=20,
+    )
+    sri_intentos: int = Field(default=0, nullable=False)
+    sri_ultimo_error: str | None = Field(default=None, max_length=1000)
 
 
 class VentaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -273,6 +298,15 @@ class CuentaPorCobrar(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     pagos_acumulados: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     saldo_pendiente: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
     estado: EstadoCuentaPorCobrar = Field(default=EstadoCuentaPorCobrar.PENDIENTE, nullable=False, max_length=20)
+
+
+class PagoCxC(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_pago_cxc"
+
+    cuenta_por_cobrar_id: UUID = Field(foreign_key="tbl_cuenta_por_cobrar.id", nullable=False, index=True)
+    monto: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    fecha: date = Field(default_factory=date.today, nullable=False, index=True)
+    forma_pago_sri: FormaPagoSRI = Field(nullable=False, max_length=20)
 
 
 class PlantillaRetencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

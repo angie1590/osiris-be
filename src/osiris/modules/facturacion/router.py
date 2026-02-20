@@ -9,6 +9,7 @@ from osiris.core.db import get_session
 from osiris.modules.facturacion.fe_mapper_service import FEMapperService
 from osiris.modules.facturacion.compra_service import CompraService
 from osiris.modules.facturacion.models import (
+    CuentaPorCobrarRead,
     CompraAnularRequest,
     CompraCreate,
     CompraRead,
@@ -16,6 +17,8 @@ from osiris.modules.facturacion.models import (
     CompraUpdate,
     GuardarPlantillaRetencionRequest,
     PlantillaRetencionRead,
+    PagoCxCCreate,
+    PagoCxCRead,
     RetencionCreate,
     RetencionEmitRequest,
     RetencionRead,
@@ -24,9 +27,13 @@ from osiris.modules.facturacion.models import (
     RetencionRecibidaRead,
     RetencionSugeridaRead,
     VentaCreate,
+    VentaAnularRequest,
+    VentaEmitRequest,
     VentaRead,
     VentaRegistroCreate,
+    VentaUpdate,
 )
+from osiris.modules.facturacion.cxc_service import CuentaPorCobrarService
 from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
 from osiris.modules.facturacion.venta_service import VentaService
@@ -37,6 +44,7 @@ compra_service = CompraService()
 fe_mapper_service = FEMapperService()
 retencion_service = RetencionService()
 retencion_recibida_service = RetencionRecibidaService()
+cxc_service = CuentaPorCobrarService()
 
 
 @router.post(
@@ -64,6 +72,87 @@ def crear_venta_desde_productos(
     session: Session = Depends(get_session),
 ):
     venta = venta_service.registrar_venta_desde_productos(session, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.put(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def actualizar_venta(
+    venta_id: UUID,
+    payload: VentaUpdate,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.actualizar_venta(session, venta_id, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.get(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def obtener_venta(
+    venta_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return venta_service.obtener_venta_read(session, venta_id)
+
+
+@router.patch(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def actualizar_venta_parcial(
+    venta_id: UUID,
+    payload: VentaUpdate,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.actualizar_venta(session, venta_id, payload)
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.post(
+    "/ventas/{venta_id}/emitir",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def emitir_venta(
+    venta_id: UUID,
+    payload: VentaEmitRequest,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.emitir_venta(
+        session,
+        venta_id,
+        usuario_auditoria=payload.usuario_auditoria,
+        background_tasks=background_tasks,
+        encolar_sri=True,
+    )
+    return venta_service.obtener_venta_read(session, venta.id)
+
+
+@router.post(
+    "/ventas/{venta_id}/anular",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def anular_venta(
+    venta_id: UUID,
+    payload: VentaAnularRequest,
+    session: Session = Depends(get_session),
+):
+    venta = venta_service.anular_venta(
+        session,
+        venta_id,
+        usuario_auditoria=payload.usuario_auditoria,
+        confirmado_portal_sri=payload.confirmado_portal_sri,
+        motivo=payload.motivo,
+    )
     return venta_service.obtener_venta_read(session, venta.id)
 
 
@@ -226,6 +315,45 @@ def anular_retencion_recibida(
         motivo=payload.motivo,
         usuario_auditoria=payload.usuario_auditoria,
     )
+
+
+@router.post(
+    "/v1/retenciones-recibidas/{retencion_id}/aplicar",
+    response_model=RetencionRecibidaRead,
+    tags=["Facturacion"],
+)
+def aplicar_retencion_recibida(
+    retencion_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return retencion_recibida_service.aplicar_retencion_recibida(session, retencion_id)
+
+
+@router.get(
+    "/v1/cxc/{venta_id}",
+    response_model=CuentaPorCobrarRead,
+    tags=["Facturacion"],
+)
+def obtener_cxc_por_venta(
+    venta_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return cxc_service.obtener_cxc_por_venta(session, venta_id)
+
+
+@router.post(
+    "/v1/cxc/{venta_id}/pagos",
+    response_model=PagoCxCRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Facturacion"],
+)
+def registrar_pago_cxc(
+    venta_id: UUID,
+    payload: PagoCxCCreate,
+    session: Session = Depends(get_session),
+):
+    cxc = cxc_service.obtener_cxc_por_venta(session, venta_id)
+    return cxc_service.registrar_pago_cxc(session, cxc.id, payload)
 
 
 @router.get(
