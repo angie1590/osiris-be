@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlmodel import Session, select
 
 from osiris.modules.facturacion.entity import (
@@ -14,14 +15,16 @@ from osiris.modules.facturacion.models import (
     RetencionRecibidaCreate,
     RetencionRecibidaDetalleRead,
     RetencionRecibidaRead,
+    q2,
 )
 
 
 class RetencionRecibidaService:
-    def _validar_venta(self, session: Session, venta_id: UUID) -> None:
+    def _validar_venta(self, session: Session, venta_id: UUID) -> Venta:
         venta = session.get(Venta, venta_id)
         if not venta or not venta.activo:
             raise HTTPException(status_code=404, detail="Venta no encontrada para registrar retencion recibida.")
+        return venta
 
     def _validar_unicidad(self, session: Session, cliente_id: UUID, numero_retencion: str) -> None:
         existente = session.exec(
@@ -42,8 +45,22 @@ class RetencionRecibidaService:
         session: Session,
         payload: RetencionRecibidaCreate,
     ) -> RetencionRecibidaRead:
-        self._validar_venta(session, payload.venta_id)
+        venta = self._validar_venta(session, payload.venta_id)
         self._validar_unicidad(session, payload.cliente_id, payload.numero_retencion)
+        subtotal_general = q2(
+            venta.subtotal_12 + venta.subtotal_15 + venta.subtotal_0 + venta.subtotal_no_objeto
+        )
+        try:
+            payload = RetencionRecibidaCreate.model_validate(
+                payload.model_dump(),
+                context={
+                    "venta_subtotal_general": subtotal_general,
+                    "venta_monto_iva": q2(venta.monto_iva),
+                },
+            )
+        except ValidationError as exc:
+            first_error = exc.errors()[0]["msg"] if exc.errors() else str(exc)
+            raise HTTPException(status_code=400, detail=first_error) from exc
 
         retencion = RetencionRecibida(
             venta_id=payload.venta_id,

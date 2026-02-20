@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
@@ -486,6 +486,35 @@ class RetencionRecibidaCreate(BaseModel):
     @computed_field(return_type=Decimal)
     def total_retenido(self) -> Decimal:
         return q2(sum((d.valor_retenido for d in self.detalles), Decimal("0.00")))
+
+    @model_validator(mode="after")
+    def validar_reglas_tributarias_sri(self, info: ValidationInfo):
+        # Esta validacion se ejecuta cuando el servicio inyecta el contexto de la venta.
+        contexto = info.context or {}
+        if not contexto:
+            return self
+
+        subtotal_general = q2(contexto.get("venta_subtotal_general", Decimal("0.00")))
+        monto_iva_factura = q2(contexto.get("venta_monto_iva", Decimal("0.00")))
+
+        for detalle in self.detalles:
+            base = q2(detalle.base_imponible)
+            if detalle.codigo_impuesto_sri == "1" and base > subtotal_general:
+                raise ValueError(
+                    "La base imponible de retencion en renta no puede superar el subtotal general de la venta."
+                )
+
+            if detalle.codigo_impuesto_sri == "2":
+                if monto_iva_factura == Decimal("0.00"):
+                    raise ValueError(
+                        "Es ilegal registrar una retencion de IVA sobre una factura que no genera IVA"
+                    )
+                if base != monto_iva_factura:
+                    raise ValueError(
+                        "La base imponible de retencion IVA debe ser exactamente igual al monto IVA de la venta."
+                    )
+
+        return self
 
 
 class RetencionRecibidaDetalleRead(BaseModel):
