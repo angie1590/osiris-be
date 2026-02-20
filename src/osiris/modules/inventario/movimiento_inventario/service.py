@@ -178,16 +178,15 @@ class MovimientoInventarioService:
         detalle: MovimientoInventarioDetalle,
     ) -> None:
         try:
-            stock = (
-                session.query(InventarioStock)
-                .with_for_update()
-                .filter_by(
-                    bodega_id=movimiento.bodega_id,
-                    producto_id=detalle.producto_id,
-                    activo=True,
+            stock = session.exec(
+                select(InventarioStock)
+                .where(
+                    InventarioStock.bodega_id == movimiento.bodega_id,
+                    InventarioStock.producto_id == detalle.producto_id,
+                    InventarioStock.activo.is_(True),
                 )
-                .one()
-            )
+                .with_for_update()
+            ).one()
         except NoResultFound as exc:
             raise ValueError("No existe stock materializado para el producto/bodega.") from exc
 
@@ -218,16 +217,15 @@ class MovimientoInventarioService:
         movimiento: MovimientoInventario,
         detalle: MovimientoInventarioDetalle,
     ) -> None:
-        stock = (
-            session.query(InventarioStock)
-            .with_for_update()
-            .filter_by(
-                bodega_id=movimiento.bodega_id,
-                producto_id=detalle.producto_id,
-                activo=True,
+        stock = session.exec(
+            select(InventarioStock)
+            .where(
+                InventarioStock.bodega_id == movimiento.bodega_id,
+                InventarioStock.producto_id == detalle.producto_id,
+                InventarioStock.activo.is_(True),
             )
-            .one_or_none()
-        )
+            .with_for_update()
+        ).one_or_none()
         if stock is None:
             stock = InventarioStock(
                 bodega_id=movimiento.bodega_id,

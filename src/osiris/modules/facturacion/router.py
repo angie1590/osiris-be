@@ -19,12 +19,16 @@ from osiris.modules.facturacion.models import (
     RetencionCreate,
     RetencionEmitRequest,
     RetencionRead,
+    RetencionRecibidaAnularRequest,
+    RetencionRecibidaCreate,
+    RetencionRecibidaRead,
     RetencionSugeridaRead,
     VentaCreate,
     VentaRead,
     VentaRegistroCreate,
 )
 from osiris.modules.facturacion.retencion_service import RetencionService
+from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
 from osiris.modules.facturacion.venta_service import VentaService
 
 router = APIRouter()
@@ -32,6 +36,7 @@ venta_service = VentaService()
 compra_service = CompraService()
 fe_mapper_service = FEMapperService()
 retencion_service = RetencionService()
+retencion_recibida_service = RetencionRecibidaService()
 
 
 @router.post(
@@ -190,6 +195,37 @@ def obtener_payload_fe_retencion(
     session: Session = Depends(get_session),
 ):
     return retencion_service.obtener_payload_fe_retencion(session, retencion_id)
+
+
+@router.post(
+    "/v1/retenciones-recibidas",
+    response_model=RetencionRecibidaRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Facturacion"],
+)
+def crear_retencion_recibida(
+    payload: RetencionRecibidaCreate,
+    session: Session = Depends(get_session),
+):
+    return retencion_recibida_service.crear_retencion_recibida(session, payload)
+
+
+@router.post(
+    "/v1/retenciones-recibidas/{retencion_id}/anular",
+    response_model=RetencionRecibidaRead,
+    tags=["Facturacion"],
+)
+def anular_retencion_recibida(
+    retencion_id: UUID,
+    payload: RetencionRecibidaAnularRequest,
+    session: Session = Depends(get_session),
+):
+    return retencion_recibida_service.anular_retencion_recibida(
+        session,
+        retencion_id,
+        motivo=payload.motivo,
+        usuario_auditoria=payload.usuario_auditoria,
+    )
 
 
 @router.get(

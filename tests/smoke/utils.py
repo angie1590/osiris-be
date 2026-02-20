@@ -199,40 +199,25 @@ def cleanup_product_scenario(
 
 
 def get_or_create_iva_for_tests(client: httpx.Client) -> str:
-    """Busca un IVA activo (código '2') o crea uno temporal directamente en DB.
+    """Busca un IVA activo (código '2') via API HTTP.
     Retorna el ID del impuesto IVA para usar en tests.
+    Si no encuentra ninguno, asume que hay uno con ID conocido del seed.
     """
-    from datetime import date
-    from sqlmodel import Session, select
-    from osiris.core.db import engine
-    from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo, TipoImpuesto, AplicaA, ClasificacionIVA
-    from decimal import Decimal
+    # Buscar IVA existente via API
+    try:
+        r = client.get(f"{BASE}/impuestos/catalogo?tipo_impuesto=IVA&solo_vigentes=true&limit=50&offset=0")
+        if r.status_code == 200:
+            data = r.json()
+            items = data.get("items", [])
+            # Buscar uno con codigo_sri '2' (IVA)
+            for item in items:
+                if item.get("codigo_sri") == "2":
+                    return str(item["id"])
+            # Si no hay con código '2', tomar el primero disponible
+            if items:
+                return str(items[0]["id"])
+    except Exception as exc:
+        logging.warning(f"Error buscando IVA via API: {exc}")
 
-    with Session(engine) as session:
-        # Buscar IVA existente (código SRI '2')
-        stmt = select(ImpuestoCatalogo).where(
-            ImpuestoCatalogo.codigo_sri == "2",
-            ImpuestoCatalogo.activo == True
-        )
-        impuesto = session.exec(stmt).first()
-
-        if impuesto:
-            return str(impuesto.id)
-
-        # Si no existe, crear uno temporal para tests
-        iva = ImpuestoCatalogo(
-            tipo_impuesto=TipoImpuesto.IVA,
-            codigo_tipo_impuesto="2",
-            codigo_sri="2",
-            descripcion="IVA 0% Test",
-            vigente_desde=date.today(),
-            vigente_hasta=None,
-            aplica_a=AplicaA.AMBOS,
-            porcentaje_iva=Decimal("0"),
-            clasificacion_iva=ClasificacionIVA.GRAVADO,
-            usuario_auditoria="test",
-        )
-        session.add(iva)
-        session.commit()
-        session.refresh(iva)
-        return str(iva.id)
+    # Fallback: asumir un UUID conocido del seed o lanzar error
+    raise RuntimeError("No se pudo encontrar un IVA activo. Ejecutar 'make seed' primero.")

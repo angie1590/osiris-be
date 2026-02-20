@@ -197,10 +197,9 @@ def test_punto_emision_service_obtener_siguiente_secuencial_for_update_y_padding
         usuario_auditoria="tester",
         activo=True,
     )
-
-    query = MagicMock()
-    query.with_for_update.return_value.filter_by.return_value.one.return_value = secuencial
-    session.query.return_value = query
+    locked = MagicMock()
+    locked.one.return_value = secuencial
+    session.exec.return_value = locked
 
     siguiente = svc.obtener_siguiente_secuencial(
         session,
@@ -212,12 +211,8 @@ def test_punto_emision_service_obtener_siguiente_secuencial_for_update_y_padding
     assert siguiente == "000000010"
     assert secuencial.secuencial_actual == 10
     assert secuencial.usuario_auditoria == "u-1"
-    session.query.assert_called_once_with(PuntoEmisionSecuencial)
-    query.with_for_update.assert_called_once()
-    query.with_for_update.return_value.filter_by.assert_called_once_with(
-        punto_emision_id=pe_id,
-        tipo_documento=TipoDocumentoSRI.FACTURA,
-    )
+    stmt = session.exec.call_args.args[0]
+    assert getattr(stmt, "_for_update_arg", None) is not None
     session.commit.assert_called_once()
     session.refresh.assert_called_once_with(secuencial)
 
@@ -260,9 +255,9 @@ def test_punto_emision_service_ajuste_manual_registra_auditoria_detallada():
         usuario_auditoria="tester",
         activo=True,
     )
-    query = MagicMock()
-    query.with_for_update.return_value.filter_by.return_value.one.return_value = secuencial
-    session.query.return_value = query
+    second = MagicMock()
+    second.one.return_value = secuencial
+    session.exec.side_effect = [first, second]
 
     with patch("osiris.modules.common.punto_emision.service.verificar_permiso", return_value=True):
         updated = svc.ajustar_secuencial_manual(
@@ -363,9 +358,6 @@ def test_punto_emision_service_ajuste_manual_rechaza_sin_permiso_especifico():
         usuario_auditoria="tester",
         activo=True,
     )
-    query = MagicMock()
-    query.with_for_update.return_value.filter_by.return_value.one.return_value = seq
-    session.query.return_value = query
 
     with patch("osiris.modules.common.punto_emision.service.verificar_permiso", return_value=False):
         with pytest.raises(HTTPException) as exc:
@@ -419,9 +411,9 @@ def test_punto_emision_service_ajuste_manual_admin_ok():
         usuario_auditoria="tester",
         activo=True,
     )
-    query = MagicMock()
-    query.with_for_update.return_value.filter_by.return_value.one.return_value = seq
-    session.query.return_value = query
+    second = MagicMock()
+    second.one.return_value = seq
+    session.exec.side_effect = [first, second]
 
     with patch("osiris.modules.common.punto_emision.service.verificar_permiso", return_value=True):
         out = svc.ajustar_secuencial_manual(

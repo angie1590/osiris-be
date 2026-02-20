@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from osiris.domain.service import BaseService
 from .entity import Categoria
@@ -55,10 +55,11 @@ class CategoriaService(BaseService):
         visited.add(current_id)
 
         # Buscar hijos del nodo actual
-        children = session.query(Categoria).filter(
+        stmt = select(Categoria).where(
             Categoria.parent_id == current_id,
-            Categoria.activo == True
-        ).all()
+            Categoria.activo == True,
+        )
+        children = session.exec(stmt).all()
 
         # Verificar recursivamente los hijos
         for child in children:

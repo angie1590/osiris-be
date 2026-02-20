@@ -10,25 +10,26 @@ from sqlmodel import SQLModel
 SQLModel.metadata.clear()
 
 
-class SeqQuery:
+class SeqExec:
     def __init__(self, results_iter):
         self._iter = iter(results_iter)
-    def filter(self, *args, **kwargs):
-        return self
-    def all(self):
+
+    def __call__(self, *_args, **_kwargs):
+        result = Mock()
         try:
-            return next(self._iter)
+            rows = next(self._iter)
         except StopIteration:
-            return []
+            rows = []
+        result.all.return_value = rows
+        return result
 
 
 def make_session_with_sequence(results_sequence):
-    """Crea una sesión falsa cuya llamada a query(...).filter(...).all() devolverá
+    """Crea una sesión falsa cuya llamada a exec(select(...)).all() devolverá
     los elementos de results_sequence de forma secuencial en cada invocación.
     """
     session = Mock()
-    q = SeqQuery(results_sequence)
-    session.query.return_value = q
+    session.exec.side_effect = SeqExec(results_sequence)
     return session
 
 

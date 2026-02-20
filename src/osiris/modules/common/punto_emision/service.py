@@ -4,8 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlmodel import Session, select
 
 from osiris.core.permisos import verificar_permiso
@@ -103,15 +102,15 @@ class PuntoEmisionService(BaseService):
             raise HTTPException(status_code=404, detail="Punto de emision no encontrado o inactivo")
 
         try:
-            secuencial = (
-                session.query(PuntoEmisionSecuencial)
-                .with_for_update()
-                .filter_by(
-                    punto_emision_id=punto_emision_id,
-                    tipo_documento=tipo_documento,
+            stmt = (
+                select(PuntoEmisionSecuencial)
+                .where(
+                    PuntoEmisionSecuencial.punto_emision_id == punto_emision_id,
+                    PuntoEmisionSecuencial.tipo_documento == tipo_documento,
                 )
-                .one()
+                .with_for_update()
             )
+            secuencial = session.exec(stmt).one()
         except NoResultFound:
             inicial = punto_emision.secuencial_actual if tipo_documento == TipoDocumentoSRI.FACTURA else 0
             try:
@@ -129,15 +128,15 @@ class PuntoEmisionService(BaseService):
                 # Otra transaccion lo inserto primero; continuamos para bloquear el registro ya creado.
                 pass
 
-            secuencial = (
-                session.query(PuntoEmisionSecuencial)
-                .with_for_update()
-                .filter_by(
-                    punto_emision_id=punto_emision_id,
-                    tipo_documento=tipo_documento,
+            stmt = (
+                select(PuntoEmisionSecuencial)
+                .where(
+                    PuntoEmisionSecuencial.punto_emision_id == punto_emision_id,
+                    PuntoEmisionSecuencial.tipo_documento == tipo_documento,
                 )
-                .one()
+                .with_for_update()
             )
+            secuencial = session.exec(stmt).one()
 
         if hasattr(secuencial, "activo") and secuencial.activo is False:
             secuencial.activo = True

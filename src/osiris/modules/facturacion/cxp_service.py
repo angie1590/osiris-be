@@ -4,8 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy.orm.exc import NoResultFound
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from osiris.modules.facturacion.entity import CuentaPorPagar, EstadoCuentaPorPagar, PagoCxP
 from osiris.modules.facturacion.models import PagoCxPCreate, q2
@@ -22,15 +21,16 @@ class CuentaPorPagarService:
         rollback_on_error: bool = True,
     ) -> PagoCxP:
         try:
-            try:
-                cxp = (
-                    session.query(CuentaPorPagar)
-                    .with_for_update()
-                    .filter_by(id=cuenta_por_pagar_id, activo=True)
-                    .one()
+            cxp = session.exec(
+                select(CuentaPorPagar)
+                .where(
+                    CuentaPorPagar.id == cuenta_por_pagar_id,
+                    CuentaPorPagar.activo.is_(True),
                 )
-            except NoResultFound as exc:
-                raise HTTPException(status_code=404, detail="Cuenta por pagar no encontrada") from exc
+                .with_for_update()
+            ).one_or_none()
+            if not cxp:
+                raise HTTPException(status_code=404, detail="Cuenta por pagar no encontrada")
 
             if cxp.estado == EstadoCuentaPorPagar.ANULADA:
                 raise ValueError("No se puede registrar pagos en una cuenta por pagar ANULADA.")

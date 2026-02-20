@@ -1,12 +1,11 @@
 # tests/smoke/test_permisos_smoke.py
 import pytest
-from fastapi.testclient import TestClient
+import httpx
 
-from osiris.main import app
 from tests.smoke.utils import is_port_open
 
 
-client = TestClient(app)
+client = httpx.Client(base_url="http://localhost:8000", timeout=10.0)
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
@@ -176,27 +175,19 @@ def test_obtener_permisos_usuario():
     assert response.status_code == 201
     permiso2_id = response.json()["id"]
 
-    # Crear persona
+    # Crear persona con identificación única válida
+    from tests.smoke.ruc_utils import generar_ruc_persona_natural
+    cedula_valida = generar_ruc_persona_natural()[:10]  # Solo los primeros 10 dígitos (cédula)
     persona_data = {
-        "identificacion": "0104815956",
+        "identificacion": cedula_valida,
         "tipo_identificacion": "CEDULA",
         "nombre": "Test",
         "apellido": "Permisos Usuario",
         "usuario_auditoria": "smoke_test"
     }
     response = client.post("/api/personas", json=persona_data)
-    if response.status_code == 409:
-        # Ya existe, obtenerla por identificacion - aumentar límite
-        response_list = client.get("/api/personas?limit=200")
-        personas = response_list.json()
-        if isinstance(personas, dict) and "items" in personas:
-            personas = personas["items"]
-        persona = next((p for p in personas if p["identificacion"] == "0104815956"), None)
-        assert persona is not None, f"No se encontró persona con cédula 0104815956 en {len(personas)} personas"
-        persona_id = persona["id"]
-    else:
-        assert response.status_code == 201
-        persona_id = response.json()["id"]
+    assert response.status_code == 201
+    persona_id = response.json()["id"]
 
     # Crear usuario
     import uuid as _uuid1
@@ -333,27 +324,19 @@ def test_obtener_menu_usuario():
     assert response.status_code == 201
     permiso_oculto_id = response.json()["id"]
 
-    # Crear persona y usuario
+    # Crear persona y usuario con identificación única válida
+    from tests.smoke.ruc_utils import generar_ruc_persona_natural
+    cedula_valida2 = generar_ruc_persona_natural()[:10]  # Solo los primeros 10 dígitos (cédula)
     persona_data = {
-        "identificacion": "0103523908",
+        "identificacion": cedula_valida2,
         "tipo_identificacion": "CEDULA",
         "nombre": "Test",
         "apellido": "Menu",
         "usuario_auditoria": "smoke_test"
     }
     response = client.post("/api/personas", json=persona_data)
-    if response.status_code == 409:
-        # Ya existe, obtenerla - aumentar límite
-        response_list = client.get("/api/personas?limit=200")
-        personas = response_list.json()
-        if isinstance(personas, dict) and "items" in personas:
-            personas = personas["items"]
-        persona = next((p for p in personas if p["identificacion"] == "0103523908"), None)
-        assert persona is not None, f"No se encontró persona con cédula 0103523908 en {len(personas)} personas"
-        persona_id = persona["id"]
-    else:
-        assert response.status_code == 201
-        persona_id = response.json()["id"]
+    assert response.status_code == 201
+    persona_id = response.json()["id"]
 
     import uuid as _uuid2
     suf_user2 = _uuid2.uuid4().hex[:6]

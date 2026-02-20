@@ -1,14 +1,12 @@
 # tests/smoke/test_modulo_smoke.py
 import pytest
 import uuid
-from fastapi.testclient import TestClient
-from sqlmodel import Session
+import httpx
 
-from osiris.main import app
 from tests.smoke.utils import is_port_open
 
 
-client = TestClient(app)
+client = httpx.Client(base_url="http://localhost:8000", timeout=10.0)
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")

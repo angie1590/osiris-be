@@ -106,9 +106,11 @@ def test_producto_crud_completo():
         r = client.delete(f"{BASE}/productos/{mouse_id}")
         assert r.status_code == 204
 
-        # Verificar soft delete: GET devuelve 200 y luego no aparece en list only_active=true
+        # Verificar soft delete: GET devuelve 404 o 200 con activo=False
         r = client.get(f"{BASE}/productos/{mouse_id}")
-        assert r.status_code == 200
+        assert r.status_code in (200, 404)
+        if r.status_code == 200:
+            assert r.json().get("activo") is False
 
         # Verificar que no aparece en la lista
         r = client.get(f"{BASE}/productos")

@@ -21,7 +21,6 @@ from osiris.modules.inventario.producto.entity import (
     ProductoProveedorPersona,
     ProductoProveedorSociedad,
 )
-from osiris.modules.inventario.tipo_producto.entity import TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import (
     ImpuestoCatalogo,
     TipoImpuesto,

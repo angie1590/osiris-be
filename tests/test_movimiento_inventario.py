@@ -272,11 +272,12 @@ def test_concurrencia_stock_negativo(tmp_path):
     assert resultados.count("error") == 4
 
     with Session(engine) as session:
-        stock_final = (
-            session.query(InventarioStock)
-            .filter_by(bodega_id=bodega_id, producto_id=producto_id, activo=True)
-            .one()
+        stmt = select(InventarioStock).where(
+            InventarioStock.bodega_id == bodega_id,
+            InventarioStock.producto_id == producto_id,
+            InventarioStock.activo == True,
         )
+        stock_final = session.exec(stmt).one()
         assert stock_final.cantidad_actual == Decimal("5.0000")
 
 
@@ -358,11 +359,12 @@ def test_calculo_promedio_ponderado():
         mov_2 = service.crear_movimiento_borrador(session, payload_2)
         service.confirmar_movimiento(session, mov_2.id)
 
-        stock = (
-            session.query(InventarioStock)
-            .filter_by(bodega_id=bodega.id, producto_id=producto.id, activo=True)
-            .one()
+        stmt = select(InventarioStock).where(
+            InventarioStock.bodega_id == bodega.id,
+            InventarioStock.producto_id == producto.id,
+            InventarioStock.activo == True,
         )
+        stock = session.exec(stmt).one()
         assert stock.cantidad_actual == Decimal("20.0000")
         assert stock.costo_promedio_vigente == Decimal("15.0000")
 
@@ -448,11 +450,12 @@ def test_egreso_congela_costo():
             )
             .all()[0]
         )
-        stock_actualizado = (
-            session.query(InventarioStock)
-            .filter_by(bodega_id=bodega.id, producto_id=producto.id, activo=True)
-            .one()
+        stmt = select(InventarioStock).where(
+            InventarioStock.bodega_id == bodega.id,
+            InventarioStock.producto_id == producto.id,
+            InventarioStock.activo == True,
         )
+        stock_actualizado = session.exec(stmt).one()
         assert detalle.costo_unitario == Decimal("7.3456")
         assert stock_actualizado.costo_promedio_vigente == Decimal("7.3456")
         assert stock_actualizado.cantidad_actual == Decimal("25.0000")

@@ -104,12 +104,14 @@ class RetencionService:
         return list(session.exec(stmt).all())
 
     def _obtener_cxp_bloqueada_por_compra(self, session: Session, compra_id: UUID) -> CuentaPorPagar:
-        cxp = (
-            session.query(CuentaPorPagar)
+        cxp = session.exec(
+            select(CuentaPorPagar)
+            .where(
+                CuentaPorPagar.compra_id == compra_id,
+                CuentaPorPagar.activo.is_(True),
+            )
             .with_for_update()
-            .filter_by(compra_id=compra_id, activo=True)
-            .first()
-        )
+        ).one_or_none()
         if not cxp:
             raise HTTPException(status_code=404, detail="Cuenta por pagar no encontrada para la compra.")
         return cxp
