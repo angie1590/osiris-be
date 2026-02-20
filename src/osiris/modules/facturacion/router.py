@@ -89,6 +89,18 @@ def actualizar_venta(
     return venta_service.obtener_venta_read(session, venta.id)
 
 
+@router.get(
+    "/ventas/{venta_id}",
+    response_model=VentaRead,
+    tags=["Facturacion"],
+)
+def obtener_venta(
+    venta_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return venta_service.obtener_venta_read(session, venta_id)
+
+
 @router.patch(
     "/ventas/{venta_id}",
     response_model=VentaRead,

@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 from uuid import UUID
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
@@ -418,11 +418,16 @@ class CuentaPorCobrarRead(BaseModel):
 class PagoCxCCreate(BaseModel):
     monto: Decimal = Field(..., gt=Decimal("0"))
     fecha: date = Field(default_factory=date.today)
-    forma_pago_sri: FormaPagoSRI = Field(
-        ...,
-        validation_alias=AliasChoices("forma_pago_sri", "forma_pago"),
-    )
+    forma_pago_sri: FormaPagoSRI
     usuario_auditoria: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compat_forma_pago_legacy(cls, data):
+        if isinstance(data, dict) and "forma_pago_sri" not in data and "forma_pago" in data:
+            data = dict(data)
+            data["forma_pago_sri"] = data["forma_pago"]
+        return data
 
 
 class PagoCxCRead(BaseModel):
