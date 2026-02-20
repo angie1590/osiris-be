@@ -35,6 +35,13 @@ class TipoRetencionSRI(str, Enum):
     IVA = "IVA"
 
 
+class EstadoRetencion(str, Enum):
+    BORRADOR = "BORRADOR"
+    ENCOLADA = "ENCOLADA"
+    EMITIDA = "EMITIDA"
+    ANULADA = "ANULADA"
+
+
 class EstadoVenta(str, Enum):
     PENDIENTE = "PENDIENTE"
     EMITIDA = "EMITIDA"
@@ -246,6 +253,26 @@ class PlantillaRetencionDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=Tr
     codigo_retencion_sri: str = Field(nullable=False, min_length=1, max_length=10)
     tipo: TipoRetencionSRI = Field(nullable=False, max_length=20)
     porcentaje: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
+
+
+class Retencion(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_retencion"
+
+    compra_id: UUID = Field(foreign_key="tbl_compra.id", nullable=False, index=True, unique=True)
+    fecha_emision: date = Field(default_factory=date.today, nullable=False, index=True)
+    estado: EstadoRetencion = Field(default=EstadoRetencion.BORRADOR, nullable=False, max_length=20)
+    total_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+
+
+class RetencionDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
+    __tablename__ = "tbl_retencion_detalle"
+
+    retencion_id: UUID = Field(foreign_key="tbl_retencion.id", nullable=False, index=True)
+    codigo_retencion_sri: str = Field(nullable=False, min_length=1, max_length=10)
+    tipo: TipoRetencionSRI = Field(nullable=False, max_length=20)
+    porcentaje: Decimal = Field(sa_column=Column(Numeric(7, 4), nullable=False))
+    base_calculo: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
+    valor_retenido: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
 
 
 # Alias de compatibilidad para referencias existentes.

@@ -8,14 +8,24 @@ from sqlmodel import Session, select
 
 from osiris.modules.facturacion.entity import (
     Compra,
+    CuentaPorPagar,
+    EstadoCuentaPorPagar,
+    EstadoRetencion,
     PlantillaRetencion,
     PlantillaRetencionDetalle,
+    Retencion,
+    RetencionDetalle,
     TipoRetencionSRI,
 )
+from osiris.modules.facturacion.fe_mapper_service import FEMapperService
 from osiris.modules.facturacion.models import (
     GuardarPlantillaRetencionRequest,
     PlantillaRetencionDetalleRead,
     PlantillaRetencionRead,
+    RetencionCreate,
+    RetencionDetalleRead,
+    RetencionEmitRequest,
+    RetencionRead,
     RetencionSugeridaDetalleRead,
     RetencionSugeridaRead,
     q2,
@@ -23,6 +33,9 @@ from osiris.modules.facturacion.models import (
 
 
 class RetencionService:
+    def __init__(self) -> None:
+        self.fe_mapper_service = FEMapperService()
+
     def _obtener_compra(self, session: Session, compra_id: UUID) -> Compra:
         compra = session.get(Compra, compra_id)
         if not compra or not compra.activo:
@@ -71,6 +84,64 @@ class RetencionService:
         )
         return list(session.exec(stmt).all())
 
+    def _obtener_retencion(self, session: Session, retencion_id: UUID) -> Retencion:
+        retencion = session.get(Retencion, retencion_id)
+        if not retencion or not retencion.activo:
+            raise HTTPException(status_code=404, detail="Retencion no encontrada")
+        return retencion
+
+    def _obtener_detalles_retencion(self, session: Session, retencion_id: UUID) -> list[RetencionDetalle]:
+        stmt = (
+            select(RetencionDetalle)
+            .where(
+                RetencionDetalle.activo.is_(True),
+                RetencionDetalle.retencion_id == retencion_id,
+            )
+            .order_by(RetencionDetalle.creado_en.asc())
+        )
+        return list(session.exec(stmt).all())
+
+    def _obtener_cxp_bloqueada_por_compra(self, session: Session, compra_id: UUID) -> CuentaPorPagar:
+        cxp = (
+            session.query(CuentaPorPagar)
+            .with_for_update()
+            .filter_by(compra_id=compra_id, activo=True)
+            .first()
+        )
+        if not cxp:
+            raise HTTPException(status_code=404, detail="Cuenta por pagar no encontrada para la compra.")
+        return cxp
+
+    @staticmethod
+    def _actualizar_estado_cxp(cxp: CuentaPorPagar) -> None:
+        nuevo_saldo = q2(cxp.valor_total_factura - cxp.valor_retenido - cxp.pagos_acumulados)
+        if nuevo_saldo < Decimal("0.00"):
+            raise HTTPException(
+                status_code=400,
+                detail="La retencion excede el saldo disponible de la cuenta por pagar.",
+            )
+        cxp.saldo_pendiente = nuevo_saldo
+        if nuevo_saldo == Decimal("0.00"):
+            cxp.estado = EstadoCuentaPorPagar.PAGADA
+        elif cxp.valor_retenido > Decimal("0.00") or cxp.pagos_acumulados > Decimal("0.00"):
+            cxp.estado = EstadoCuentaPorPagar.PARCIAL
+        else:
+            cxp.estado = EstadoCuentaPorPagar.PENDIENTE
+
+    def _validar_no_duplicidad_retencion_por_compra(self, session: Session, compra_id: UUID) -> None:
+        existente = session.exec(
+            select(Retencion).where(
+                Retencion.compra_id == compra_id,
+                Retencion.activo.is_(True),
+                Retencion.estado != EstadoRetencion.ANULADA,
+            )
+        ).first()
+        if existente:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe una retencion activa asociada a esta compra.",
+            )
+
     def sugerir_retencion(self, session: Session, compra_id: UUID) -> RetencionSugeridaRead:
         compra = self._obtener_compra(session, compra_id)
         plantilla = self._obtener_plantilla_para_proveedor(session, compra.proveedor_id)
@@ -107,6 +178,108 @@ class RetencionService:
             detalles=sugeridos,
             total_retenido=q2(total_retenido),
         )
+
+    def crear_retencion(
+        self,
+        session: Session,
+        compra_id: UUID,
+        payload: RetencionCreate,
+        *,
+        commit: bool = True,
+        rollback_on_error: bool = True,
+    ) -> RetencionRead:
+        try:
+            self._obtener_compra(session, compra_id)
+            self._validar_no_duplicidad_retencion_por_compra(session, compra_id)
+
+            retencion = Retencion(
+                compra_id=compra_id,
+                fecha_emision=payload.fecha_emision,
+                estado=EstadoRetencion.BORRADOR,
+                total_retenido=payload.total_retenido,
+                usuario_auditoria=payload.usuario_auditoria,
+                activo=True,
+            )
+            session.add(retencion)
+            session.flush()
+
+            for detalle in payload.detalles:
+                session.add(
+                    RetencionDetalle(
+                        retencion_id=retencion.id,
+                        codigo_retencion_sri=detalle.codigo_retencion_sri,
+                        tipo=detalle.tipo,
+                        porcentaje=q2(detalle.porcentaje),
+                        base_calculo=q2(detalle.base_calculo),
+                        valor_retenido=detalle.valor_retenido,
+                        usuario_auditoria=payload.usuario_auditoria,
+                        activo=True,
+                    )
+                )
+
+            if commit:
+                session.commit()
+            else:
+                session.flush()
+            return self.obtener_retencion_read(session, retencion.id)
+        except Exception:
+            if rollback_on_error:
+                session.rollback()
+            raise
+
+    def emitir_retencion(
+        self,
+        session: Session,
+        retencion_id: UUID,
+        payload: RetencionEmitRequest,
+        *,
+        commit: bool = True,
+        rollback_on_error: bool = True,
+    ) -> RetencionRead:
+        try:
+            retencion = self._obtener_retencion(session, retencion_id)
+            if retencion.estado == EstadoRetencion.ANULADA:
+                raise HTTPException(status_code=400, detail="No se puede emitir una retencion ANULADA.")
+            if retencion.estado in {EstadoRetencion.EMITIDA, EstadoRetencion.ENCOLADA}:
+                return self.obtener_retencion_read(session, retencion.id)
+
+            cxp = self._obtener_cxp_bloqueada_por_compra(session, retencion.compra_id)
+            cxp.valor_retenido = q2(cxp.valor_retenido + retencion.total_retenido)
+            self._actualizar_estado_cxp(cxp)
+            cxp.usuario_auditoria = payload.usuario_auditoria
+            session.add(cxp)
+
+            retencion.estado = EstadoRetencion.ENCOLADA if payload.encolar else EstadoRetencion.EMITIDA
+            retencion.usuario_auditoria = payload.usuario_auditoria
+            session.add(retencion)
+
+            if commit:
+                session.commit()
+            else:
+                session.flush()
+            return self.obtener_retencion_read(session, retencion.id)
+        except Exception:
+            if rollback_on_error:
+                session.rollback()
+            raise
+
+    def obtener_retencion_read(self, session: Session, retencion_id: UUID) -> RetencionRead:
+        retencion = self._obtener_retencion(session, retencion_id)
+        detalles = self._obtener_detalles_retencion(session, retencion.id)
+        return RetencionRead(
+            id=retencion.id,
+            compra_id=retencion.compra_id,
+            fecha_emision=retencion.fecha_emision,
+            estado=retencion.estado,
+            total_retenido=retencion.total_retenido,
+            detalles=[
+                RetencionDetalleRead.model_validate(detalle, from_attributes=True) for detalle in detalles
+            ],
+        )
+
+    def obtener_payload_fe_retencion(self, session: Session, retencion_id: UUID) -> dict:
+        retencion = self.obtener_retencion_read(session, retencion_id)
+        return self.fe_mapper_service.retencion_to_fe_payload(retencion)
 
     def guardar_plantilla_desde_retencion_digitada(
         self,

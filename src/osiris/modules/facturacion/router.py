@@ -16,6 +16,9 @@ from osiris.modules.facturacion.models import (
     CompraUpdate,
     GuardarPlantillaRetencionRequest,
     PlantillaRetencionRead,
+    RetencionCreate,
+    RetencionEmitRequest,
+    RetencionRead,
     RetencionSugeridaRead,
     VentaCreate,
     VentaRead,
@@ -136,6 +139,44 @@ def guardar_plantilla_retencion_desde_compra(
     session: Session = Depends(get_session),
 ):
     return retencion_service.guardar_plantilla_desde_retencion_digitada(session, compra_id, payload)
+
+
+@router.post(
+    "/v1/compras/{compra_id}/retenciones",
+    response_model=RetencionRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Facturacion"],
+)
+def crear_retencion_compra(
+    compra_id: UUID,
+    payload: RetencionCreate,
+    session: Session = Depends(get_session),
+):
+    return retencion_service.crear_retencion(session, compra_id, payload)
+
+
+@router.post(
+    "/v1/retenciones/{retencion_id}/emitir",
+    response_model=RetencionRead,
+    tags=["Facturacion"],
+)
+def emitir_retencion(
+    retencion_id: UUID,
+    payload: RetencionEmitRequest,
+    session: Session = Depends(get_session),
+):
+    return retencion_service.emitir_retencion(session, retencion_id, payload)
+
+
+@router.get(
+    "/v1/retenciones/{retencion_id}/fe-payload",
+    tags=["Facturacion"],
+)
+def obtener_payload_fe_retencion(
+    retencion_id: UUID,
+    session: Session = Depends(get_session),
+):
+    return retencion_service.obtener_payload_fe_retencion(session, retencion_id)
 
 
 @router.get(

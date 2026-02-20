@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoRetencion,
     EstadoCompra,
     FormaPagoSRI,
     SustentoTributarioSRI,
@@ -403,6 +404,54 @@ class RetencionSugeridaRead(BaseModel):
     proveedor_id: UUID | None
     detalles: list[RetencionSugeridaDetalleRead]
     total_retenido: Decimal
+
+
+class RetencionDetalleCreate(BaseModel):
+    codigo_retencion_sri: str = Field(..., min_length=1, max_length=10)
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal = Field(..., gt=Decimal("0"))
+    base_calculo: Decimal = Field(..., ge=Decimal("0"))
+
+    @computed_field(return_type=Decimal)
+    def valor_retenido(self) -> Decimal:
+        return q2(q2(self.base_calculo) * q2(self.porcentaje) / Decimal("100"))
+
+
+class RetencionCreate(BaseModel):
+    fecha_emision: date = Field(default_factory=date.today)
+    usuario_auditoria: str
+    detalles: list[RetencionDetalleCreate] = Field(..., min_length=1)
+
+    @computed_field(return_type=Decimal)
+    def total_retenido(self) -> Decimal:
+        return q2(sum((d.valor_retenido for d in self.detalles), Decimal("0.00")))
+
+
+class RetencionEmitRequest(BaseModel):
+    usuario_auditoria: str
+    encolar: bool = False
+
+
+class RetencionDetalleRead(BaseModel):
+    id: UUID
+    codigo_retencion_sri: str
+    tipo: TipoRetencionSRI
+    porcentaje: Decimal
+    base_calculo: Decimal
+    valor_retenido: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionRead(BaseModel):
+    id: UUID
+    compra_id: UUID
+    fecha_emision: date
+    estado: EstadoRetencion
+    total_retenido: Decimal
+    detalles: list[RetencionDetalleRead]
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class VentaDetalleImpuestoRead(BaseModel):
