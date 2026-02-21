@@ -9,13 +9,16 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_fiel
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.facturacion.entity import (
+    EstadoVenta,
     EstadoRetencionRecibida,
     EstadoSriDocumento,
     EstadoRetencion,
     EstadoCompra,
+    EstadoCuentaPorCobrar,
     FormaPagoSRI,
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
+    TipoEmisionVenta,
     TipoImpuestoMVP,
     TipoRetencionSRI,
 )
@@ -112,25 +115,47 @@ class VentaCompraDetalleRegistroCreate(BaseModel):
 
 
 class VentaCreate(BaseModel):
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
+    secuencial_formateado: str | None = Field(default=None, max_length=20)
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta | None = None
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleCreate] = Field(..., min_length=1)
 
     @model_validator(mode="after")
-    def validar_iva_cero_para_negocio_popular(self):
+    def validar_regimen_y_tipo_emision(self):
         if self.regimen_emisor != RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            if self.tipo_emision == TipoEmisionVenta.NOTA_VENTA_FISICA:
+                raise ValueError(
+                    "NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR."
+                )
             return self
+
+        if self.tipo_emision is None:
+            tiene_actividad_excluida = any(d.es_actividad_excluida for d in self.detalles)
+            # Mantiene comportamiento histórico: para RIMPE NP, sin exclusiones se asume nota física.
+            self.tipo_emision = (
+                TipoEmisionVenta.ELECTRONICA
+                if tiene_actividad_excluida
+                else TipoEmisionVenta.NOTA_VENTA_FISICA
+            )
 
         for detalle in self.detalles:
             if detalle.es_actividad_excluida:
                 continue
             iva = detalle.iva_impuesto()
             if iva and q2(iva.tarifa) > Decimal("0.00"):
+                if self.tipo_emision == TipoEmisionVenta.ELECTRONICA:
+                    raise ValueError(
+                        "Los Negocios Populares solo pueden facturar electrónicamente con tarifa 0%"
+                    )
                 raise ValueError(
                     "Los Negocios Populares solo pueden facturar con tarifa 0% de IVA para sus actividades incluyentes"
                 )
@@ -197,16 +222,42 @@ class VentaCreate(BaseModel):
     def valor_total(self) -> Decimal:
         return q2(self.subtotal_sin_impuestos + self.monto_iva + self.monto_ice)
 
+    @computed_field(return_type=Decimal)
+    def total(self) -> Decimal:
+        return self.valor_total
+
 
 class VentaRegistroCreate(BaseModel):
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
     fecha_emision: date = Field(default_factory=date.today)
     bodega_id: UUID | None = None
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str = Field(..., min_length=3, max_length=20)
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta | None = None
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
     usuario_auditoria: str
     detalles: list[VentaCompraDetalleRegistroCreate] = Field(..., min_length=1)
+
+
+class VentaUpdate(BaseModel):
+    tipo_identificacion_comprador: TipoIdentificacionSRI | None = None
+    identificacion_comprador: str | None = Field(default=None, min_length=3, max_length=20)
+    forma_pago: FormaPagoSRI | None = None
+    tipo_emision: TipoEmisionVenta | None = None
+    usuario_auditoria: str
+
+
+class VentaEmitRequest(BaseModel):
+    usuario_auditoria: str
+
+
+class VentaAnularRequest(BaseModel):
+    usuario_auditoria: str
+    confirmado_portal_sri: bool = False
+    motivo: str | None = Field(default=None, max_length=500)
 
 
 class CompraCreate(BaseModel):
@@ -351,6 +402,43 @@ class PagoCxPRead(BaseModel):
     monto: Decimal
     fecha: date
     forma_pago: FormaPagoSRI
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CuentaPorCobrarRead(BaseModel):
+    id: UUID
+    venta_id: UUID
+    valor_total_factura: Decimal
+    valor_retenido: Decimal
+    pagos_acumulados: Decimal
+    saldo_pendiente: Decimal
+    estado: EstadoCuentaPorCobrar
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PagoCxCCreate(BaseModel):
+    monto: Decimal = Field(..., gt=Decimal("0"))
+    fecha: date = Field(default_factory=date.today)
+    forma_pago_sri: FormaPagoSRI
+    usuario_auditoria: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compat_forma_pago_legacy(cls, data):
+        if isinstance(data, dict) and "forma_pago_sri" not in data and "forma_pago" in data:
+            data = dict(data)
+            data["forma_pago_sri"] = data["forma_pago"]
+        return data
+
+
+class PagoCxCRead(BaseModel):
+    id: UUID
+    cuenta_por_cobrar_id: UUID
+    monto: Decimal
+    fecha: date
+    forma_pago_sri: FormaPagoSRI
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -568,11 +656,20 @@ class VentaDetalleRead(BaseModel):
 
 class VentaRead(BaseModel):
     id: UUID
+    cliente_id: UUID | None = None
+    empresa_id: UUID | None = None
+    punto_emision_id: UUID | None = None
+    secuencial_formateado: str | None = None
     fecha_emision: date
     tipo_identificacion_comprador: TipoIdentificacionSRI
     identificacion_comprador: str
     forma_pago: FormaPagoSRI
+    tipo_emision: TipoEmisionVenta = TipoEmisionVenta.ELECTRONICA
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
+    estado: EstadoVenta = EstadoVenta.EMITIDA
+    estado_sri: EstadoSriDocumento = EstadoSriDocumento.PENDIENTE
+    sri_intentos: int = 0
+    sri_ultimo_error: str | None = None
 
     subtotal_sin_impuestos: Decimal
     subtotal_12: Decimal
@@ -582,6 +679,7 @@ class VentaRead(BaseModel):
     monto_iva: Decimal
     monto_ice: Decimal
     valor_total: Decimal
+    total: Decimal | None = None
 
     detalles: list[VentaDetalleRead]
     creado_en: Optional[datetime] = None

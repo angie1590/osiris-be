@@ -100,6 +100,29 @@ def test_venta_create_calcula_totales_e_impuestos_al_centavo():
     assert venta.valor_total == Decimal("211.08")
 
 
+def test_venta_calculo_totales_exactos():
+    venta = VentaCreate(
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Servicio 15%",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("100.00"),
+                impuestos=[_iva15()],
+            )
+        ],
+    )
+
+    assert venta.subtotal_sin_impuestos == Decimal("100.00")
+    assert venta.subtotal_15 == Decimal("100.00")
+    assert venta.monto_iva == Decimal("15.00")
+    assert venta.total == Decimal("115.00")
+
+
 def test_compra_create_calcula_totales_redondeados():
     compra = CompraCreate(
         proveedor_id=uuid4(),
@@ -234,3 +257,48 @@ def test_venta_rimpe_negocio_popular_permite_iva_si_actividad_excluida():
         ],
     )
     assert venta.monto_iva == Decimal("1.20")
+
+
+def test_rimpe_np_bloqueo_iva_electronica():
+    with pytest.raises(ValidationError) as exc:
+        VentaCreate(
+            tipo_identificacion_comprador="RUC",
+            identificacion_comprador="1790012345001",
+            forma_pago="EFECTIVO",
+            tipo_emision="ELECTRONICA",
+            regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+            usuario_auditoria="tester",
+            detalles=[
+                VentaCompraDetalleCreate(
+                    producto_id=uuid4(),
+                    descripcion="Servicio gravado",
+                    cantidad=Decimal("1"),
+                    precio_unitario=Decimal("100.00"),
+                    es_actividad_excluida=False,
+                    impuestos=[_iva15()],
+                )
+            ],
+        )
+
+    assert "Los Negocios Populares solo pueden facturar electrónicamente con tarifa 0%" in str(exc.value)
+
+
+def test_venta_rimpe_np_fuerza_nota_venta_fisica_cuando_no_hay_excluidas():
+    venta = VentaCreate(
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+        usuario_auditoria="tester",
+        detalles=[
+            VentaCompraDetalleCreate(
+                producto_id=uuid4(),
+                descripcion="Actividad incluyente",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("100.00"),
+                impuestos=[_iva0()],
+            )
+        ],
+    )
+
+    assert venta.tipo_emision.value == "NOTA_VENTA_FISICA"
