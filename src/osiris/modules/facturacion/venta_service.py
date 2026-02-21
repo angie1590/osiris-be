@@ -134,12 +134,21 @@ class VentaService:
         )
 
     @staticmethod
-    def _validar_iva_rimpe_negocio_popular(payload: VentaCreate) -> None:
+    def _validar_iva_rimpe_negocio_popular(
+        payload: VentaCreate,
+        *,
+        tipo_emision: TipoEmisionVenta,
+    ) -> None:
         for detalle in payload.detalles:
             if detalle.es_actividad_excluida:
                 continue
             iva = detalle.iva_impuesto()
             if iva and q2(iva.tarifa) > Decimal("0.00"):
+                if tipo_emision == TipoEmisionVenta.ELECTRONICA:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Los Negocios Populares solo pueden facturar electrónicamente con tarifa 0%",
+                    )
                 raise HTTPException(
                     status_code=400,
                     detail=(
@@ -166,12 +175,13 @@ class VentaService:
 
         tipo_emision = payload.tipo_emision
         if regimen_emisor == RegimenTributario.RIMPE_NEGOCIO_POPULAR:
-            self._validar_iva_rimpe_negocio_popular(payload)
             tiene_actividad_excluida = any(d.es_actividad_excluida for d in payload.detalles)
-            if tiene_actividad_excluida:
-                tipo_emision = tipo_emision or TipoEmisionVenta.ELECTRONICA
-            else:
-                tipo_emision = TipoEmisionVenta.NOTA_VENTA_FISICA
+            tipo_emision_explicito = "tipo_emision" in payload.model_fields_set
+            if not tipo_emision_explicito or tipo_emision is None:
+                tipo_emision = (
+                    TipoEmisionVenta.ELECTRONICA if tiene_actividad_excluida else TipoEmisionVenta.NOTA_VENTA_FISICA
+                )
+            self._validar_iva_rimpe_negocio_popular(payload, tipo_emision=tipo_emision)
         else:
             if tipo_emision == TipoEmisionVenta.NOTA_VENTA_FISICA:
                 raise HTTPException(

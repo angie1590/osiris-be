@@ -136,23 +136,26 @@ class VentaCreate(BaseModel):
                 raise ValueError(
                     "NOTA_VENTA_FISICA solo está permitido para régimen RIMPE_NEGOCIO_POPULAR."
                 )
-            if self.tipo_emision is None:
-                self.tipo_emision = TipoEmisionVenta.ELECTRONICA
             return self
 
-        tiene_actividad_excluida = any(d.es_actividad_excluida for d in self.detalles)
-        if tiene_actividad_excluida:
-            if self.tipo_emision is None:
-                self.tipo_emision = TipoEmisionVenta.ELECTRONICA
-        else:
-            # Regla SRI solicitada: RIMPE NP se emite como nota de venta física por defecto.
-            self.tipo_emision = TipoEmisionVenta.NOTA_VENTA_FISICA
+        if self.tipo_emision is None:
+            tiene_actividad_excluida = any(d.es_actividad_excluida for d in self.detalles)
+            # Mantiene comportamiento histórico: para RIMPE NP, sin exclusiones se asume nota física.
+            self.tipo_emision = (
+                TipoEmisionVenta.ELECTRONICA
+                if tiene_actividad_excluida
+                else TipoEmisionVenta.NOTA_VENTA_FISICA
+            )
 
         for detalle in self.detalles:
             if detalle.es_actividad_excluida:
                 continue
             iva = detalle.iva_impuesto()
             if iva and q2(iva.tarifa) > Decimal("0.00"):
+                if self.tipo_emision == TipoEmisionVenta.ELECTRONICA:
+                    raise ValueError(
+                        "Los Negocios Populares solo pueden facturar electrónicamente con tarifa 0%"
+                    )
                 raise ValueError(
                     "Los Negocios Populares solo pueden facturar con tarifa 0% de IVA para sus actividades incluyentes"
                 )

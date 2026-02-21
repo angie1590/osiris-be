@@ -42,6 +42,14 @@ def _fmt(value: Decimal) -> str:
     return f"{q2(value):.2f}"
 
 
+def _append_unique_campo_adicional(info_adicional: dict, *, nombre: str, valor: str) -> dict:
+    campos = list(info_adicional.get("campoAdicional") or [])
+    if not any((campo.get("nombre"), campo.get("valor")) == (nombre, valor) for campo in campos if isinstance(campo, dict)):
+        campos.append({"nombre": nombre, "valor": valor})
+    info_adicional["campoAdicional"] = campos
+    return info_adicional
+
+
 def _totales_impuestos_desde_detalle(venta: VentaRead) -> tuple[Decimal, Decimal, Decimal]:
     total = Decimal("0.00")
     total_iva = Decimal("0.00")
@@ -122,9 +130,14 @@ class FEMapperService:
 
         payload_base = self.venta_to_fe_payload(venta)
         info_adicional = payload_base.get("infoAdicional", {"campoAdicional": []})
+        if venta.regimen_emisor == RegimenTributario.RIMPE_NEGOCIO_POPULAR:
+            info_adicional = _append_unique_campo_adicional(
+                info_adicional,
+                nombre="Contribuyente",
+                valor="Contribuyente Negocio Popular - Régimen RIMPE",
+            )
         if email_cliente:
-            info_adicional.setdefault("campoAdicional", [])
-            info_adicional["campoAdicional"].append({"nombre": "email", "valor": email_cliente})
+            info_adicional = _append_unique_campo_adicional(info_adicional, nombre="email", valor=email_cliente)
 
         return {
             "infoTributaria": {
@@ -254,14 +267,11 @@ class FEMapperService:
             "detalles": detalles_payload,
         }
         if venta.regimen_emisor == RegimenTributario.RIMPE_NEGOCIO_POPULAR:
-            payload["infoAdicional"] = {
-                "campoAdicional": [
-                    {
-                        "nombre": "Contribuyente",
-                        "valor": "Contribuyente Negocio Popular - Régimen RIMPE",
-                    }
-                ]
-            }
+            payload["infoAdicional"] = _append_unique_campo_adicional(
+                payload.get("infoAdicional", {"campoAdicional": []}),
+                nombre="Contribuyente",
+                valor="Contribuyente Negocio Popular - Régimen RIMPE",
+            )
         return payload
 
     def retencion_to_fe_payload(self, retencion: RetencionRead) -> dict:

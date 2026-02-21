@@ -178,3 +178,68 @@ def test_fe_mapper_inyecta_leyenda_rimpe_negocio_popular_en_info_adicional():
         payload["infoAdicional"]["campoAdicional"][0]["valor"]
         == "Contribuyente Negocio Popular - Régimen RIMPE"
     )
+
+
+def test_rimpe_np_emite_electronica_leyenda_y_cero_iva(monkeypatch):
+    class FakeSettings:
+        FEEC_AMBIENTE = "pruebas"
+        FEEC_TIPO_EMISION = "1"
+
+    monkeypatch.setattr(
+        "osiris.modules.facturacion.fe_mapper_service.get_settings",
+        lambda: FakeSettings(),
+    )
+
+    mapper = FEMapperService()
+    venta = VentaRead(
+        id=uuid4(),
+        fecha_emision=date(2026, 2, 21),
+        tipo_identificacion_comprador="RUC",
+        identificacion_comprador="1790012345001",
+        forma_pago="EFECTIVO",
+        tipo_emision="ELECTRONICA",
+        regimen_emisor=RegimenTributario.RIMPE_NEGOCIO_POPULAR,
+        subtotal_sin_impuestos=Decimal("100.00"),
+        subtotal_12=Decimal("0.00"),
+        subtotal_15=Decimal("0.00"),
+        subtotal_0=Decimal("100.00"),
+        subtotal_no_objeto=Decimal("0.00"),
+        monto_iva=Decimal("0.00"),
+        monto_ice=Decimal("0.00"),
+        valor_total=Decimal("100.00"),
+        detalles=[
+            VentaDetalleRead(
+                producto_id=uuid4(),
+                descripcion="DET",
+                cantidad=Decimal("1"),
+                precio_unitario=Decimal("100"),
+                descuento=Decimal("0"),
+                subtotal_sin_impuesto=Decimal("100.00"),
+                impuestos=[
+                    VentaDetalleImpuestoSnapshotRead(
+                        tipo_impuesto="IVA",
+                        codigo_impuesto_sri="2",
+                        codigo_porcentaje_sri="0",
+                        tarifa=Decimal("0"),
+                        base_imponible=Decimal("100.00"),
+                        valor_impuesto=Decimal("0.00"),
+                    )
+                ],
+            )
+        ],
+    )
+
+    payload = mapper.venta_to_fe_ec_payload(
+        venta,
+        ruc_emisor="1790012345001",
+        razon_social="Empresa RIMPE",
+        nombre_comercial="Empresa RIMPE",
+        dir_matriz="Quito",
+        obligado_contabilidad=False,
+    )
+
+    assert payload["infoTributaria"]["codDoc"] == "01"
+    assert {
+        "nombre": "Contribuyente",
+        "valor": "Contribuyente Negocio Popular - Régimen RIMPE",
+    } in payload["infoAdicional"]["campoAdicional"]
