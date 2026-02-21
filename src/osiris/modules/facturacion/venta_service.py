@@ -16,6 +16,7 @@ from osiris.modules.facturacion.entity import (
     EstadoSriDocumento,
     EstadoCuentaPorCobrar,
     EstadoVenta,
+    TipoDocumentoElectronico,
     TipoEmisionVenta,
     Venta,
     VentaDetalle,
@@ -33,6 +34,7 @@ from osiris.modules.facturacion.models import (
     VentaUpdate,
     q2,
 )
+from osiris.modules.facturacion.orquestador_fe_service import OrquestadorFEService
 from osiris.modules.facturacion.venta_sri_async_service import VentaSriAsyncService
 from osiris.modules.common.audit_log.entity import AuditAction, AuditLog
 from osiris.modules.inventario.movimiento_inventario.entity import (
@@ -52,6 +54,7 @@ class VentaService:
         self.movimiento_service = MovimientoInventarioService()
         self.punto_emision_service = PuntoEmisionService()
         self.venta_sri_async_service = VentaSriAsyncService()
+        self.orquestador_fe_service = OrquestadorFEService(venta_sri_service=self.venta_sri_async_service)
 
     @staticmethod
     def _es_session_real(session: Session) -> bool:
@@ -475,9 +478,10 @@ class VentaService:
             session.add(venta)
 
             if encolar_sri and venta.tipo_emision == TipoEmisionVenta.ELECTRONICA:
-                self.venta_sri_async_service.encolar_venta(
+                self.orquestador_fe_service.encolar_documento(
                     session,
-                    venta_id=venta.id,
+                    tipo_documento=TipoDocumentoElectronico.FACTURA,
+                    referencia_id=venta.id,
                     usuario_id=usuario_auditoria,
                     background_tasks=background_tasks,
                     commit=False,

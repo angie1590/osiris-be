@@ -5,7 +5,7 @@ from datetime import date
 from uuid import UUID
 from typing import Optional
 
-from sqlalchemy import Column
+from sqlalchemy import Column, String
 from sqlalchemy.types import Numeric, Date as SA_Date
 from sqlmodel import Field
 
@@ -25,4 +25,4 @@ class Empleado(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     fecha_ingreso: date = Field(sa_column=Column(SA_Date, nullable=False))
     fecha_salida: Optional[date] = Field(default=None, sa_column=Column(SA_Date, nullable=True))
     # Foto del empleado (ruta/URL)
-    foto: Optional[str] = Field(default=None, sa_column=Column("foto", nullable=True))
+    foto: Optional[str] = Field(default=None, sa_column=Column("foto", String(500), nullable=True))

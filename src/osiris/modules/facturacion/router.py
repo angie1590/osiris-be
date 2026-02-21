@@ -3,8 +3,10 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi.responses import HTMLResponse, Response
 from sqlmodel import Session
 
+from osiris.core.audit_context import get_current_user_id
 from osiris.core.db import get_session
 from osiris.modules.facturacion.fe_mapper_service import FEMapperService
 from osiris.modules.facturacion.compra_service import CompraService
@@ -37,6 +39,8 @@ from osiris.modules.facturacion.cxc_service import CuentaPorCobrarService
 from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
 from osiris.modules.facturacion.venta_service import VentaService
+from osiris.modules.facturacion.documento_service import DocumentoElectronicoService
+from osiris.modules.facturacion.orquestador_fe_service import OrquestadorFEService
 
 router = APIRouter()
 venta_service = VentaService()
@@ -45,6 +49,11 @@ fe_mapper_service = FEMapperService()
 retencion_service = RetencionService()
 retencion_recibida_service = RetencionRecibidaService()
 cxc_service = CuentaPorCobrarService()
+documento_service = DocumentoElectronicoService()
+orquestador_fe_service = OrquestadorFEService(
+    venta_sri_service=venta_service.venta_sri_async_service,
+    retencion_sri_service=retencion_service.sri_async_service,
+)
 
 
 @router.post(
@@ -366,3 +375,46 @@ def obtener_payload_fe_venta(
 ):
     venta = venta_service.obtener_venta_read(session, venta_id)
     return fe_mapper_service.venta_to_fe_payload(venta)
+
+
+@router.post(
+    "/v1/fe/procesar-cola",
+    tags=["Facturacion"],
+)
+def procesar_cola_fe(
+    session: Session = Depends(get_session),
+):
+    procesados = orquestador_fe_service.procesar_cola(session)
+    return {"procesados": procesados}
+
+
+@router.get(
+    "/v1/documentos/{documento_id}/xml",
+    tags=["Facturacion"],
+)
+def descargar_xml_documento(
+    documento_id: UUID,
+    session: Session = Depends(get_session),
+):
+    xml = documento_service.obtener_xml_autorizado(
+        session,
+        documento_id=documento_id,
+        user_id=get_current_user_id(),
+    )
+    return Response(content=xml, media_type="application/xml")
+
+
+@router.get(
+    "/v1/documentos/{documento_id}/ride",
+    tags=["Facturacion"],
+)
+def descargar_ride_documento(
+    documento_id: UUID,
+    session: Session = Depends(get_session),
+):
+    html = documento_service.obtener_ride_html(
+        session,
+        documento_id=documento_id,
+        user_id=get_current_user_id(),
+    )
+    return HTMLResponse(content=html)
