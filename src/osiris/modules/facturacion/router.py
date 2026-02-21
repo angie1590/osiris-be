@@ -37,6 +37,7 @@ from osiris.modules.facturacion.cxc_service import CuentaPorCobrarService
 from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
 from osiris.modules.facturacion.venta_service import VentaService
+from osiris.modules.facturacion.orquestador_fe_service import OrquestadorFEService
 
 router = APIRouter()
 venta_service = VentaService()
@@ -45,6 +46,10 @@ fe_mapper_service = FEMapperService()
 retencion_service = RetencionService()
 retencion_recibida_service = RetencionRecibidaService()
 cxc_service = CuentaPorCobrarService()
+orquestador_fe_service = OrquestadorFEService(
+    venta_sri_service=venta_service.venta_sri_async_service,
+    retencion_sri_service=retencion_service.sri_async_service,
+)
 
 
 @router.post(
@@ -366,3 +371,14 @@ def obtener_payload_fe_venta(
 ):
     venta = venta_service.obtener_venta_read(session, venta_id)
     return fe_mapper_service.venta_to_fe_payload(venta)
+
+
+@router.post(
+    "/v1/fe/procesar-cola",
+    tags=["Facturacion"],
+)
+def procesar_cola_fe(
+    session: Session = Depends(get_session),
+):
+    procesados = orquestador_fe_service.procesar_cola(session)
+    return {"procesados": procesados}

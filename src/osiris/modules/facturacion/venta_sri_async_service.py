@@ -510,6 +510,33 @@ class VentaSriAsyncService:
                 session.commit()
                 return
 
+            if estado == "RECIBIDO":
+                delay = 2 ** max(tarea.intentos_realizados - 1, 1)
+                tarea.estado = EstadoColaSri.REINTENTO_PROGRAMADO
+                tarea.proximo_intento_en = datetime.utcnow() + timedelta(seconds=delay)
+                tarea.ultimo_error = mensaje or "Documento recibido por SRI, pendiente de autorización."
+                venta.estado_sri = EstadoSriDocumento.ENVIADO
+                venta.sri_ultimo_error = tarea.ultimo_error
+                self._sync_estado_documento(
+                    documento,
+                    EstadoDocumentoElectronico.RECIBIDO,
+                    mensaje=tarea.ultimo_error,
+                )
+                session.add(tarea)
+                session.add(venta)
+                session.add(documento)
+                self._crear_historial_documento(
+                    session,
+                    documento=documento,
+                    estado_anterior=estado_anterior,
+                    estado_nuevo=EstadoDocumentoElectronico.RECIBIDO,
+                    motivo=tarea.ultimo_error,
+                    usuario_id=venta.usuario_auditoria,
+                )
+                session.commit()
+                scheduler_impl(tarea.id, delay)
+                return
+
             tarea.estado = EstadoColaSri.FALLIDO
             tarea.ultimo_error = mensaje or f"Respuesta SRI desconocida: {estado or 'VACIO'}"
             venta.estado_sri = EstadoSriDocumento.ERROR

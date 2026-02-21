@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import BackgroundTasks, HTTPException
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from osiris.core.db import engine as default_engine
@@ -42,6 +44,11 @@ class OrquestadorFEService:
         self.db_engine = db_engine or default_engine
         self.venta_sri_service = venta_sri_service or VentaSriAsyncService(db_engine=self.db_engine)
         self.retencion_sri_service = retencion_sri_service or SriAsyncService(db_engine=self.db_engine)
+
+    @staticmethod
+    def _backoff_minutes(intentos: int) -> int:
+        # 1er retry: 2min, luego 4, 8, 16...
+        return 2 ** max(intentos, 1)
 
     @staticmethod
     def _obtener_documento_activo(
@@ -117,6 +124,8 @@ class OrquestadorFEService:
             documento.referencia_id = referencia_id
             documento.venta_id = referencia_id
             documento.usuario_auditoria = usuario_id
+            documento.intentos = 0
+            documento.next_retry_at = datetime.utcnow()
             _sync_estado_documento(documento, EstadoDocumentoElectronico.EN_COLA, mensaje=None)
             session.add(documento)
         elif tipo == TipoDocumentoElectronico.RETENCION:
@@ -144,6 +153,8 @@ class OrquestadorFEService:
             documento.tipo_documento = TipoDocumentoElectronico.RETENCION
             documento.referencia_id = referencia_id
             documento.usuario_auditoria = usuario_id
+            documento.intentos = 0
+            documento.next_retry_at = datetime.utcnow()
             _sync_estado_documento(documento, EstadoDocumentoElectronico.EN_COLA, mensaje=None)
             session.add(documento)
         else:
@@ -185,6 +196,7 @@ class OrquestadorFEService:
                 self.venta_sri_service.procesar_documento_sri(
                     tarea.id,
                     gateway=venta_gateway,
+                    scheduler=lambda _task_id, _delay: None,
                 )
 
                 session.refresh(documento)
@@ -193,18 +205,27 @@ class OrquestadorFEService:
                     return
                 if venta.estado_sri == EstadoSriDocumento.AUTORIZADO:
                     _sync_estado_documento(documento, EstadoDocumentoElectronico.AUTORIZADO, mensaje=None)
+                    documento.next_retry_at = None
                 elif venta.estado_sri == EstadoSriDocumento.RECHAZADO:
                     _sync_estado_documento(
                         documento,
                         EstadoDocumentoElectronico.RECHAZADO,
                         mensaje=venta.sri_ultimo_error,
                     )
+                    documento.next_retry_at = None
                 else:
                     _sync_estado_documento(
                         documento,
                         EstadoDocumentoElectronico.RECIBIDO,
                         mensaje=venta.sri_ultimo_error,
                     )
+                    documento.intentos += 1
+                    if documento.intentos < 5:
+                        documento.next_retry_at = datetime.utcnow() + timedelta(
+                            minutes=self._backoff_minutes(documento.intentos)
+                        )
+                    else:
+                        documento.next_retry_at = None
                 session.add(documento)
                 session.commit()
                 return
@@ -226,6 +247,7 @@ class OrquestadorFEService:
                 self.retencion_sri_service.procesar_documento_sri(
                     tarea.id,
                     gateway=retencion_gateway,
+                    scheduler=lambda _task_id, _delay: None,
                 )
 
                 session.refresh(documento)
@@ -234,20 +256,51 @@ class OrquestadorFEService:
                     return
                 if retencion.estado_sri == EstadoSriDocumento.AUTORIZADO:
                     _sync_estado_documento(documento, EstadoDocumentoElectronico.AUTORIZADO, mensaje=None)
+                    documento.next_retry_at = None
                 elif retencion.estado_sri == EstadoSriDocumento.RECHAZADO:
                     _sync_estado_documento(
                         documento,
                         EstadoDocumentoElectronico.RECHAZADO,
                         mensaje=retencion.sri_ultimo_error,
                     )
+                    documento.next_retry_at = None
                 else:
                     _sync_estado_documento(
                         documento,
                         EstadoDocumentoElectronico.RECIBIDO,
                         mensaje=retencion.sri_ultimo_error,
                     )
+                    documento.intentos += 1
+                    if documento.intentos < 5:
+                        documento.next_retry_at = datetime.utcnow() + timedelta(
+                            minutes=self._backoff_minutes(documento.intentos)
+                        )
+                    else:
+                        documento.next_retry_at = None
                 session.add(documento)
                 session.commit()
                 return
 
             raise HTTPException(status_code=400, detail="Tipo de documento no soportado para procesamiento FE-EC.")
+
+    def procesar_cola(self, session: Session, *, now: datetime | None = None) -> int:
+        now_dt = now or datetime.utcnow()
+        documentos = list(
+            session.exec(
+                select(DocumentoElectronico)
+                .where(
+                    DocumentoElectronico.activo.is_(True),
+                    DocumentoElectronico.estado_sri.in_(
+                        [EstadoDocumentoElectronico.EN_COLA, EstadoDocumentoElectronico.RECIBIDO]
+                    ),
+                    DocumentoElectronico.intentos < 5,
+                    or_(DocumentoElectronico.next_retry_at.is_(None), DocumentoElectronico.next_retry_at <= now_dt),
+                )
+                .order_by(DocumentoElectronico.creado_en.asc())
+            ).all()
+        )
+
+        ids = [doc.id for doc in documentos]
+        for doc_id in ids:
+            self.procesar_documento(doc_id)
+        return len(ids)

@@ -230,3 +230,92 @@ def test_procesar_documento_cambia_estado():
         venta = session.get(Venta, documento.referencia_id)
         assert venta is not None
         assert venta.estado_sri == EstadoSriDocumento.AUTORIZADO
+
+
+def test_retry_backoff_incrementa_tiempo():
+    engine = _build_test_engine()
+    service = VentaService()
+    service.venta_sri_async_service.db_engine = engine
+    service.orquestador_fe_service.db_engine = engine
+    service.orquestador_fe_service.venta_sri_service.db_engine = engine
+
+    class GatewayTimeout:
+        def enviar_documento(self, *, tipo_documento: str, payload: dict) -> dict:
+            _ = (tipo_documento, payload)
+            raise TimeoutError("SRI timeout")
+
+    with Session(engine) as session:
+        venta = _seed_venta_borrador(session)
+        emitida = service.emitir_venta(
+            session,
+            venta.id,
+            usuario_auditoria="qa.user",
+            encolar_sri=True,
+        )
+        documento = session.exec(
+            select(DocumentoElectronico).where(
+                DocumentoElectronico.tipo_documento == TipoDocumentoElectronico.FACTURA,
+                DocumentoElectronico.referencia_id == emitida.id,
+                DocumentoElectronico.activo.is_(True),
+            )
+        ).one()
+        documento_id = documento.id
+        retry_inicial = documento.next_retry_at
+
+    service.orquestador_fe_service.procesar_documento(
+        documento_id,
+        venta_gateway=GatewayTimeout(),
+    )
+
+    with Session(engine) as session:
+        documento = session.get(DocumentoElectronico, documento_id)
+        assert documento is not None
+        assert documento.intentos == 1
+        assert documento.estado_sri in {
+            EstadoDocumentoElectronico.EN_COLA,
+            EstadoDocumentoElectronico.RECIBIDO,
+        }
+        assert documento.next_retry_at is not None
+        assert retry_inicial is not None
+        assert documento.next_retry_at > retry_inicial
+
+
+def test_rechazo_detiene_reintentos():
+    engine = _build_test_engine()
+    service = VentaService()
+    service.venta_sri_async_service.db_engine = engine
+    service.orquestador_fe_service.db_engine = engine
+    service.orquestador_fe_service.venta_sri_service.db_engine = engine
+
+    class GatewayRechazado:
+        def enviar_documento(self, *, tipo_documento: str, payload: dict) -> dict:
+            _ = (tipo_documento, payload)
+            return {"estado": "RECHAZADO", "mensaje": "XML inválido"}
+
+    with Session(engine) as session:
+        venta = _seed_venta_borrador(session)
+        emitida = service.emitir_venta(
+            session,
+            venta.id,
+            usuario_auditoria="qa.user",
+            encolar_sri=True,
+        )
+        documento = session.exec(
+            select(DocumentoElectronico).where(
+                DocumentoElectronico.tipo_documento == TipoDocumentoElectronico.FACTURA,
+                DocumentoElectronico.referencia_id == emitida.id,
+                DocumentoElectronico.activo.is_(True),
+            )
+        ).one()
+        documento_id = documento.id
+
+    service.orquestador_fe_service.procesar_documento(
+        documento_id,
+        venta_gateway=GatewayRechazado(),
+    )
+
+    with Session(engine) as session:
+        documento = session.get(DocumentoElectronico, documento_id)
+        assert documento is not None
+        assert documento.estado_sri == EstadoDocumentoElectronico.RECHAZADO
+        assert documento.next_retry_at is None

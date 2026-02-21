@@ -23,6 +23,7 @@ def test_facturacion_router_publica_endpoints_ventas():
     assert "/api/v1/retenciones-recibidas/{retencion_id}/aplicar" in paths
     assert "/api/v1/cxc/{venta_id}" in paths
     assert "/api/v1/cxc/{venta_id}/pagos" in paths
+    assert "/api/v1/fe/procesar-cola" in paths
 
 
 def test_post_api_ventas_rechaza_iva_para_rimpe_negocio_popular():
