@@ -14,7 +14,7 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empleado.entity import Empleado
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.usuario.entity import Usuario
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
     EstadoVenta,

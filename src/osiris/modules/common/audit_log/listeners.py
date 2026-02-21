@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.inspection import inspect as sa_inspect
 
 from osiris.modules.common.audit_log.entity import AuditAction, AuditLog
-from osiris.modules.facturacion.entity import Venta
+from osiris.modules.facturacion.core_sri.models import Venta
 from osiris.modules.inventario.producto.entity import Producto
 
 

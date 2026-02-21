@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 from sqlmodel import select
 
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
     EstadoSriDocumento,
@@ -17,10 +17,10 @@ from osiris.modules.facturacion.entity import (
     TipoDocumentoElectronico,
     Venta,
 )
-from osiris.modules.facturacion.router import (
+from osiris.modules.facturacion.facturacion_electronica.router import (
     orquestador_fe_service as fe_orquestador_router_service,
-    venta_service as venta_router_service,
 )
+from osiris.modules.facturacion.ventas.router import venta_service as venta_router_service
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto, TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from tests.smoke.flow_helpers import (
@@ -132,8 +132,8 @@ def test_smoke_flujo_ventas(client, db_session):
             costo_unitario="12.00",
         )
 
-    with patch("osiris.modules.facturacion.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
-        "osiris.modules.facturacion.venta_sri_async_service.SRIService"
+    with patch("osiris.modules.facturacion.facturacion_electronica.services.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
+        "osiris.modules.facturacion.facturacion_electronica.services.venta_sri_async_service.SRIService"
     ) as mock_sri, patch("starlette.background.BackgroundTasks.add_task", return_value=None):
         venta_router_service.venta_sri_async_service.db_engine = db_session.get_bind()
         venta_router_service.orquestador_fe_service.db_engine = db_session.get_bind()

@@ -7,7 +7,7 @@ from uuid import uuid4
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine
 
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     Compra,
     EstadoCompra,
     FormaPagoSRI,
@@ -17,7 +17,7 @@ from osiris.modules.facturacion.entity import (
     TipoIdentificacionSRI,
     TipoRetencionSRI,
 )
-from osiris.modules.facturacion.retencion_service import RetencionService
+from osiris.modules.facturacion.compras.services.retencion_service import RetencionService
 
 
 def _build_test_engine():
