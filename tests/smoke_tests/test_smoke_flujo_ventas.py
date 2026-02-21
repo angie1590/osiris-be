@@ -9,8 +9,18 @@ from uuid import UUID
 import pytest
 from sqlmodel import select
 
-from osiris.modules.facturacion.entity import EstadoSriDocumento, EstadoVenta, Venta
-from osiris.modules.facturacion.router import venta_service as venta_router_service
+from osiris.modules.facturacion.entity import (
+    DocumentoElectronico,
+    EstadoDocumentoElectronico,
+    EstadoSriDocumento,
+    EstadoVenta,
+    TipoDocumentoElectronico,
+    Venta,
+)
+from osiris.modules.facturacion.router import (
+    orquestador_fe_service as fe_orquestador_router_service,
+    venta_service as venta_router_service,
+)
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto, TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from tests.smoke.flow_helpers import (
@@ -124,8 +134,12 @@ def test_smoke_flujo_ventas(client, db_session):
 
     with patch("osiris.modules.facturacion.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
         "osiris.modules.facturacion.venta_sri_async_service.SRIService"
-    ) as mock_sri:
+    ) as mock_sri, patch("starlette.background.BackgroundTasks.add_task", return_value=None):
         venta_router_service.venta_sri_async_service.db_engine = db_session.get_bind()
+        venta_router_service.orquestador_fe_service.db_engine = db_session.get_bind()
+        venta_router_service.orquestador_fe_service.venta_sri_service.db_engine = db_session.get_bind()
+        fe_orquestador_router_service.db_engine = db_session.get_bind()
+        fe_orquestador_router_service.venta_sri_service.db_engine = db_session.get_bind()
         mock_xml.return_value.firmar_y_guardar_xml.return_value = b"<factura/>"
         mock_sri.return_value.enviar_recepcion.return_value = {"estado": "RECIBIDA", "mensaje": "OK"}
         mock_sri.return_value.consultar_autorizacion.return_value = {
@@ -138,6 +152,29 @@ def test_smoke_flujo_ventas(client, db_session):
             json={"usuario_auditoria": "smoke"},
         )
         assert emitir.status_code == 200, emitir.text
+
+        documento_encolado = db_session.exec(
+            select(DocumentoElectronico).where(
+                DocumentoElectronico.tipo_documento == TipoDocumentoElectronico.FACTURA,
+                DocumentoElectronico.referencia_id == venta_id,
+                DocumentoElectronico.activo.is_(True),
+            )
+        ).one_or_none()
+        assert documento_encolado is not None
+        assert documento_encolado.estado_sri == EstadoDocumentoElectronico.EN_COLA
+
+        procesar_cola = client.post("/v1/fe/procesar-cola")
+        assert procesar_cola.status_code == 200, procesar_cola.text
+
+        db_session.expire_all()
+        documento_autorizado = db_session.exec(
+            select(DocumentoElectronico).where(
+                DocumentoElectronico.id == documento_encolado.id,
+                DocumentoElectronico.activo.is_(True),
+            )
+        ).one_or_none()
+        assert documento_autorizado is not None
+        assert documento_autorizado.estado_sri == EstadoDocumentoElectronico.AUTORIZADO
 
     kardex = client.get(
         "/v1/inventario/kardex",
