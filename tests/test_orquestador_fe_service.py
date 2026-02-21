@@ -9,7 +9,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     CuentaPorCobrar,
     DocumentoElectronico,
     DocumentoElectronicoHistorial,
@@ -25,11 +25,11 @@ from osiris.modules.facturacion.entity import (
     VentaDetalleImpuesto,
     VentaEstadoHistorial,
 )
-from osiris.modules.facturacion.models import q2
-from osiris.modules.facturacion.venta_service import VentaService
+from osiris.modules.facturacion.core_sri.all_schemas import q2
+from osiris.modules.facturacion.ventas.services.venta_service import VentaService
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.inventario.movimiento_inventario.entity import (
+from osiris.modules.facturacion.inventario.models import (
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,

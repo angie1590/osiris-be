@@ -13,7 +13,7 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     EstadoVenta,
     FormaPagoSRI,
     TipoIdentificacionSRI,
@@ -22,7 +22,7 @@ from osiris.modules.facturacion.entity import (
 )
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.inventario.movimiento_inventario.entity import InventarioStock
+from osiris.modules.facturacion.inventario.models import InventarioStock
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 

@@ -12,7 +12,7 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.inventario.bodega.entity import Bodega
-from osiris.modules.inventario.movimiento_inventario.entity import InventarioStock
+from osiris.modules.facturacion.inventario.models import InventarioStock
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
