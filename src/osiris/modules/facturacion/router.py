@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import HTMLResponse, Response
 from sqlmodel import Session
 
@@ -28,6 +29,8 @@ from osiris.modules.facturacion.models import (
     RetencionRecibidaCreate,
     RetencionRecibidaRead,
     RetencionSugeridaRead,
+    ReporteTopProductoRead,
+    ReporteVentasResumenRead,
     VentaCreate,
     VentaAnularRequest,
     VentaEmitRequest,
@@ -38,6 +41,7 @@ from osiris.modules.facturacion.models import (
 from osiris.modules.facturacion.cxc_service import CuentaPorCobrarService
 from osiris.modules.facturacion.retencion_service import RetencionService
 from osiris.modules.facturacion.retencion_recibida_service import RetencionRecibidaService
+from osiris.modules.facturacion.reportes_service import ReportesVentasService
 from osiris.modules.facturacion.venta_service import VentaService
 from osiris.modules.facturacion.documento_service import DocumentoElectronicoService
 from osiris.modules.facturacion.orquestador_fe_service import OrquestadorFEService
@@ -50,6 +54,7 @@ retencion_service = RetencionService()
 retencion_recibida_service = RetencionRecibidaService()
 cxc_service = CuentaPorCobrarService()
 documento_service = DocumentoElectronicoService()
+reportes_ventas_service = ReportesVentasService()
 orquestador_fe_service = OrquestadorFEService(
     venta_sri_service=venta_service.venta_sri_async_service,
     retencion_sri_service=retencion_service.sri_async_service,
@@ -418,3 +423,43 @@ def descargar_ride_documento(
         user_id=get_current_user_id(),
     )
     return HTMLResponse(content=html)
+
+
+@router.get(
+    "/v1/reportes/ventas/resumen",
+    response_model=ReporteVentasResumenRead,
+    tags=["Reportes"],
+)
+def obtener_reporte_ventas_resumen(
+    fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
+    fecha_fin: date = Query(..., description="Fecha final del rango"),
+    punto_emision_id: UUID | None = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    return reportes_ventas_service.obtener_resumen_ventas(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        punto_emision_id=punto_emision_id,
+    )
+
+
+@router.get(
+    "/v1/reportes/ventas/top-productos",
+    response_model=list[ReporteTopProductoRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_top_productos_ventas(
+    fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
+    fecha_fin: date | None = Query(default=None, description="Fecha final opcional"),
+    punto_emision_id: UUID | None = Query(default=None),
+    limite: int = Query(default=10, ge=1, le=100),
+    session: Session = Depends(get_session),
+):
+    return reportes_ventas_service.obtener_top_productos(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        punto_emision_id=punto_emision_id,
+        limite=limite,
+    )
