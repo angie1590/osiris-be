@@ -15,9 +15,11 @@ from osiris.modules.facturacion.entity import (
     PlantillaRetencionDetalle,
     Retencion,
     RetencionDetalle,
+    TipoDocumentoElectronico,
     TipoRetencionSRI,
 )
 from osiris.modules.facturacion.fe_mapper_service import FEMapperService
+from osiris.modules.facturacion.orquestador_fe_service import OrquestadorFEService
 from osiris.modules.facturacion.models import (
     GuardarPlantillaRetencionRequest,
     PlantillaRetencionDetalleRead,
@@ -37,6 +39,7 @@ class RetencionService:
     def __init__(self) -> None:
         self.fe_mapper_service = FEMapperService()
         self.sri_async_service = SriAsyncService()
+        self.orquestador_fe_service = OrquestadorFEService(retencion_sri_service=self.sri_async_service)
 
     def _obtener_compra(self, session: Session, compra_id: UUID) -> Compra:
         compra = session.get(Compra, compra_id)
@@ -273,9 +276,10 @@ class RetencionService:
             session.add(retencion)
 
             if payload.encolar:
-                self.sri_async_service.encolar_retencion(
+                self.orquestador_fe_service.encolar_documento(
                     session,
-                    retencion_id=retencion.id,
+                    tipo_documento=TipoDocumentoElectronico.RETENCION,
+                    referencia_id=retencion.id,
                     usuario_id=payload.usuario_auditoria,
                     background_tasks=background_tasks,
                     commit=False,

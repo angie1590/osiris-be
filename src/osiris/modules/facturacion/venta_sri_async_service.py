@@ -22,6 +22,7 @@ from osiris.modules.facturacion.entity import (
     EstadoColaSri,
     EstadoDocumentoElectronico,
     EstadoSriDocumento,
+    TipoDocumentoElectronico,
     TipoEmisionVenta,
     Venta,
     VentaDetalle,
@@ -140,6 +141,18 @@ class VentaSriAsyncService:
         timer = threading.Timer(delay_seconds, callback, kwargs={"tarea_id": tarea_id})
         timer.daemon = True
         timer.start()
+
+    @staticmethod
+    def _sync_estado_documento(
+        documento: DocumentoElectronico,
+        estado: EstadoDocumentoElectronico,
+        *,
+        mensaje: str | None = None,
+    ) -> None:
+        documento.estado = estado
+        documento.estado_sri = estado
+        if mensaje is not None:
+            documento.mensajes_sri = mensaje
 
     @staticmethod
     def _crear_historial_documento(
@@ -301,15 +314,20 @@ class VentaSriAsyncService:
         ).first()
         if documento is None:
             documento = DocumentoElectronico(
+                tipo_documento=TipoDocumentoElectronico.FACTURA,
+                referencia_id=venta.id,
                 venta_id=venta.id,
                 clave_acceso=clave_acceso,
-                estado=EstadoDocumentoElectronico.ENVIADO,
+                estado=EstadoDocumentoElectronico.EN_COLA,
+                estado_sri=EstadoDocumentoElectronico.EN_COLA,
                 usuario_auditoria=usuario_id,
                 activo=True,
             )
         else:
+            documento.tipo_documento = TipoDocumentoElectronico.FACTURA
+            documento.referencia_id = venta.id
             documento.clave_acceso = clave_acceso
-            documento.estado = EstadoDocumentoElectronico.ENVIADO
+            self._sync_estado_documento(documento, EstadoDocumentoElectronico.EN_COLA, mensaje=None)
             documento.usuario_auditoria = usuario_id
         session.add(documento)
         session.flush()
@@ -335,8 +353,8 @@ class VentaSriAsyncService:
         self._crear_historial_documento(
             session,
             documento=documento,
-            estado_anterior=EstadoDocumentoElectronico.ENVIADO,
-            estado_nuevo=EstadoDocumentoElectronico.ENVIADO,
+            estado_anterior=EstadoDocumentoElectronico.EN_COLA,
+            estado_nuevo=EstadoDocumentoElectronico.EN_COLA,
             motivo="Factura encolada para transmisión al SRI.",
             usuario_id=usuario_id,
         )
@@ -417,7 +435,7 @@ class VentaSriAsyncService:
 
                     venta.estado_sri = EstadoSriDocumento.ENVIADO
                     venta.sri_ultimo_error = error
-                    documento.estado = EstadoDocumentoElectronico.ENVIADO
+                    self._sync_estado_documento(documento, EstadoDocumentoElectronico.EN_COLA, mensaje=error)
 
                     session.add(tarea)
                     session.add(venta)
@@ -426,7 +444,7 @@ class VentaSriAsyncService:
                         session,
                         documento=documento,
                         estado_anterior=estado_anterior,
-                        estado_nuevo=EstadoDocumentoElectronico.ENVIADO,
+                        estado_nuevo=EstadoDocumentoElectronico.EN_COLA,
                         motivo=f"Error de red SRI. Reintento en {delay}s. {error}",
                         usuario_id=venta.usuario_auditoria,
                     )
@@ -452,7 +470,7 @@ class VentaSriAsyncService:
                 tarea.ultimo_error = None
                 venta.estado_sri = EstadoSriDocumento.AUTORIZADO
                 venta.sri_ultimo_error = None
-                documento.estado = EstadoDocumentoElectronico.AUTORIZADO
+                self._sync_estado_documento(documento, EstadoDocumentoElectronico.AUTORIZADO, mensaje=None)
                 session.add(tarea)
                 session.add(venta)
                 session.add(documento)
@@ -473,7 +491,11 @@ class VentaSriAsyncService:
                 tarea.ultimo_error = mensaje or "Documento rechazado por SRI."
                 venta.estado_sri = EstadoSriDocumento.RECHAZADO
                 venta.sri_ultimo_error = tarea.ultimo_error
-                documento.estado = EstadoDocumentoElectronico.RECHAZADO
+                self._sync_estado_documento(
+                    documento,
+                    EstadoDocumentoElectronico.RECHAZADO,
+                    mensaje=tarea.ultimo_error,
+                )
                 session.add(tarea)
                 session.add(venta)
                 session.add(documento)

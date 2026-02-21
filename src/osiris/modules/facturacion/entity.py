@@ -86,9 +86,18 @@ class SustentoTributarioSRI(str, Enum):
 
 
 class EstadoDocumentoElectronico(str, Enum):
+    EN_COLA = "EN_COLA"
+    FIRMADO = "FIRMADO"
+    RECIBIDO = "RECIBIDO"
     ENVIADO = "ENVIADO"
     AUTORIZADO = "AUTORIZADO"
     RECHAZADO = "RECHAZADO"
+    DEVUELTO = "DEVUELTO"
+
+
+class TipoDocumentoElectronico(str, Enum):
+    FACTURA = "FACTURA"
+    RETENCION = "RETENCION"
 
 
 class EstadoSriDocumento(str, Enum):
@@ -187,13 +196,28 @@ VentaDetalleImpuestoSnapshot = VentaDetalleImpuesto
 class DocumentoElectronico(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_documento_electronico"
 
-    venta_id: UUID = Field(foreign_key="tbl_venta.id", nullable=False, index=True)
-    clave_acceso: str = Field(nullable=False, max_length=49, index=True)
-    estado: EstadoDocumentoElectronico = Field(
-        default=EstadoDocumentoElectronico.ENVIADO,
+    tipo_documento: TipoDocumentoElectronico = Field(
+        default=TipoDocumentoElectronico.FACTURA,
+        nullable=False,
+        max_length=20,
+        index=True,
+    )
+    referencia_id: UUID | None = Field(default=None, nullable=True, index=True)
+    venta_id: UUID | None = Field(default=None, foreign_key="tbl_venta.id", nullable=True, index=True)
+    clave_acceso: str | None = Field(default=None, max_length=49, nullable=True, index=True)
+    estado_sri: EstadoDocumentoElectronico = Field(
+        default=EstadoDocumentoElectronico.EN_COLA,
         nullable=False,
         max_length=20,
     )
+    # Campo legado para compatibilidad con código/tests previos.
+    estado: EstadoDocumentoElectronico = Field(
+        default=EstadoDocumentoElectronico.EN_COLA,
+        nullable=False,
+        max_length=20,
+    )
+    mensajes_sri: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    xml_autorizado: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 
 
 class VentaEstadoHistorial(BaseTable, table=True):

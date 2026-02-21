@@ -318,7 +318,21 @@ class FEMapperService:
             if isinstance(estado_nuevo, EstadoDocumentoElectronico)
             else EstadoDocumentoElectronico(estado_nuevo)
         )
-        anterior = documento.estado.value if hasattr(documento.estado, "value") else str(documento.estado)
+        if (
+            hasattr(documento, "estado")
+            and hasattr(documento, "estado_sri")
+            and documento.estado is not None
+            and documento.estado_sri is not None
+            and documento.estado != documento.estado_sri
+        ):
+            estado_actual = (
+                documento.estado
+                if documento.estado != EstadoDocumentoElectronico.EN_COLA
+                else documento.estado_sri
+            )
+        else:
+            estado_actual = documento.estado_sri if hasattr(documento, "estado_sri") else documento.estado
+        anterior = estado_actual.value if hasattr(estado_actual, "value") else str(estado_actual)
         motivo = (mensaje_sri or "").strip()
 
         if destino == EstadoDocumentoElectronico.RECHAZADO and not motivo:
@@ -326,7 +340,9 @@ class FEMapperService:
         if not motivo:
             motivo = f"Respuesta SRI: {destino.value}"
 
+        documento.estado_sri = destino
         documento.estado = destino
+        documento.mensajes_sri = motivo
         session.add(documento)
         session.add(
             DocumentoElectronicoHistorial(
