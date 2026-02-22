@@ -1,42 +1,31 @@
-# Reporte de Auditoría: Osiris Backend - Épica 9 (Módulo de Impresión MVP)
+# Auditoría Epic 9: Módulo de Impresión (MVP)
 
-## Resumen Ejecutivo
+## Estado General
+**Cumplimiento de Requisitos:** Parcial (Funcionalidad implementada en código, pero no verificable dinámicamente).
+**Estado del Repositorio:** Incompleto (Falta dependencia local).
 
-**Estado Global: CUMPLE PARCIALMENTE ⚠️**
-La implementación arquitectónica y de seguridad es sólida y cumple con los requisitos más complejos. Sin embargo, falta la prueba de humo automatizada (`test_smoke_impresion.py`), lo que impide garantizar la estabilidad del motor de PDF en un entorno CI/CD.
+## Hallazgos
 
-| Punto de Control | Estado | Detalle |
-| :--- | :--- | :--- |
-| **Arquitectura Limpia** | **CUMPLE** | Uso correcto del patrón Strategy (`RideA4Strategy`, etc.) en `ImpresionService`. |
-| **Cumplimiento SRI** | **CUMPLE** | Plantilla RIDE A4 incluye campos obligatorios y código de barras. |
-| **Matricial (Preimpresa)** | **CUMPLE** | CSS dinámico para margen superior y lógica de "fill-in" implementada. |
-| **Seguridad (Reimpresión)** | **CUMPLE** | Endpoint protegido, exige motivo, incrementa contador y audita. |
-| **Smoke Tests** | **NO CUMPLE** | No se encontró el archivo `tests/smoke_tests/test_smoke_impresion.py`. |
+### 1. Funcionalidad (Estática)
+El código fuente en `src/osiris/modules/facturacion/impresion` parece cumplir con todos los requisitos funcionales:
+- **Estrategias de Impresión:** Se implementa el patrón Strategy correctamente con `RideA4Strategy`, `TicketTermicoStrategy` y `PlantillaPreimpresaStrategy`.
+- **Datos Obligatorios SRI:** El servicio `ImpresionService` incluye en el payload: Logo, Razón Social, RUC, Clave de Acceso y Código de Barras generado.
+- **Impresión Matricial:** La estrategia `PlantillaPreimpresaStrategy` maneja la lógica de llenado (fill-in) con configuración de márgenes y paginación.
+- **Seguridad en Reimpresión:** El método `reimprimir_documento`:
+    - Verifica roles `CAJERO` o `ADMIN`.
+    - Exige un motivo de reimpresión.
+    - Incrementa el contador `cantidad_impresiones` en Venta y Documento.
+    - Registra la acción en `AuditLog`.
 
----
+### 2. Problemas Críticos
+- **Dependencia Faltante:** El archivo `pyproject.toml` hace referencia a una librería local `lib/fe_ec-0.1.0-py3-none-any-3.whl`, pero la carpeta `lib/` no existe en el repositorio.
+    - Esto impide la instalación del entorno (`poetry install` falla).
+    - Esto impide la ejecución de tests automatizados (`pytest` falla).
+    - Esto impide el despliegue de la aplicación.
 
-## Detalles Técnicos y Hallazgos
+### 3. Verificación Dinámica
+Existen tests de humo en `tests/smoke_tests/test_smoke_impresion.py` para validar los flujos de impresión y reimpresión. Sin embargo, su ejecución falló debido a la falta de la dependencia mencionada anteriormente.
 
-### 1. Arquitectura Limpia (Strategy)
-*   **Archivo:** `src/osiris/modules/facturacion/impresion/services/impresion_service.py`
-*   **Implementación:** El servicio delega la generación a `self.strategy` (PDF), `self.ticket_strategy` y `self.preimpresa_strategy`. Evita condicionales monolíticos.
-
-### 2. Cumplimiento SRI (RIDE A4)
-*   **Plantilla:** `ride_a4.html`.
-*   **Campos:** Renderiza Logo, RUC, Ambiente, Clave de Acceso y Código de Barras (generado con `python-barcode`).
-
-### 3. Ingeniería de Plantilla Matricial
-*   **Estrategia:** `PlantillaPreimpresaStrategy`.
-*   **Lógica:** Inyecta `padding-top` dinámico basado en configuración. Omite encabezados gráficos para imprimir sobre papel preimpreso.
-
-### 4. Seguridad y Trazabilidad
-*   **Método:** `reimprimir_documento`.
-*   **Control:**
-    ```python
-    if not motivo: raise HTTPException(...)
-    documento.cantidad_impresiones += 1
-    session.add(AuditLog(accion="REIMPRESION_DOCUMENTO", ...))
-    ```
-
-### 5. Estabilidad y Smoke Tests
-*   **Fallo:** El archivo `tests/smoke/test_smoke_impresion.py` solicitado en el checklist no existe en el repositorio. Aunque el código tiene bloques `try/except ModuleNotFoundError` para WeasyPrint, la funcionalidad no está verificada por un test automatizado en esta rama.
+## Recomendaciones
+1. **Restaurar Dependencia:** Subir el archivo `lib/fe_ec-0.1.0-py3-none-any-3.whl` al repositorio o configurar un índice de paquetes privado si la librería no debe estar en el control de versiones.
+2. **Ejecutar Test:** Una vez restaurada la dependencia, ejecutar `poetry run pytest tests/smoke_tests/test_smoke_impresion.py` para confirmar el funcionamiento.

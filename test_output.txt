@@ -1,0 +1,8 @@
+Path /app/lib/fe_ec-0.1.0-py3-none-any-3.whl for fe_ec does not exist
+The currently activated Python version 3.12.12 is not supported by the project (>=3.10,<3.12).
+Trying to find and use a compatible version.
+Using python3.10 (3.10.19)
+ImportError while loading conftest '/app/tests/smoke/conftest.py'.
+tests/smoke/conftest.py:7: in <module>
+    from fastapi.testclient import TestClient
+E   ModuleNotFoundError: No module named 'fastapi'
