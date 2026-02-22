@@ -49,6 +49,13 @@ class ReporteVentasPorVendedorRead(BaseModel):
     facturas_emitidas: int
 
 
+class ReporteComprasPorProveedorRead(BaseModel):
+    proveedor_id: UUID
+    razon_social: str
+    total_compras: Decimal
+    cantidad_facturas: int
+
+
 class ReporteImpuestoAgrupadoRead(BaseModel):
     codigo_sri: str
     total_retenido: Decimal

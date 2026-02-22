@@ -12,6 +12,7 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteCajaCierreDiarioRead,
     ReporteCarteraCobrarItemRead,
     ReporteCarteraPagarItemRead,
+    ReporteComprasPorProveedorRead,
     ReporteInventarioKardexRead,
     ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
@@ -25,6 +26,9 @@ from osiris.modules.facturacion.reportes.services.reporte_cartera_service import
 )
 from osiris.modules.facturacion.reportes.services.reporte_caja_service import (
     ReporteCajaService,
+)
+from osiris.modules.facturacion.reportes.services.reporte_compras_service import (
+    ReporteComprasService,
 )
 from osiris.modules.facturacion.reportes.services.reporte_inventario_service import (
     ReporteInventarioService,
@@ -41,6 +45,7 @@ reporte_tributario_service = ReporteTributarioService()
 reporte_inventario_service = ReporteInventarioService()
 reporte_cartera_service = ReporteCarteraService()
 reporte_caja_service = ReporteCajaService()
+reporte_compras_service = ReporteComprasService()
 
 
 @router.get(
@@ -118,6 +123,25 @@ def obtener_reporte_ventas_por_vendedor(
         session,
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
+    )
+
+
+@router.get(
+    "/v1/reportes/compras/por-proveedor",
+    response_model=list[ReporteComprasPorProveedorRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_compras_por_proveedor(
+    fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
+    fecha_fin: date = Query(..., description="Fecha final del rango"),
+    sucursal_id: UUID | None = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    return reporte_compras_service.obtener_compras_por_proveedor(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        sucursal_id=sucursal_id,
     )
 
 
