@@ -12,6 +12,7 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteCajaCierreDiarioRead,
     ReporteCarteraCobrarItemRead,
     ReporteCarteraPagarItemRead,
+    ReporteInventarioKardexRead,
     ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
     ReporteTopProductoRead,
@@ -144,6 +145,25 @@ def obtener_reporte_valoracion_inventario(
     session: Session = Depends(get_session),
 ):
     return reporte_inventario_service.obtener_valoracion_inventario(session)
+
+
+@router.get(
+    "/v1/reportes/inventario/kardex/{producto_id}",
+    response_model=ReporteInventarioKardexRead,
+    tags=["Reportes"],
+)
+def obtener_reporte_kardex_inventario(
+    producto_id: UUID,
+    fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
+    fecha_fin: date | None = Query(default=None, description="Fecha final opcional"),
+    session: Session = Depends(get_session),
+):
+    return reporte_inventario_service.obtener_kardex_historico(
+        session,
+        producto_id=producto_id,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+    )
 
 
 @router.get(

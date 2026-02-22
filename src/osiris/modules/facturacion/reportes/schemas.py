@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from osiris.modules.facturacion.core_sri.types import FormaPagoSRI
+from osiris.modules.facturacion.inventario.models import TipoMovimientoInventario
 
 
 class AgrupacionTendencia(str, Enum):
@@ -81,6 +82,21 @@ class ReporteInventarioValoracionItemRead(BaseModel):
 class ReporteInventarioValoracionRead(BaseModel):
     patrimonio_total: Decimal
     productos: list[ReporteInventarioValoracionItemRead]
+
+
+class ReporteInventarioKardexMovimientoRead(BaseModel):
+    fecha: date
+    tipo_movimiento: TipoMovimientoInventario
+    cantidad: Decimal
+    costo_unitario: Decimal
+    saldo_cantidad: Decimal
+
+
+class ReporteInventarioKardexRead(BaseModel):
+    producto_id: UUID
+    fecha_inicio: date
+    fecha_fin: date
+    movimientos: list[ReporteInventarioKardexMovimientoRead]
 
 
 class ReporteCarteraCobrarItemRead(BaseModel):
