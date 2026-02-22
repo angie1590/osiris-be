@@ -12,6 +12,7 @@ from osiris.core.audit_context import (
 from osiris.core.db import engine
 from osiris.core.settings import get_settings
 from osiris.core.errors import NotFoundError
+from osiris.core.openapi_docs import build_gold_standard_openapi
 from osiris.core.security_audit import (
     is_user_authorized_for_rule,
     log_unauthorized_access,
@@ -64,6 +65,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.security_audit_engine = engine
+
+
+def custom_openapi():
+    return build_gold_standard_openapi(app)
+
+
+app.openapi = custom_openapi  # type: ignore[method-assign]
 
 
 def _log_unauthorized_access_sync(
