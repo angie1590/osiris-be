@@ -17,6 +17,8 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
     ReporteMonitorSRIEstadoRead,
+    ReporteRentabilidadClienteRead,
+    ReporteRentabilidadTransaccionRead,
     ReporteTopProductoRead,
     ReporteVentasPorVendedorRead,
     ReporteVentasResumenRead,
@@ -166,6 +168,40 @@ def obtener_reporte_monitor_estados_sri(
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
         sucursal_id=sucursal_id,
+    )
+
+
+@router.get(
+    "/v1/reportes/rentabilidad/por-cliente",
+    response_model=list[ReporteRentabilidadClienteRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_rentabilidad_por_cliente(
+    fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
+    fecha_fin: date = Query(..., description="Fecha final del rango"),
+    session: Session = Depends(get_session),
+):
+    return reportes_ventas_service.obtener_rentabilidad_por_cliente(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+    )
+
+
+@router.get(
+    "/v1/reportes/rentabilidad/transacciones",
+    response_model=list[ReporteRentabilidadTransaccionRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_rentabilidad_transaccional(
+    fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
+    fecha_fin: date = Query(..., description="Fecha final del rango"),
+    session: Session = Depends(get_session),
+):
+    return reportes_ventas_service.obtener_rentabilidad_transaccional(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
     )
 
 

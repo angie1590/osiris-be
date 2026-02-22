@@ -62,6 +62,25 @@ class ReporteMonitorSRIEstadoRead(BaseModel):
     cantidad: int
 
 
+class ReporteRentabilidadClienteRead(BaseModel):
+    cliente_id: UUID | None = None
+    total_vendido: Decimal
+    costo_historico_total: Decimal
+    utilidad_bruta_dolares: Decimal
+    margen_porcentual: Decimal
+    total_facturas: int
+
+
+class ReporteRentabilidadTransaccionRead(BaseModel):
+    venta_id: UUID
+    cliente_id: UUID | None = None
+    fecha_emision: date
+    subtotal_venta: Decimal
+    costo_historico_total: Decimal
+    utilidad_bruta_dolares: Decimal
+    margen_porcentual: Decimal
+
+
 class ReporteImpuestoAgrupadoRead(BaseModel):
     codigo_sri: str
     total_retenido: Decimal

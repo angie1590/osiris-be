@@ -9,9 +9,17 @@ from sqlmodel import Session, select
 
 from osiris.modules.facturacion.core_sri.models import EstadoVenta, Venta, VentaDetalle
 from osiris.modules.facturacion.core_sri.schemas import q2
-from osiris.modules.facturacion.inventario.models import InventarioStock
+from osiris.modules.facturacion.inventario.models import (
+    EstadoMovimientoInventario,
+    InventarioStock,
+    MovimientoInventario,
+    MovimientoInventarioDetalle,
+    TipoMovimientoInventario,
+)
 from osiris.modules.facturacion.reportes.schemas import (
     AgrupacionTendencia,
+    ReporteRentabilidadClienteRead,
+    ReporteRentabilidadTransaccionRead,
     ReporteTopProductoRead,
     ReporteVentasPorVendedorRead,
     ReporteVentasResumenRead,
@@ -54,6 +62,53 @@ class ReportesVentasService:
         if agrupacion == AgrupacionTendencia.MENSUAL:
             return func.strftime("%Y-%m-01", Venta.fecha_emision)
         return func.date(Venta.fecha_emision)
+
+    @staticmethod
+    def _ref_venta(venta_id: UUID) -> str:
+        return f"VENTA:{venta_id}"
+
+    def _costos_historicos_por_venta(
+        self,
+        session: Session,
+        *,
+        venta_ids: list[UUID],
+    ) -> dict[UUID, Decimal]:
+        if not venta_ids:
+            return {}
+
+        refs = [self._ref_venta(venta_id) for venta_id in venta_ids]
+        costo_expr = func.coalesce(
+            func.sum(MovimientoInventarioDetalle.cantidad * MovimientoInventarioDetalle.costo_unitario),
+            0,
+        )
+        stmt = (
+            select(
+                MovimientoInventario.referencia_documento,
+                costo_expr.label("costo_total"),
+            )
+            .select_from(MovimientoInventario)
+            .join(
+                MovimientoInventarioDetalle,
+                MovimientoInventarioDetalle.movimiento_inventario_id == MovimientoInventario.id,
+            )
+            .where(
+                MovimientoInventario.activo.is_(True),
+                MovimientoInventarioDetalle.activo.is_(True),
+                MovimientoInventario.estado == EstadoMovimientoInventario.CONFIRMADO,
+                MovimientoInventario.tipo_movimiento == TipoMovimientoInventario.EGRESO,
+                MovimientoInventario.referencia_documento.in_(refs),
+            )
+            .group_by(MovimientoInventario.referencia_documento)
+        )
+
+        by_ref: dict[str, Decimal] = {
+            str(referencia_documento): self._d(costo_total)
+            for referencia_documento, costo_total in session.exec(stmt).all()
+        }
+        return {
+            venta_id: by_ref.get(self._ref_venta(venta_id), Decimal("0.00"))
+            for venta_id in venta_ids
+        }
 
     def obtener_resumen_ventas(
         self,
@@ -254,3 +309,103 @@ class ReportesVentasService:
             )
             for usuario_id, vendedor, total_vendido, facturas_emitidas in rows
         ]
+
+    def obtener_rentabilidad_por_cliente(
+        self,
+        session: Session,
+        *,
+        fecha_inicio: date,
+        fecha_fin: date,
+    ) -> list[ReporteRentabilidadClienteRead]:
+        ventas = list(
+            session.exec(
+                select(Venta.id, Venta.cliente_id, Venta.subtotal_sin_impuestos)
+                .where(
+                    Venta.activo.is_(True),
+                    Venta.estado != EstadoVenta.ANULADA,
+                    Venta.fecha_emision >= fecha_inicio,
+                    Venta.fecha_emision <= fecha_fin,
+                )
+            ).all()
+        )
+        venta_ids = [venta_id for venta_id, _, _ in ventas]
+        costos_por_venta = self._costos_historicos_por_venta(session, venta_ids=venta_ids)
+
+        acumulado: dict[UUID | None, dict[str, Decimal | int]] = {}
+        for venta_id, cliente_id, subtotal in ventas:
+            if cliente_id not in acumulado:
+                acumulado[cliente_id] = {
+                    "total_vendido": Decimal("0.00"),
+                    "costo_total": Decimal("0.00"),
+                    "total_facturas": 0,
+                }
+            bucket = acumulado[cliente_id]
+            bucket["total_vendido"] = self._d(bucket["total_vendido"]) + self._d(subtotal)
+            bucket["costo_total"] = self._d(bucket["costo_total"]) + costos_por_venta.get(venta_id, Decimal("0.00"))
+            bucket["total_facturas"] = int(bucket["total_facturas"]) + 1
+
+        items: list[ReporteRentabilidadClienteRead] = []
+        for cliente_id, data in acumulado.items():
+            total_vendido = q2(self._d(data["total_vendido"]))
+            costo_total = q2(self._d(data["costo_total"]))
+            utilidad = q2(total_vendido - costo_total)
+            margen = Decimal("0.00")
+            if total_vendido != Decimal("0.00"):
+                margen = q2((utilidad / total_vendido) * Decimal("100"))
+
+            items.append(
+                ReporteRentabilidadClienteRead(
+                    cliente_id=cliente_id,
+                    total_vendido=total_vendido,
+                    costo_historico_total=costo_total,
+                    utilidad_bruta_dolares=utilidad,
+                    margen_porcentual=margen,
+                    total_facturas=int(data["total_facturas"]),
+                )
+            )
+
+        return sorted(items, key=lambda item: item.total_vendido, reverse=True)
+
+    def obtener_rentabilidad_transaccional(
+        self,
+        session: Session,
+        *,
+        fecha_inicio: date,
+        fecha_fin: date,
+    ) -> list[ReporteRentabilidadTransaccionRead]:
+        ventas = list(
+            session.exec(
+                select(Venta.id, Venta.cliente_id, Venta.fecha_emision, Venta.subtotal_sin_impuestos)
+                .where(
+                    Venta.activo.is_(True),
+                    Venta.estado != EstadoVenta.ANULADA,
+                    Venta.fecha_emision >= fecha_inicio,
+                    Venta.fecha_emision <= fecha_fin,
+                )
+                .order_by(Venta.fecha_emision.asc(), Venta.creado_en.asc())
+            ).all()
+        )
+        venta_ids = [venta_id for venta_id, _, _, _ in ventas]
+        costos_por_venta = self._costos_historicos_por_venta(session, venta_ids=venta_ids)
+
+        items: list[ReporteRentabilidadTransaccionRead] = []
+        for venta_id, cliente_id, fecha_emision, subtotal in ventas:
+            subtotal_d = q2(self._d(subtotal))
+            costo_total = q2(costos_por_venta.get(venta_id, Decimal("0.00")))
+            utilidad = q2(subtotal_d - costo_total)
+            margen = Decimal("0.00")
+            if subtotal_d != Decimal("0.00"):
+                margen = q2((utilidad / subtotal_d) * Decimal("100"))
+
+            items.append(
+                ReporteRentabilidadTransaccionRead(
+                    venta_id=venta_id,
+                    cliente_id=cliente_id,
+                    fecha_emision=fecha_emision,
+                    subtotal_venta=subtotal_d,
+                    costo_historico_total=costo_total,
+                    utilidad_bruta_dolares=utilidad,
+                    margen_porcentual=margen,
+                )
+            )
+        return items
