@@ -32,8 +32,10 @@ from osiris.modules.inventario.atributo import entity as atributo_entity  # noqa
 from osiris.modules.inventario.producto import entity as producto_entity  # noqa: F401
 from osiris.modules.inventario.categoria_atributo import entity as categoria_atributo_entity  # noqa: F401
 from osiris.modules.inventario.bodega import entity as bodega_entity  # noqa: F401
-from osiris.modules.inventario.movimiento_inventario import entity as movimiento_inventario_entity  # noqa: F401
-from osiris.modules.facturacion import entity as facturacion_entity  # noqa: F401
+from osiris.modules.facturacion.inventario import models as movimiento_inventario_entity  # noqa: F401
+from osiris.modules.facturacion.compras import models as compras_entity  # noqa: F401
+from osiris.modules.facturacion.ventas import models as ventas_entity  # noqa: F401
+from osiris.modules.facturacion.facturacion_electronica import models as fe_entity  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

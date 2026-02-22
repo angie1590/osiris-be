@@ -29,7 +29,26 @@ def crear_empresa_general(client: httpx.Client) -> str:
         }
         response = client.post("/empresa", json=payload)
         if response.status_code == 201:
-            return response.json()["id"]
+            empresa_id = response.json()["id"]
+            sucursales_response = client.get("/sucursales", params={"limit": 200, "offset": 0, "only_active": True})
+            assert sucursales_response.status_code == 200, sucursales_response.text
+            ya_existe_matriz = any(
+                s.get("empresa_id") == empresa_id and s.get("codigo") == "001"
+                for s in sucursales_response.json().get("items", [])
+            )
+            if not ya_existe_matriz:
+                matriz_payload = {
+                    "empresa_id": empresa_id,
+                    "codigo": "001",
+                    "nombre": "Matriz",
+                    "direccion": "Av. Matriz 001",
+                    "telefono": "0987654321",
+                    "es_matriz": True,
+                    "usuario_auditoria": "smoke",
+                }
+                matriz_response = client.post("/sucursales", json=matriz_payload)
+                assert matriz_response.status_code == 201, matriz_response.text
+            return empresa_id
         if response.status_code != 422 and response.status_code != 400:
             break
         if "RUC" not in response.text and "ruc" not in response.text:
@@ -46,6 +65,7 @@ def crear_sucursal(client: httpx.Client, empresa_id: str) -> str:
         "nombre": f"Sucursal {uuid4().hex[:6]}",
         "direccion": "Av. Sucursal 456",
         "telefono": "0987654321",
+        "es_matriz": False,
         "usuario_auditoria": "smoke",
     }
     response = client.post("/sucursales", json=payload)
@@ -53,9 +73,8 @@ def crear_sucursal(client: httpx.Client, empresa_id: str) -> str:
     return response.json()["id"]
 
 
-def crear_punto_emision(client: httpx.Client, empresa_id: str, sucursal_id: str) -> str:
+def crear_punto_emision(client: httpx.Client, sucursal_id: str) -> str:
     payload = {
-        "empresa_id": empresa_id,
         "sucursal_id": sucursal_id,
         "codigo": _code3(),
         "descripcion": f"Punto {uuid4().hex[:6]}",

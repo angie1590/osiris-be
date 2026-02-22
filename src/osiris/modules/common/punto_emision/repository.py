@@ -13,13 +13,10 @@ class PuntoEmisionRepository(BaseRepository):
         self,
         stmt,
         *,
-        empresa_id: Optional[UUID] = None,
         sucursal_id: Optional[UUID] = None,
         only_active: Optional[bool] = None,
         **kw,
     ):
-        if empresa_id:
-            stmt = stmt.where(PuntoEmision.empresa_id == empresa_id)
         if sucursal_id:
             stmt = stmt.where(PuntoEmision.sucursal_id == sucursal_id)
         return stmt

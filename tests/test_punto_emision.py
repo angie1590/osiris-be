@@ -29,7 +29,6 @@ def test_punto_emision_create_ok():
         codigo="002",
         descripcion="Caja 2",
         secuencial_actual=5,
-        empresa_id=uuid4(),
         sucursal_id=uuid4(),
         usuario_auditoria="tester",
     )
@@ -42,17 +41,18 @@ def test_punto_emision_create_codigo_invalido_falla():
         PuntoEmisionCreate(
             codigo="22",  # debe ser 3 chars
             descripcion="PE",
-            empresa_id=uuid4(),
+            sucursal_id=uuid4(),
+            usuario_auditoria="tester",
         )
 
 
 # =======================
-# Service: create valida FKs (empresa y sucursal)
+# Service: create valida FK de sucursal
 # =======================
 
-def test_punto_emision_service_create_empresa_not_found_404():
+def test_punto_emision_service_create_sucursal_not_found_404():
     session = MagicMock()
-    # 1er check empresa -> None
+    # check sucursal -> None
     session.exec.return_value.first.return_value = None
 
     svc = PuntoEmisionService()
@@ -61,34 +61,6 @@ def test_punto_emision_service_create_empresa_not_found_404():
     payload = {
         "codigo": "010",
         "descripcion": "Caja 10",
-        "empresa_id": uuid4(),
-        "sucursal_id": None,
-    }
-
-    with pytest.raises(HTTPException) as exc:
-        svc.create(session, payload)
-
-    assert exc.value.status_code == 404
-    assert "Empresa" in exc.value.detail
-    svc.repo.create.assert_not_called()
-
-
-def test_punto_emision_service_create_sucursal_not_found_404():
-    session = MagicMock()
-    # Simular dos consultas secuenciales: empresa ok, sucursal None
-    first = MagicMock()
-    second = MagicMock()
-    first.first.return_value = object()   # empresa existe
-    second.first.return_value = None      # sucursal no existe
-    session.exec.side_effect = [first, second]
-
-    svc = PuntoEmisionService()
-    svc.repo = MagicMock()
-
-    payload = {
-        "codigo": "011",
-        "descripcion": "Caja 11",
-        "empresa_id": uuid4(),
         "sucursal_id": uuid4(),
     }
 
@@ -102,12 +74,10 @@ def test_punto_emision_service_create_sucursal_not_found_404():
 
 def test_punto_emision_service_create_ok_llama_repo_create():
     session = MagicMock()
-    # empresa existe, sucursal existe
+    # sucursal existe
     first = MagicMock()
-    second = MagicMock()
     first.first.return_value = object()
-    second.first.return_value = object()
-    session.exec.side_effect = [first, second]
+    session.exec.side_effect = [first]
 
     svc = PuntoEmisionService()
     svc.repo = MagicMock()
@@ -116,7 +86,6 @@ def test_punto_emision_service_create_ok_llama_repo_create():
     payload = {
         "codigo": "012",
         "descripcion": "Caja 12",
-        "empresa_id": uuid4(),
         "sucursal_id": uuid4(),
     }
 
@@ -126,18 +95,17 @@ def test_punto_emision_service_create_ok_llama_repo_create():
 
 
 # =======================
-# Service: list_by_empresa_sucursal (paginado)
+# Service: list_by_sucursal (paginado)
 # =======================
 
-def test_punto_emision_service_list_by_empresa_sucursal_retorna_items_y_meta():
+def test_punto_emision_service_list_by_sucursal_retorna_items_y_meta():
     session = MagicMock()
     svc = PuntoEmisionService()
     svc.repo = MagicMock()
     svc.repo.list.return_value = (["p1", "p2", "p3"], 7)
 
-    items, meta = svc.list_by_empresa_sucursal(
+    items, meta = svc.list_by_sucursal(
         session,
-        empresa_id=uuid4(),
         sucursal_id=uuid4(),
         limit=3,
         offset=3,
@@ -162,7 +130,7 @@ def test_punto_emision_repository_delete_logico():
     obj = PuntoEmision(
         codigo="014",
         descripcion="PE 14",
-        empresa_id=uuid4(),
+        sucursal_id=uuid4(),
         usuario_auditoria="tester",
         activo=True,
     )
@@ -184,7 +152,7 @@ def test_punto_emision_service_obtener_siguiente_secuencial_for_update_y_padding
         id=pe_id,
         codigo="015",
         descripcion="PE 15",
-        empresa_id=uuid4(),
+        sucursal_id=uuid4(),
         usuario_auditoria="tester",
         activo=True,
     )
@@ -227,7 +195,7 @@ def test_punto_emision_service_ajuste_manual_registra_auditoria_detallada():
         id=pe_id,
         codigo="016",
         descripcion="PE 16",
-        empresa_id=uuid4(),
+        sucursal_id=uuid4(),
         usuario_auditoria="tester",
         activo=True,
     )
@@ -346,7 +314,7 @@ def test_punto_emision_service_ajuste_manual_rechaza_sin_permiso_especifico():
         id=uuid4(),
         codigo="017",
         descripcion="PE",
-        empresa_id=uuid4(),
+        sucursal_id=uuid4(),
         usuario_auditoria="tester",
         activo=True,
     )
@@ -399,7 +367,7 @@ def test_punto_emision_service_ajuste_manual_admin_ok():
         id=pe_id,
         codigo="018",
         descripcion="PE 18",
-        empresa_id=uuid4(),
+        sucursal_id=uuid4(),
         usuario_auditoria="tester",
         activo=True,
     )

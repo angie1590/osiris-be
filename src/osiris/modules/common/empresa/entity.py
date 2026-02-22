@@ -45,8 +45,6 @@ class Empresa(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     telefono: Optional[str] = Field(default=None, max_length=15)
     logo: Optional[str] = Field(default=None, max_length=500)
 
-    # Algunas implantaciones manejan esto a nivel Empresa; si no aplica, déjalo tal cual
-    codigo_establecimiento: Optional[str] = Field(default=None, max_length=3)
     obligado_contabilidad: bool = Field(default=False)
     regimen: RegimenTributario = Field(default=RegimenTributario.GENERAL, nullable=False)
     modo_emision: ModoEmisionEmpresa = Field(default=ModoEmisionEmpresa.ELECTRONICO, nullable=False)

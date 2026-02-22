@@ -7,8 +7,8 @@ from uuid import uuid4
 import pytest
 
 from osiris.modules.common.empresa.entity import RegimenTributario
-from osiris.modules.facturacion.fe_mapper_service import FEMapperService
-from osiris.modules.facturacion.models import (
+from osiris.modules.facturacion.facturacion_electronica.services.fe_mapper_service import FEMapperService
+from osiris.modules.facturacion.core_sri.all_schemas import (
     VentaDetalleImpuestoSnapshotRead,
     VentaDetalleRead,
     VentaRead,
@@ -186,7 +186,7 @@ def test_rimpe_np_emite_electronica_leyenda_y_cero_iva(monkeypatch):
         FEEC_TIPO_EMISION = "1"
 
     monkeypatch.setattr(
-        "osiris.modules.facturacion.fe_mapper_service.get_settings",
+        "osiris.modules.facturacion.facturacion_electronica.services.fe_mapper_service.get_settings",
         lambda: FakeSettings(),
     )
 

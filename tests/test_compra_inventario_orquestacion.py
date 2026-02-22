@@ -11,8 +11,8 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.compra_service import CompraService
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.compras.services.compra_service import CompraService
+from osiris.modules.facturacion.core_sri.models import (
     Compra,
     CompraDetalle,
     CompraDetalleImpuesto,
@@ -20,7 +20,7 @@ from osiris.modules.facturacion.entity import (
     EstadoCuentaPorPagar,
     TipoImpuestoMVP,
 )
-from osiris.modules.facturacion.models import (
+from osiris.modules.facturacion.core_sri.all_schemas import (
     CompraCreate,
     CompraUpdate,
     ImpuestoAplicadoInput,
@@ -28,7 +28,7 @@ from osiris.modules.facturacion.models import (
 )
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.inventario.movimiento_inventario.entity import (
+from osiris.modules.facturacion.inventario.models import (
     EstadoMovimientoInventario,
     InventarioStock,
     MovimientoInventario,

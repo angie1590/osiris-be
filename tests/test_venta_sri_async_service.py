@@ -13,7 +13,7 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.entity import (
+from osiris.modules.facturacion.core_sri.models import (
     DocumentoElectronico,
     DocumentoElectronicoHistorial,
     DocumentoSriCola,
@@ -29,7 +29,7 @@ from osiris.modules.facturacion.entity import (
     VentaDetalle,
     VentaDetalleImpuesto,
 )
-from osiris.modules.facturacion.venta_sri_async_service import VentaSriAsyncService
+from osiris.modules.facturacion.facturacion_electronica.services.venta_sri_async_service import VentaSriAsyncService
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
@@ -251,7 +251,7 @@ def test_encolar_venta_permite_produccion_y_mapea_ambiente(monkeypatch):
         FEEC_TIPO_EMISION = "1"
 
     monkeypatch.setattr(
-        "osiris.modules.facturacion.fe_mapper_service.get_settings",
+        "osiris.modules.facturacion.facturacion_electronica.services.fe_mapper_service.get_settings",
         lambda: FakeSettings(),
     )
 
