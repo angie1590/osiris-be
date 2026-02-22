@@ -28,6 +28,9 @@ from fastapi.concurrency import run_in_threadpool
 await run_in_threadpool(log_unauthorized_access, security_session, ...)
 ```
 
+**Análisis de Otras Dependencias Bloqueantes (SRI/APIs Externas):**
+Se revisó el servicio de integración con SRI (`SriAsyncService`). Este utiliza `BackgroundTasks` de FastAPI para procesar documentos en segundo plano. FastAPI ejecuta automáticamente tareas definidas como funciones síncronas (`def`) en un ThreadPool, por lo que **no bloquean el Event Loop principal** de la misma manera crítica que el middleware. Sin embargo, bajo alta carga, estas tareas podrían saturar el pool de hilos predeterminado. La prioridad inmediata es corregir el middleware en `main.py`.
+
 ### B. Falta de Atomicidad en Servicios CRUD Base
 **Archivos:** `src/osiris/domain/repository.py`, `src/osiris/domain/service.py`, `src/osiris/modules/common/empresa/service.py`
 
@@ -36,17 +39,13 @@ El método `BaseRepository.create` realiza un `session.commit()` inmediatamente 
 El método `BaseService.create` llama a `repo.create` y *luego* ejecuta el hook `on_created`.
 En el caso de `EmpresaService.on_created`, se intenta crear una `Sucursal` por defecto. Si esta segunda operación falla, la `Empresa` ya ha sido persistida en la base de datos, dejando el sistema en un estado inconsistente (Empresa sin Sucursal Matriz).
 
-**Solución Propuesta:**
-Eliminar el `commit()` automático en `BaseRepository`. El control de la transacción debe residir en la capa de Servicio (`Service Layer`), utilizando el patrón "Unit of Work". El servicio debe orquestar todas las operaciones y realizar un único `commit()` al final.
+**Impacto de la Solución (Refactor Masivo):**
+Se ha confirmado que la mayoría de los servicios (`UsuarioService`, `ProductoService`, etc.) confían en el `commit()` implícito del `BaseRepository`. Eliminar este commit requerirá **inyectar llamadas explícitas a `session.commit()` en todos los métodos `create` y `update` de la capa de servicio** que actualmente delegan en `super()`.
+Esto confirma que la corrección no es trivial y afectará transversalmente a todo el sistema, pero es necesaria para garantizar la integridad transaccional.
 
-```python
-# En BaseRepository
-def create(self, session: Session, obj: Any, commit: bool = True) -> Any:
-    session.add(obj)
-    if commit:
-        session.commit()
-    # ...
-```
+**Solución Propuesta:**
+1.  Modificar `BaseRepository.create` para aceptar `commit: bool = True`.
+2.  En `BaseService`, orquestar la transacción: llamar a `repo.create(commit=False)`, ejecutar hooks, y finalmente hacer `commit()` si todo es exitoso.
 
 ---
 
@@ -77,23 +76,31 @@ salario: Decimal = Field(sa_column=Column(Numeric(10, 2), nullable=False))
 
 ## 3. SQLAlchemy 2.0 Estricto y Consultas N+1 (Severidad ALTA)
 
-### A. Problema N+1 en Listado de Productos
+### A. Problema N+1 en Listado de Productos y Potencial en Ventas
 **Archivo:** `src/osiris/modules/inventario/producto/service.py`
 **Líneas:** `list_paginated_completo` (Línea ~238)
 
-**Problema:**
-El método `list_paginated_completo` itera sobre cada producto obtenido de la base de datos y llama a `self.get_producto_completo(session, producto.id)`.
-A su vez, `get_producto_completo` realiza múltiples consultas separadas para obtener categorías, proveedores, atributos e impuestos.
-Esto resulta en un patrón **N * M consultas**, donde listar 50 productos podría disparar cientos de consultas a la base de datos, degradando el rendimiento.
+**Problema Confirmado (Productos):**
+El método `list_paginated_completo` itera sobre cada producto y realiza múltiples subconsultas para traer relaciones (categorías, impuestos, etc.), generando un patrón N+1 clásico.
+
+**Riesgo Confirmado (Ventas):**
+El módulo de Ventas carece actualmente de un endpoint explícito de listado en su Router (`src/osiris/modules/facturacion/ventas/router.py`).
+Sin embargo, el modelo de lectura `VentaRead` incluye el campo `detalles: list[VentaDetalleRead]`.
+Si se implementa un endpoint de listado utilizando el mecanismo genérico de `BaseService`, al serializar la respuesta Pydantic intentará acceder a `.detalles` para cada venta. Como `BaseService` hace un `select(Venta)` simple sin eager loading, esto detonará **un N+1 masivo** (una consulta adicional por cada venta para traer sus detalles), colapsando el rendimiento si se listan muchas facturas.
 
 **Solución Propuesta:**
-Utilizar "Eager Loading" de SQLAlchemy (`selectinload` o `joinedload`) en la consulta inicial para traer todas las relaciones necesarias en una sola ida a la base de datos (o pocas consultas optimizadas).
+Utilizar "Eager Loading" de SQLAlchemy (`selectinload` o `joinedload`) en todas las consultas de listado que retornen modelos con relaciones anidadas.
 
 ```python
+# Para Productos
 stmt = select(Producto).options(
     selectinload(Producto.producto_categorias).selectinload(ProductoCategoria.categoria),
     selectinload(Producto.producto_impuestos),
-    # ... otras relaciones
+)
+
+# Para Ventas (cuando se implemente el listado)
+stmt = select(Venta).options(
+    selectinload(Venta.detalles).selectinload(VentaDetalle.impuestos)
 )
 ```
 
