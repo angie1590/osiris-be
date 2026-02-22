@@ -41,6 +41,27 @@ def generar_ticket_termico(
     return HTMLResponse(content=html)
 
 
+@router.get("/v1/impresion/documento/{documento_id}/preimpresa", tags=["Facturacion"])
+def generar_preimpresa_nota_venta(
+    documento_id: UUID,
+    formato: Literal["HTML", "PDF"] = Query(default="HTML"),
+    session: Session = Depends(get_session),
+):
+    formato_normalizado = formato.upper()
+    if formato_normalizado == "PDF":
+        resultado = impresion_service.generar_preimpresa_pdf(session, documento_id=documento_id)
+        headers = {"Content-Disposition": f'inline; filename="nota-preimpresa-{documento_id}.pdf"'}
+        if resultado["warning"]:
+            headers["X-Impresion-Warning"] = str(resultado["warning"])
+        return Response(content=resultado["pdf"], media_type="application/pdf", headers=headers)
+
+    resultado = impresion_service.generar_preimpresa_html(session, documento_id=documento_id)
+    headers: dict[str, str] = {}
+    if resultado["warning"]:
+        headers["X-Impresion-Warning"] = str(resultado["warning"])
+    return HTMLResponse(content=str(resultado["html"]), headers=headers)
+
+
 @router.post("/v1/impresion/documento/{documento_id}/reimprimir", tags=["Facturacion"])
 def reimprimir_documento(
     documento_id: UUID,

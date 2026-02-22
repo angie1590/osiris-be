@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from osiris.core.settings import get_settings
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.facturacion.core_sri.models import (
@@ -18,9 +19,13 @@ from osiris.modules.facturacion.core_sri.models import (
     EstadoDocumentoElectronico,
     TipoDocumentoElectronico,
     Venta,
+    VentaDetalle,
 )
 from osiris.modules.facturacion.core_sri.types import FormaPagoSRI
 from osiris.modules.facturacion.ventas.models import CuentaPorCobrar, PagoCxC
+from osiris.modules.facturacion.impresion.strategies.plantilla_preimpresa_strategy import (
+    PlantillaPreimpresaStrategy,
+)
 from osiris.modules.facturacion.impresion.strategies.render_strategy import RenderStrategy
 from osiris.modules.facturacion.impresion.strategies.ride_a4_strategy import RideA4Strategy
 from osiris.modules.facturacion.impresion.strategies.ticket_termico_strategy import TicketTermicoStrategy
@@ -30,6 +35,7 @@ class ImpresionService:
     def __init__(self, strategy: RenderStrategy | None = None) -> None:
         self.strategy = strategy or RideA4Strategy()
         self.ticket_strategy = TicketTermicoStrategy(Path(__file__).resolve().parents[1] / "templates")
+        self.preimpresa_strategy = PlantillaPreimpresaStrategy(Path(__file__).resolve().parents[1] / "templates")
         self.templates_dir = Path(__file__).resolve().parents[1] / "templates"
 
     @staticmethod
@@ -200,6 +206,116 @@ class ImpresionService:
             "width_mm": ancho,
         }
         return self.ticket_strategy.render_ticket_html(context, ancho=ancho)
+
+    @staticmethod
+    def _cm_as_string(value: float) -> str:
+        if float(value).is_integer():
+            return str(int(value))
+        return str(value).rstrip("0").rstrip(".")
+
+    @staticmethod
+    def _leer_config_impresion(punto_emision: PuntoEmision | None) -> tuple[str, int]:
+        default_margen = 5.0
+        default_max_items = 15
+        config = punto_emision.config_impresion if punto_emision and isinstance(punto_emision.config_impresion, dict) else {}
+
+        margen_superior = default_margen
+        max_items_por_pagina = default_max_items
+
+        try:
+            margen_superior = float(config.get("margen_superior_cm", default_margen))
+            if margen_superior <= 0:
+                margen_superior = default_margen
+        except (TypeError, ValueError):
+            margen_superior = default_margen
+
+        try:
+            max_items_por_pagina = int(config.get("max_items_por_pagina", default_max_items))
+            if max_items_por_pagina <= 0:
+                max_items_por_pagina = default_max_items
+        except (TypeError, ValueError):
+            max_items_por_pagina = default_max_items
+
+        return ImpresionService._cm_as_string(margen_superior), max_items_por_pagina
+
+    def generar_preimpresa_html(
+        self,
+        session: Session,
+        *,
+        documento_id: UUID,
+    ) -> dict[str, str | None]:
+        documento = session.get(DocumentoElectronico, documento_id)
+        if not documento or not documento.activo:
+            raise HTTPException(status_code=404, detail="Documento electrónico no encontrado.")
+        if documento.estado_sri != EstadoDocumentoElectronico.AUTORIZADO:
+            raise HTTPException(status_code=400, detail="Solo se puede imprimir preimpresa de documentos AUTORIZADOS.")
+
+        venta = None
+        if documento.tipo_documento == TipoDocumentoElectronico.FACTURA:
+            venta_id = documento.referencia_id or documento.venta_id
+            if venta_id is not None:
+                venta = session.get(Venta, venta_id)
+        if venta is None:
+            raise HTTPException(status_code=404, detail="Venta asociada al documento no encontrada.")
+
+        punto_emision = session.get(PuntoEmision, venta.punto_emision_id) if venta.punto_emision_id else None
+        margen_superior_cm, max_items_por_pagina = self._leer_config_impresion(punto_emision)
+
+        detalles = list(
+            session.exec(
+                select(VentaDetalle)
+                .where(
+                    VentaDetalle.venta_id == venta.id,
+                    VentaDetalle.activo.is_(True),
+                )
+                .order_by(VentaDetalle.creado_en.asc())
+            ).all()
+        )
+        if not detalles:
+            raise HTTPException(status_code=400, detail="No se puede imprimir una venta sin detalles.")
+
+        items = [
+            {
+                "cantidad": str(detalle.cantidad),
+                "descripcion": detalle.descripcion,
+                "valor_unitario": str(detalle.precio_unitario),
+                "valor_total": str(detalle.subtotal_sin_impuesto),
+            }
+            for detalle in detalles
+        ]
+
+        paginas = [
+            items[i : i + max_items_por_pagina]
+            for i in range(0, len(items), max_items_por_pagina)
+        ]
+
+        warning = None
+        if len(items) > max_items_por_pagina:
+            warning = (
+                "La venta excede el máximo de ítems por página configurado "
+                f"({max_items_por_pagina}). Se dividió en {len(paginas)} páginas."
+            )
+
+        html = self.preimpresa_strategy.render_html(
+            {
+                "margen_superior_cm": margen_superior_cm,
+                "paginas": paginas,
+                "total": str(venta.valor_total),
+            }
+        )
+        return {"html": html, "warning": warning}
+
+    def generar_preimpresa_pdf(
+        self,
+        session: Session,
+        *,
+        documento_id: UUID,
+    ) -> dict[str, bytes | str | None]:
+        resultado_html = self.generar_preimpresa_html(session, documento_id=documento_id)
+        return {
+            "pdf": self.preimpresa_strategy.render_pdf(str(resultado_html["html"])),
+            "warning": resultado_html["warning"],
+        }
 
     @staticmethod
     def _require_cajero_admin(session: Session, user_id: str | None) -> UUID:

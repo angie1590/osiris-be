@@ -12,6 +12,9 @@ class PuntoEmisionBase(BaseModel):
     codigo: Codigo3
     descripcion: str
     secuencial_actual: int = Field(1, ge=1)
+    config_impresion: dict[str, float | int] = Field(
+        default_factory=lambda: {"margen_superior_cm": 5.0, "max_items_por_pagina": 15}
+    )
     usuario_auditoria: str
     sucursal_id: UUID
 
@@ -21,6 +24,7 @@ class PuntoEmisionCreate(PuntoEmisionBase):
 class PuntoEmisionUpdate(BaseModel):
     descripcion: Optional[str] = None
     secuencial_actual: Optional[int] = None
+    config_impresion: Optional[dict[str, float | int]] = None
     usuario_auditoria: Optional[str] = None
     activo: Optional[bool] = None
 
