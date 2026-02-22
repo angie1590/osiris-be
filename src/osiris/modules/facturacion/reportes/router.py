@@ -16,6 +16,7 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteInventarioKardexRead,
     ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
+    ReporteMonitorSRIEstadoRead,
     ReporteTopProductoRead,
     ReporteVentasPorVendedorRead,
     ReporteVentasResumenRead,
@@ -33,6 +34,9 @@ from osiris.modules.facturacion.reportes.services.reporte_compras_service import
 from osiris.modules.facturacion.reportes.services.reporte_inventario_service import (
     ReporteInventarioService,
 )
+from osiris.modules.facturacion.reportes.services.reporte_monitor_sri_service import (
+    ReporteMonitorSRIService,
+)
 from osiris.modules.facturacion.reportes.services.reporte_tributario_service import (
     ReporteTributarioService,
 )
@@ -46,6 +50,7 @@ reporte_inventario_service = ReporteInventarioService()
 reporte_cartera_service = ReporteCarteraService()
 reporte_caja_service = ReporteCajaService()
 reporte_compras_service = ReporteComprasService()
+reporte_monitor_sri_service = ReporteMonitorSRIService()
 
 
 @router.get(
@@ -138,6 +143,25 @@ def obtener_reporte_compras_por_proveedor(
     session: Session = Depends(get_session),
 ):
     return reporte_compras_service.obtener_compras_por_proveedor(
+        session,
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        sucursal_id=sucursal_id,
+    )
+
+
+@router.get(
+    "/v1/reportes/sri/monitor-estados",
+    response_model=list[ReporteMonitorSRIEstadoRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_monitor_estados_sri(
+    fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
+    fecha_fin: date = Query(..., description="Fecha final del rango"),
+    sucursal_id: UUID | None = Query(default=None),
+    session: Session = Depends(get_session),
+):
+    return reporte_monitor_sri_service.obtener_monitor_estados(
         session,
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,

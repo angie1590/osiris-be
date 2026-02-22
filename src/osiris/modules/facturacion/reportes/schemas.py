@@ -56,6 +56,12 @@ class ReporteComprasPorProveedorRead(BaseModel):
     cantidad_facturas: int
 
 
+class ReporteMonitorSRIEstadoRead(BaseModel):
+    estado: str
+    tipo_documento: str
+    cantidad: int
+
+
 class ReporteImpuestoAgrupadoRead(BaseModel):
     codigo_sri: str
     total_retenido: Decimal
