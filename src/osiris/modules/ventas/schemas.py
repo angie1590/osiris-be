@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationInfo, computed_field, model_validator
 
 from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.sri.core_sri.schemas import (
@@ -344,3 +344,7 @@ class VentaRead(BaseModel):
 
 
 VentaDetalleImpuestoSnapshotRead = VentaDetalleImpuestoRead
+
+
+class FEPayloadRead(RootModel[dict[str, Any]]):
+    pass

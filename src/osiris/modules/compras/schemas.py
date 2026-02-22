@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, computed_field, model_validator
 
 from osiris.modules.sri.core_sri.schemas import (
     IVA_0_CODES,
@@ -277,3 +278,7 @@ class RetencionRead(BaseModel):
     detalles: list[RetencionDetalleRead]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RetencionFEPayloadRead(RootModel[dict[str, Any]]):
+    pass
