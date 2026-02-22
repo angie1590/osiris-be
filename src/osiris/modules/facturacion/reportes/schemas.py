@@ -79,3 +79,13 @@ class ReporteInventarioValoracionItemRead(BaseModel):
 class ReporteInventarioValoracionRead(BaseModel):
     patrimonio_total: Decimal
     productos: list[ReporteInventarioValoracionItemRead]
+
+
+class ReporteCarteraCobrarItemRead(BaseModel):
+    cliente_id: UUID
+    saldo_pendiente: Decimal
+
+
+class ReporteCarteraPagarItemRead(BaseModel):
+    proveedor_id: UUID
+    saldo_pendiente: Decimal

@@ -9,12 +9,17 @@ from sqlmodel import Session
 from osiris.core.db import get_session
 from osiris.modules.facturacion.reportes.schemas import (
     AgrupacionTendencia,
+    ReporteCarteraCobrarItemRead,
+    ReporteCarteraPagarItemRead,
     ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
     ReporteTopProductoRead,
     ReporteVentasPorVendedorRead,
     ReporteVentasResumenRead,
     ReporteVentasTendenciaRead,
+)
+from osiris.modules.facturacion.reportes.services.reporte_cartera_service import (
+    ReporteCarteraService,
 )
 from osiris.modules.facturacion.reportes.services.reporte_inventario_service import (
     ReporteInventarioService,
@@ -29,6 +34,7 @@ router = APIRouter()
 reportes_ventas_service = ReportesVentasService()
 reporte_tributario_service = ReporteTributarioService()
 reporte_inventario_service = ReporteInventarioService()
+reporte_cartera_service = ReporteCarteraService()
 
 
 @router.get(
@@ -133,3 +139,25 @@ def obtener_reporte_valoracion_inventario(
     session: Session = Depends(get_session),
 ):
     return reporte_inventario_service.obtener_valoracion_inventario(session)
+
+
+@router.get(
+    "/v1/reportes/cartera/cobrar",
+    response_model=list[ReporteCarteraCobrarItemRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_cartera_cobrar(
+    session: Session = Depends(get_session),
+):
+    return reporte_cartera_service.obtener_cartera_cobrar(session)
+
+
+@router.get(
+    "/v1/reportes/cartera/pagar",
+    response_model=list[ReporteCarteraPagarItemRead],
+    tags=["Reportes"],
+)
+def obtener_reporte_cartera_pagar(
+    session: Session = Depends(get_session),
+):
+    return reporte_cartera_service.obtener_cartera_pagar(session)
