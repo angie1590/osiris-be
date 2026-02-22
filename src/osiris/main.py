@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
@@ -61,6 +62,40 @@ app = FastAPI(
 app.state.security_audit_engine = engine
 
 
+def _log_unauthorized_access_sync(
+    *,
+    security_engine,
+    request: Request,
+    user_id: str | None,
+    payload,
+    reason: str,
+    rule,
+) -> None:
+    with Session(security_engine) as security_session:
+        log_unauthorized_access(
+            security_session,
+            request=request,
+            user_id=user_id,
+            payload=payload,
+            reason=reason,
+            rule=rule,
+        )
+
+
+def _is_user_authorized_for_rule_sync(
+    *,
+    security_engine,
+    user_id: str,
+    rule,
+) -> bool:
+    with Session(security_engine) as security_session:
+        return is_user_authorized_for_rule(
+            security_session,
+            user_id=user_id,
+            rule=rule,
+        )
+
+
 @app.middleware("http")
 async def inject_audit_user_context(request: Request, call_next):
     user_id = extract_user_id_from_request_headers(
@@ -95,37 +130,37 @@ async def enforce_sensitive_access_control(request: Request, call_next):
     security_engine = getattr(request.app.state, "security_audit_engine", engine)
 
     if not user_id:
-        with Session(security_engine) as security_session:
-            log_unauthorized_access(
-                security_session,
-                request=request,
-                user_id=None,
-                payload=payload,
-                reason="Usuario no autenticado para endpoint sensible.",
-                rule=rule,
-            )
+        await run_in_threadpool(
+            _log_unauthorized_access_sync,
+            security_engine=security_engine,
+            request=request,
+            user_id=None,
+            payload=payload,
+            reason="Usuario no autenticado para endpoint sensible.",
+            rule=rule,
+        )
         return JSONResponse(
             status_code=403,
             content={"detail": "Acceso denegado a endpoint sensible."},
         )
 
-    with Session(security_engine) as security_session:
-        authorized = is_user_authorized_for_rule(
-            security_session,
-            user_id=user_id,
-            rule=rule,
-        )
+    authorized = await run_in_threadpool(
+        _is_user_authorized_for_rule_sync,
+        security_engine=security_engine,
+        user_id=user_id,
+        rule=rule,
+    )
 
     if not authorized:
-        with Session(security_engine) as security_session:
-            log_unauthorized_access(
-                security_session,
-                request=request,
-                user_id=user_id,
-                payload=payload,
-                reason="Permisos insuficientes para endpoint sensible.",
-                rule=rule,
-            )
+        await run_in_threadpool(
+            _log_unauthorized_access_sync,
+            security_engine=security_engine,
+            request=request,
+            user_id=user_id,
+            payload=payload,
+            reason="Permisos insuficientes para endpoint sensible.",
+            rule=rule,
+        )
         return JSONResponse(
             status_code=403,
             content={"detail": "No tiene permisos para esta operación."},
@@ -133,15 +168,15 @@ async def enforce_sensitive_access_control(request: Request, call_next):
 
     response = await call_next(request)
     if response.status_code == 403:
-        with Session(security_engine) as security_session:
-            log_unauthorized_access(
-                security_session,
-                request=request,
-                user_id=user_id,
-                payload=payload,
-                reason="El endpoint sensible devolvió 403.",
-                rule=rule,
-            )
+        await run_in_threadpool(
+            _log_unauthorized_access_sync,
+            security_engine=security_engine,
+            request=request,
+            user_id=user_id,
+            payload=payload,
+            reason="El endpoint sensible devolvió 403.",
+            rule=rule,
+        )
     return response
 
 
