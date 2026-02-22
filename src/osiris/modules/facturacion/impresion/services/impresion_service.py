@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from osiris.core.settings import get_settings
 from osiris.modules.common.empresa.entity import Empresa
@@ -15,13 +15,17 @@ from osiris.modules.facturacion.core_sri.models import (
     TipoDocumentoElectronico,
     Venta,
 )
+from osiris.modules.facturacion.core_sri.types import FormaPagoSRI
+from osiris.modules.facturacion.ventas.models import CuentaPorCobrar, PagoCxC
 from osiris.modules.facturacion.impresion.strategies.render_strategy import RenderStrategy
 from osiris.modules.facturacion.impresion.strategies.ride_a4_strategy import RideA4Strategy
+from osiris.modules.facturacion.impresion.strategies.ticket_termico_strategy import TicketTermicoStrategy
 
 
 class ImpresionService:
     def __init__(self, strategy: RenderStrategy | None = None) -> None:
         self.strategy = strategy or RideA4Strategy()
+        self.ticket_strategy = TicketTermicoStrategy(Path(__file__).resolve().parents[1] / "templates")
         self.templates_dir = Path(__file__).resolve().parents[1] / "templates"
 
     @staticmethod
@@ -126,3 +130,69 @@ class ImpresionService:
         html = self._render_html(payload)
         return self.strategy.render_pdf(html)
 
+    def generar_ticket_termico_html(
+        self,
+        session: Session,
+        *,
+        documento_id: UUID,
+        ancho: str = "80mm",
+    ) -> str:
+        if ancho not in {"58mm", "80mm"}:
+            raise HTTPException(status_code=400, detail="El parámetro 'ancho' debe ser '58mm' o '80mm'.")
+
+        documento = session.get(DocumentoElectronico, documento_id)
+        if not documento or not documento.activo:
+            raise HTTPException(status_code=404, detail="Documento electrónico no encontrado.")
+        if documento.estado_sri != EstadoDocumentoElectronico.AUTORIZADO:
+            raise HTTPException(status_code=400, detail="Solo se puede imprimir ticket de documentos AUTORIZADOS.")
+
+        venta = None
+        if documento.tipo_documento == TipoDocumentoElectronico.FACTURA:
+            venta_id = documento.referencia_id or documento.venta_id
+            if venta_id is not None:
+                venta = session.get(Venta, venta_id)
+        if venta is None:
+            raise HTTPException(status_code=404, detail="Venta asociada al documento no encontrada.")
+
+        empresa = session.get(Empresa, venta.empresa_id) if venta.empresa_id else None
+        cxc = session.exec(
+            select(CuentaPorCobrar).where(
+                CuentaPorCobrar.venta_id == venta.id,
+                CuentaPorCobrar.activo.is_(True),
+            )
+        ).first()
+        pagos = []
+        if cxc is not None:
+            pagos = list(
+                session.exec(
+                    select(PagoCxC).where(
+                        PagoCxC.cuenta_por_cobrar_id == cxc.id,
+                        PagoCxC.activo.is_(True),
+                    )
+                ).all()
+            )
+
+        total_pagado = sum((pago.monto for pago in pagos), start=0)
+        total_efectivo = sum(
+            (pago.monto for pago in pagos if pago.forma_pago_sri == FormaPagoSRI.EFECTIVO),
+            start=0,
+        )
+        cambio = total_efectivo - venta.valor_total
+        if cambio < 0:
+            cambio = 0
+
+        context = {
+            "ticket_template": ancho,
+            "razon_social": empresa.razon_social if empresa else "RAZON SOCIAL",
+            "ruc": empresa.ruc if empresa else "RUC_NO_DISPONIBLE",
+            "fecha_emision": venta.fecha_emision.isoformat(),
+            "clave_acceso": documento.clave_acceso or "SIN_CLAVE_ACCESO",
+            "subtotal": str(venta.subtotal_sin_impuestos),
+            "iva_total": str(venta.monto_iva),
+            "total": str(venta.valor_total),
+            "total_pagado": str(total_pagado),
+            "efectivo": str(total_efectivo),
+            "cambio": str(cambio),
+            "width_mm": ancho,
+        }
+        return self.ticket_strategy.render_ticket_html(context, ancho=ancho)
