@@ -60,7 +60,7 @@ def _asegurar_cxc(db_session, *, venta_id: UUID, valor_total: Decimal) -> Cuenta
 
 def _registrar_pago_cxc(client, db_session, *, venta_id: UUID, monto: Decimal) -> None:
     response = client.post(
-        f"/v1/cxc/{venta_id}/pagos",
+        f"/api/v1/cxc/{venta_id}/pagos",
         json={
             "monto": str(q2(monto)),
             "fecha": date.today().isoformat(),
@@ -131,7 +131,7 @@ def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
 
     try:
         kardex_response = client.get(
-            "/v1/inventario/kardex",
+            "/api/v1/inventarios/kardex",
             params={"producto_id": producto_id, "bodega_id": bodega_id},
         )
     except httpx.HTTPError as exc:
@@ -160,11 +160,11 @@ def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
             }
         ],
     }
-    retencion_response = client.post("/v1/retenciones-recibidas", json=retencion_payload)
+    retencion_response = client.post("/api/v1/retenciones-recibidas", json=retencion_payload)
     assert retencion_response.status_code == 201, retencion_response.text
     retencion_id = UUID(retencion_response.json()["id"])
 
-    aplicar_response = client.post(f"/v1/retenciones-recibidas/{retencion_id}/aplicar")
+    aplicar_response = client.post(f"/api/v1/retenciones-recibidas/{retencion_id}/aplicar")
     if aplicar_response.status_code not in (200, 201):
         assert aplicar_response.status_code == 404, aplicar_response.text
         try:
@@ -177,7 +177,7 @@ def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
     assert saldo_restante >= Decimal("0.00")
     _registrar_pago_cxc(client, db_session, venta_id=venta_id, monto=saldo_restante)
 
-    cxc_get_response = client.get(f"/v1/cxc/{venta_id}")
+    cxc_get_response = client.get(f"/api/v1/cxc/{venta_id}")
     if cxc_get_response.status_code in (200, 201):
         data = cxc_get_response.json()
         assert Decimal(str(data["saldo_pendiente"])) == Decimal("0.00")

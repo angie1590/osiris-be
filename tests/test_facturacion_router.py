@@ -8,12 +8,12 @@ from osiris.main import app
 def test_facturacion_router_publica_endpoints_ventas():
     paths = {route.path for route in app.routes}
 
-    assert "/api/ventas" in paths
-    assert "/api/ventas/desde-productos" in paths
-    assert "/api/ventas/{venta_id}" in paths
-    assert "/api/ventas/{venta_id}/emitir" in paths
-    assert "/api/ventas/{venta_id}/anular" in paths
-    assert "/api/ventas/{venta_id}/fe-payload" in paths
+    assert "/api/v1/ventas" in paths
+    assert "/api/v1/ventas/desde-productos" in paths
+    assert "/api/v1/ventas/{venta_id}" in paths
+    assert "/api/v1/ventas/{venta_id}/emitir" in paths
+    assert "/api/v1/ventas/{venta_id}/anular" in paths
+    assert "/api/v1/ventas/{venta_id}/fe-payload" in paths
     assert "/api/v1/compras/{compra_id}/sugerir-retencion" in paths
     assert "/api/v1/compras/{compra_id}/guardar-plantilla-retencion" in paths
     assert "/api/v1/compras/{compra_id}/retenciones" in paths
@@ -56,7 +56,7 @@ def test_post_api_ventas_rechaza_iva_para_rimpe_negocio_popular():
         ],
     }
 
-    response = client.post("/api/ventas", json=payload)
+    response = client.post("/api/v1/ventas", json=payload)
 
     assert response.status_code == 422
     body = response.json()

@@ -7,13 +7,14 @@ from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from osiris.core.db import get_session
-from .entity import AuditLog
-from .models import AuditLogRead
-
-router = APIRouter()
+from osiris.modules.common.audit_log.entity import AuditLog
+from osiris.modules.common.audit_log.models import AuditLogRead
 
 
-@router.get("/audit-logs", response_model=list[AuditLogRead], tags=["Audit Logs"])
+router = APIRouter(prefix="/api/v1/audit-logs", tags=["Audit Logs"])
+
+
+@router.get("", response_model=list[AuditLogRead])
 def list_audit_logs(
     usuario_id: str | None = Query(default=None),
     fecha_desde: datetime | None = Query(default=None),
@@ -39,7 +40,5 @@ def list_audit_logs(
     if fecha_hasta:
         stmt = stmt.where(fecha_expr <= fecha_hasta)
 
-    logs = session.exec(
-        stmt.order_by(fecha_expr.desc()).offset(offset).limit(limit)
-    ).all()
+    logs = session.exec(stmt.order_by(fecha_expr.desc()).offset(offset).limit(limit)).all()
     return [AuditLogRead.from_entity(log) for log in logs]

@@ -24,7 +24,7 @@ def test_modulo_crud_completo():
         "usuario_auditoria": "smoke_test"
     }
 
-    response = client.post("/api/modulos", json=create_data)
+    response = client.post("/api/v1/modulos", json=create_data)
     assert response.status_code == 201, f"Error creando módulo: {response.text}"
     modulo_creado = response.json()
     modulo_id = modulo_creado["id"]
@@ -34,7 +34,7 @@ def test_modulo_crud_completo():
     assert modulo_creado["activo"] is True
 
     # 2. Listar módulos
-    response = client.get("/api/modulos")
+    response = client.get("/api/v1/modulos")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, dict) and "meta" in data and "items" in data
@@ -46,7 +46,7 @@ def test_modulo_crud_completo():
     assert modulo_encontrado, "El módulo creado no aparece en el listado"
 
     # 3. Obtener módulo por ID
-    response = client.get(f"/api/modulos/{modulo_id}")
+    response = client.get(f"/api/v1/modulos/{modulo_id}")
     assert response.status_code == 200
     modulo = response.json()
     assert modulo["codigo"] == f"SMOKE_TEST_MOD_{suf}"
@@ -59,18 +59,18 @@ def test_modulo_crud_completo():
         "usuario_auditoria": "smoke_test"
     }
 
-    response = client.put(f"/api/modulos/{modulo_id}", json=update_data)
+    response = client.put(f"/api/v1/modulos/{modulo_id}", json=update_data)
     assert response.status_code == 200
     modulo_actualizado = response.json()
     assert modulo_actualizado["nombre"] == "Módulo Smoke Actualizado"
     assert modulo_actualizado["codigo"] == f"SMOKE_TEST_MOD_{suf}"  # No cambia
 
     # 5. Eliminar módulo
-    response = client.delete(f"/api/modulos/{modulo_id}")
+    response = client.delete(f"/api/v1/modulos/{modulo_id}")
     assert response.status_code in (200, 204)
 
     # 6. Verificar que está inactivo
-    response = client.get(f"/api/modulos/{modulo_id}")
+    response = client.get(f"/api/v1/modulos/{modulo_id}")
     assert response.status_code == 404 or (response.status_code == 200 and not response.json()["activo"])
 
 
@@ -86,16 +86,16 @@ def test_modulo_codigo_unico():
     }
 
     # Primera creación exitosa
-    response = client.post("/api/modulos", json=create_data)
+    response = client.post("/api/v1/modulos", json=create_data)
     assert response.status_code == 201
     modulo_id = response.json()["id"]
 
     # Segunda creación con mismo código debe fallar
-    response = client.post("/api/modulos", json=create_data)
+    response = client.post("/api/v1/modulos", json=create_data)
     assert response.status_code in [400, 409, 422], "Debería fallar por código duplicado"
 
     # Limpiar
-    client.delete(f"/api/modulos/{modulo_id}")
+    client.delete(f"/api/v1/modulos/{modulo_id}")
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
@@ -109,7 +109,7 @@ def test_modulo_campos_minimos():
         "usuario_auditoria": "smoke_test"
     }
 
-    response = client.post("/api/modulos", json=create_data)
+    response = client.post("/api/v1/modulos", json=create_data)
     assert response.status_code == 201
     modulo = response.json()
 
@@ -120,7 +120,7 @@ def test_modulo_campos_minimos():
     assert modulo.get("icono") is None
 
     # Limpiar
-    client.delete(f"/api/modulos/{modulo['id']}")
+    client.delete(f"/api/v1/modulos/{modulo['id']}")
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
@@ -137,21 +137,21 @@ def test_modulo_paginacion():
             "orden": i,
             "usuario_auditoria": "smoke_test"
         }
-        response = client.post("/api/modulos", json=create_data)
+        response = client.post("/api/v1/modulos", json=create_data)
         assert response.status_code == 201
         modulos_ids.append(response.json()["id"])
 
     # Probar paginación
-    response = client.get("/api/modulos?skip=0&limit=3")
+    response = client.get("/api/v1/modulos?skip=0&limit=3")
     assert response.status_code == 200
     data = response.json()
     assert len(data["items"]) == 3
 
-    response = client.get("/api/modulos?skip=3&limit=3")
+    response = client.get("/api/v1/modulos?skip=3&limit=3")
     assert response.status_code == 200
     data = response.json()
     assert len(data["items"]) >= 2
 
     # Limpiar
     for modulo_id in modulos_ids:
-        client.delete(f"/api/modulos/{modulo_id}")
+        client.delete(f"/api/v1/modulos/{modulo_id}")

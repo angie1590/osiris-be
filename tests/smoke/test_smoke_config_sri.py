@@ -22,11 +22,11 @@ def test_smoke_config_sri_basico(client):
         health_response = client.get("http://localhost:8000/docs")
     assert health_response.status_code == 200
 
-    puntos_response = client.get("/puntos-emision", params={"limit": 20, "offset": 0, "only_active": True})
+    puntos_response = client.get("/api/v1/puntos-emision", params={"limit": 20, "offset": 0, "only_active": True})
     assert puntos_response.status_code == 200, puntos_response.text
 
     secuencial_response = client.post(
-        f"/puntos-emision/{punto_emision_id}/secuenciales/FACTURA/siguiente",
+        f"/api/v1/puntos-emision/{punto_emision_id}/secuenciales/FACTURA/siguiente",
         json={"usuario_auditoria": "smoke"},
     )
     assert secuencial_response.status_code == 200, secuencial_response.text

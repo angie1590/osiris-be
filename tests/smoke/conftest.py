@@ -168,7 +168,7 @@ def client(test_engine):
 
     app.dependency_overrides[get_session] = override_get_session
     app.state.security_audit_engine = test_engine
-    with TestClient(app, base_url="http://localhost:8000/api") as test_client:
+    with TestClient(app, base_url="http://localhost:8000") as test_client:
         yield test_client
     app.dependency_overrides.pop(get_session, None)
 

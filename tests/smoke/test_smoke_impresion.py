@@ -280,19 +280,19 @@ def test_smoke_impresion_ride_ticket_matricial_reimpresion(client, db_session):
 
     usuario_id = _crear_usuario_cajero(db_session)
 
-    ride = client.get(f"/v1/impresion/documento/{doc_e_id}/a4")
+    ride = client.get(f"/api/v1/impresion/documento/{doc_e_id}/a4")
     assert ride.status_code == 200, ride.text
     assert ride.headers.get("content-type", "").startswith("application/pdf")
 
-    ticket = client.get(f"/v1/impresion/documento/{doc_e_id}/ticket", params={"ancho": "80mm"})
+    ticket = client.get(f"/api/v1/impresion/documento/{doc_e_id}/ticket", params={"ancho": "80mm"})
     assert ticket.status_code == 200, ticket.text
 
-    matricial = client.get(f"/v1/impresion/documento/{doc_f_id}/preimpresa")
+    matricial = client.get(f"/api/v1/impresion/documento/{doc_f_id}/preimpresa")
     assert matricial.status_code == 200, matricial.text
     assert "padding-top" in matricial.text
 
     reimpresion = client.post(
-        f"/v1/impresion/documento/{doc_e_id}/reimprimir",
+        f"/api/v1/impresion/documento/{doc_e_id}/reimprimir",
         json={"motivo": "Smoke test", "formato": "A4"},
         headers={"X-User-Id": str(usuario_id)},
     )

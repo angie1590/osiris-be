@@ -6,7 +6,7 @@ import uuid
 import pytest
 import httpx
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 10.0
 
 

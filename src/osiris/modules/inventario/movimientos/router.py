@@ -14,9 +14,7 @@ from osiris.modules.inventario.movimientos.schemas import (
     MovimientoInventarioRead,
     ValoracionResponse,
 )
-from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import (
-    MovimientoInventarioService,
-)
+from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 
 
 COMMON_RESPONSES = {
@@ -24,7 +22,7 @@ COMMON_RESPONSES = {
     404: {"description": "Recurso no encontrado."},
 }
 
-router = APIRouter(prefix="/v1/inventario", tags=["Inventario"])
+router = APIRouter(prefix="/api/v1/inventarios", tags=["Movimientos de Inventario"])
 service = MovimientoInventarioService()
 
 
@@ -35,10 +33,7 @@ service = MovimientoInventarioService()
     summary="Crear movimiento de inventario",
     responses=COMMON_RESPONSES,
 )
-def crear_movimiento_borrador(
-    payload: MovimientoInventarioCreate,
-    session: Session = Depends(get_session),
-):
+def crear_movimiento_borrador(payload: MovimientoInventarioCreate, session: Session = Depends(get_session)):
     """Crea un movimiento en estado borrador sin afectar saldos hasta su confirmación."""
     movimiento = service.crear_movimiento_borrador(session, payload)
     return service.obtener_movimiento_read(session, movimiento.id)
@@ -65,12 +60,7 @@ def confirmar_movimiento(
     return service.obtener_movimiento_read(session, movimiento.id)
 
 
-@router.get(
-    "/kardex",
-    response_model=KardexResponse,
-    summary="Consultar kardex operativo",
-    responses=COMMON_RESPONSES,
-)
+@router.get("/kardex", response_model=KardexResponse, summary="Consultar kardex operativo", responses=COMMON_RESPONSES)
 def obtener_kardex(
     producto_id: UUID = Query(...),
     bodega_id: UUID = Query(...),
@@ -88,14 +78,7 @@ def obtener_kardex(
     )
 
 
-@router.get(
-    "/valoracion",
-    response_model=ValoracionResponse,
-    summary="Consultar valoración de inventario",
-    responses=COMMON_RESPONSES,
-)
-def obtener_valoracion(
-    session: Session = Depends(get_session),
-):
+@router.get("/valoracion", response_model=ValoracionResponse, summary="Consultar valoración de inventario", responses=COMMON_RESPONSES)
+def obtener_valoracion(session: Session = Depends(get_session)):
     """Devuelve la valoración de inventario por bodega y total global a costo promedio vigente."""
     return service.obtener_valoracion(session)

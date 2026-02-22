@@ -99,7 +99,7 @@ def test_ajuste_requiere_motivo():
     try:
         with TestClient(app) as client:
             crear = client.post(
-                "/api/v1/inventario/movimientos",
+                "/api/v1/inventarios/movimientos",
                 json={
                     "bodega_id": bodega_id,
                     "tipo_movimiento": "AJUSTE",
@@ -117,7 +117,7 @@ def test_ajuste_requiere_motivo():
             movimiento_id = crear.json()["id"]
 
             confirmar = client.post(
-                f"/api/v1/inventario/movimientos/{movimiento_id}/confirmar",
+                f"/api/v1/inventarios/movimientos/{movimiento_id}/confirmar",
                 json={},
             )
 

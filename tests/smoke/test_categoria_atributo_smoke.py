@@ -6,7 +6,7 @@ import uuid
 import pytest
 import httpx
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 10.0
 
 
@@ -63,12 +63,12 @@ def test_categoria_atributo_crud_completo():
             "obligatorio": True,
             "usuario_auditoria": "smoke_test"
         }
-        r = client.post(f"{BASE}/categoria-atributos/", json=asociacion_data)
+        r = client.post(f"{BASE}/categorias-atributos", json=asociacion_data)
         assert r.status_code == 201, f"Failed to create categoria_atributo: {r.text}"
         asociacion_id = r.json()["id"]
 
         # 4. Verificar con GET individual
-        r = client.get(f"{BASE}/categoria-atributos/{asociacion_id}")
+        r = client.get(f"{BASE}/categorias-atributos/{asociacion_id}")
         assert r.status_code == 200
         data = r.json()
         assert data["categoria_id"] == categoria_id
@@ -77,7 +77,7 @@ def test_categoria_atributo_crud_completo():
         assert data["obligatorio"] is True
 
         # 5. Listar asociaciones de esta categoría
-        r = client.get(f"{BASE}/categoria-atributos/?categoria_id={categoria_id}")
+        r = client.get(f"{BASE}/categorias-atributos?categoria_id={categoria_id}")
         assert r.status_code == 200
         items = r.json()  # El servicio devuelve lista directa
         assert len(items) >= 1
@@ -90,18 +90,18 @@ def test_categoria_atributo_crud_completo():
             "obligatorio": False,
             "usuario_auditoria": "smoke_test"
         }
-        r = client.put(f"{BASE}/categoria-atributos/{asociacion_id}", json=update_data)
+        r = client.put(f"{BASE}/categorias-atributos/{asociacion_id}", json=update_data)
         assert r.status_code == 200
         updated = r.json()
         assert updated["orden"] == 10
         assert updated["obligatorio"] is False
 
         # 7. Eliminar (soft delete)
-        r = client.delete(f"{BASE}/categoria-atributos/{asociacion_id}")
+        r = client.delete(f"{BASE}/categorias-atributos/{asociacion_id}")
         assert r.status_code == 204
 
         # 8. Verificar que ya no aparece en lista activa
-        r = client.get(f"{BASE}/categoria-atributos/?categoria_id={categoria_id}")
+        r = client.get(f"{BASE}/categorias-atributos?categoria_id={categoria_id}")
         assert r.status_code == 200
         items = r.json()  # El servicio devuelve lista directa
         found = any(item["id"] == asociacion_id for item in items)
@@ -171,7 +171,7 @@ def test_categoria_atributo_herencia_de_atributos():
             atributos.append(r.json()["id"])
 
         # Asociar atributo a raíz
-        r = client.post(f"{BASE}/categoria-atributos/", json={
+        r = client.post(f"{BASE}/categorias-atributos", json={
             "categoria_id": raiz_id,
             "atributo_id": atributos[0],
             "orden": 1,
@@ -181,7 +181,7 @@ def test_categoria_atributo_herencia_de_atributos():
         assert r.status_code == 201
 
         # Asociar atributo a padre
-        r = client.post(f"{BASE}/categoria-atributos/", json={
+        r = client.post(f"{BASE}/categorias-atributos", json={
             "categoria_id": padre_id,
             "atributo_id": atributos[1],
             "orden": 2,
@@ -191,7 +191,7 @@ def test_categoria_atributo_herencia_de_atributos():
         assert r.status_code == 201
 
         # Asociar atributo a hoja
-        r = client.post(f"{BASE}/categoria-atributos/", json={
+        r = client.post(f"{BASE}/categorias-atributos", json={
             "categoria_id": hoja_id,
             "atributo_id": atributos[2],
             "orden": 3,

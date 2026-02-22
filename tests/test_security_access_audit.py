@@ -115,7 +115,7 @@ def test_log_unauthorized_access():
     try:
         with TestClient(app) as client:
             response = client.put(
-                f"/api/empresa/{empresa.id}",
+                f"/api/v1/empresas/{empresa.id}",
                 json={
                     "regimen": "RIMPE_EMPRENDEDOR",
                     "modo_emision": "ELECTRONICO",
@@ -139,7 +139,7 @@ def test_log_unauthorized_access():
 
         assert log is not None
         assert log.tabla_afectada == "SECURITY"
-        assert log.estado_nuevo["endpoint"] == f"/api/empresa/{empresa.id}"
+        assert log.estado_nuevo["endpoint"] == f"/api/v1/empresas/{empresa.id}"
         assert log.estado_nuevo["metodo"] == "PUT"
         assert log.estado_nuevo["modulo"] == "EMPRESA"
         assert log.estado_nuevo["accion_requerida"] == "actualizar"

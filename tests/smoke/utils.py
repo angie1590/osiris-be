@@ -7,7 +7,7 @@ import os
 
 import httpx
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 10.0
 
 # Flag para determinar si hacer hard delete (físico) o soft delete (a través de API)
@@ -208,7 +208,7 @@ def get_or_create_iva_for_tests(client: httpx.Client) -> str:
     """
     # Buscar IVA existente via API
     try:
-        r = client.get(f"{BASE}/impuestos/catalogo?tipo_impuesto=IVA&solo_vigentes=true&limit=50&offset=0")
+        r = client.get(f"{BASE}/impuestos?tipo_impuesto=IVA&solo_vigentes=true&limit=50&offset=0")
         if r.status_code == 200:
             data = r.json()
             items = data.get("items", [])

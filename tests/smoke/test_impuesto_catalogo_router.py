@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 8.0
 
 
@@ -17,7 +17,7 @@ def is_port_open(host: str, port: int, timeout: float = 1.0) -> bool:
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_listar_catalogo_impuestos_paginado_ok():
     with httpx.Client(timeout=TIMEOUT) as client:
-        r = client.get(f"{BASE}/impuestos/catalogo", params={"limit": 5, "offset": 0})
+        r = client.get(f"{BASE}/impuestos", params={"limit": 5, "offset": 0})
         assert r.status_code == 200, r.text
         data = r.json()
         assert isinstance(data.get("items"), list)
@@ -35,7 +35,7 @@ def test_listar_catalogo_impuestos_paginado_ok():
 def test_listar_catalogo_impuestos_filtrado_por_tipo_ok():
     with httpx.Client(timeout=TIMEOUT) as client:
         # Filtrar por IVA
-        r = client.get(f"{BASE}/impuestos/catalogo", params={"limit": 50, "offset": 0, "tipo_impuesto": "IVA"})
+        r = client.get(f"{BASE}/impuestos", params={"limit": 50, "offset": 0, "tipo_impuesto": "IVA"})
         assert r.status_code == 200, r.text
         data = r.json()
         items = data.get("items", [])

@@ -43,7 +43,7 @@ def test_business_kardex_stock_change(client):
     )
 
     kardex_response = client.get(
-        "/v1/inventario/kardex",
+        "/api/v1/inventarios/kardex",
         params={"producto_id": producto_id, "bodega_id": bodega_id},
     )
     assert kardex_response.status_code == 200, kardex_response.text
@@ -78,7 +78,7 @@ def test_business_retencion_recibida_smoke(client):
     subtotal_general = q2(Decimal(str(venta["subtotal_sin_impuestos"])))
 
     retencion_response = client.post(
-        "/v1/retenciones-recibidas",
+        "/api/v1/retenciones-recibidas",
         json={
             "venta_id": venta["id"],
             "cliente_id": str(uuid4()),
@@ -104,8 +104,8 @@ def test_business_retencion_recibida_smoke(client):
 
 def test_business_auditlog_smoke(client):
     # Se valida explícitamente el endpoint pedido por auditoría.
-    response = client.get("/v1/audit-log", params={"limit": 10, "offset": 0})
+    response = client.get("/api/v1/audit-log", params={"limit": 10, "offset": 0})
     if response.status_code != 200:
-        response = client.get("/v1/audit-logs", params={"limit": 10, "offset": 0})
+        response = client.get("/api/v1/audit-logs", params={"limit": 10, "offset": 0})
     assert response.status_code == 200, response.text
     assert isinstance(response.json(), list)

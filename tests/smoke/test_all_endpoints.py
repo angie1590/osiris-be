@@ -28,7 +28,7 @@ def test_empresa_sucursal_punto_emision_flow():
         # Create empresa (with retry)
         @retry_on_exception(retries=3, backoff=1.0)
         def create_empresa():
-            return client.post(f"{BASE}/empresa", json=empresa_payload)
+            return client.post(f"{BASE}/empresas", json=empresa_payload)
         r = create_empresa()
         for _ in range(4):
             if r.status_code in (201, 409):
@@ -43,7 +43,7 @@ def test_empresa_sucursal_punto_emision_flow():
 
         # Si no se creó ahora, intentar buscar una empresa con ese RUC: (list + filter simple)
         if not empresa_id:
-            r = client.get(f"{BASE}/empresa?limit=10&offset=0&only_active=true")
+            r = client.get(f"{BASE}/empresas?limit=10&offset=0&only_active=true")
             assert r.status_code == 200
             items = r.json().get("items", [])
             for it in items:

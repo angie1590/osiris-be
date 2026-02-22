@@ -27,10 +27,10 @@ def crear_empresa_general(client: httpx.Client) -> str:
             "modo_emision": "ELECTRONICO",
             "usuario_auditoria": "smoke",
         }
-        response = client.post("/empresa", json=payload)
+        response = client.post("/api/v1/empresas", json=payload)
         if response.status_code == 201:
             empresa_id = response.json()["id"]
-            sucursales_response = client.get("/sucursales", params={"limit": 200, "offset": 0, "only_active": True})
+            sucursales_response = client.get("/api/v1/sucursales", params={"limit": 200, "offset": 0, "only_active": True})
             assert sucursales_response.status_code == 200, sucursales_response.text
             ya_existe_matriz = any(
                 s.get("empresa_id") == empresa_id and s.get("codigo") == "001"
@@ -46,7 +46,7 @@ def crear_empresa_general(client: httpx.Client) -> str:
                     "es_matriz": True,
                     "usuario_auditoria": "smoke",
                 }
-                matriz_response = client.post("/sucursales", json=matriz_payload)
+                matriz_response = client.post("/api/v1/sucursales", json=matriz_payload)
                 assert matriz_response.status_code == 201, matriz_response.text
             return empresa_id
         if response.status_code != 422 and response.status_code != 400:
@@ -68,7 +68,7 @@ def crear_sucursal(client: httpx.Client, empresa_id: str) -> str:
         "es_matriz": False,
         "usuario_auditoria": "smoke",
     }
-    response = client.post("/sucursales", json=payload)
+    response = client.post("/api/v1/sucursales", json=payload)
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -81,7 +81,7 @@ def crear_punto_emision(client: httpx.Client, sucursal_id: str) -> str:
         "secuencial_actual": 1,
         "usuario_auditoria": "smoke",
     }
-    response = client.post("/puntos-emision", json=payload)
+    response = client.post("/api/v1/puntos-emision", json=payload)
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -95,7 +95,7 @@ def crear_bodega(client: httpx.Client, empresa_id: str, sucursal_id: str | None 
         "sucursal_id": sucursal_id,
         "usuario_auditoria": "smoke",
     }
-    response = client.post("/bodegas/", json=payload)
+    response = client.post("/api/v1/bodegas", json=payload)
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -107,7 +107,7 @@ def crear_categoria_hoja(client: httpx.Client) -> str:
         "parent_id": None,
         "usuario_auditoria": "smoke",
     }
-    parent_response = client.post("/categorias", json=parent_payload)
+    parent_response = client.post("/api/v1/categorias", json=parent_payload)
     assert parent_response.status_code == 201, parent_response.text
     parent_id = parent_response.json()["id"]
 
@@ -117,7 +117,7 @@ def crear_categoria_hoja(client: httpx.Client) -> str:
         "parent_id": parent_id,
         "usuario_auditoria": "smoke",
     }
-    leaf_response = client.post("/categorias", json=leaf_payload)
+    leaf_response = client.post("/api/v1/categorias", json=leaf_payload)
     assert leaf_response.status_code == 201, leaf_response.text
     return leaf_response.json()["id"]
 
@@ -133,7 +133,7 @@ def crear_producto_minimo(client: httpx.Client, categoria_id: str, pvp: str = "1
         "impuesto_catalogo_ids": [iva_id],
         "usuario_auditoria": "smoke",
     }
-    response = client.post("/productos", json=payload)
+    response = client.post("/api/v1/productos", json=payload)
     assert response.status_code == 201, response.text
     return response.json()["id"]
 
@@ -169,7 +169,7 @@ def registrar_compra_desde_productos(
             }
         ],
     }
-    response = client.post("/compras/desde-productos", json=payload_base)
+    response = client.post("/api/v1/compras/desde-productos", json=payload_base)
     if response.status_code == 201:
         return response.json()
 
@@ -190,10 +190,10 @@ def registrar_compra_desde_productos(
             }
         ],
     }
-    fallback = client.post("/compras", json=payload_directo)
+    fallback = client.post("/api/v1/compras", json=payload_directo)
     assert fallback.status_code == 201, (
-        f"/compras/desde-productos -> {response.status_code} {response.text} | "
-        f"/compras -> {fallback.status_code} {fallback.text}"
+        f"/api/v1/compras/desde-productos -> {response.status_code} {response.text} | "
+        f"/api/v1/compras -> {fallback.status_code} {fallback.text}"
     )
     return fallback.json()
 
@@ -225,7 +225,7 @@ def registrar_venta_desde_productos(
             }
         ],
     }
-    response = client.post("/ventas/desde-productos", json=payload)
+    response = client.post("/api/v1/ventas/desde-productos", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -239,7 +239,7 @@ def seed_stock_por_movimiento(
     costo_unitario: str = "10.00",
 ) -> None:
     crear_response = client.post(
-        "/v1/inventario/movimientos",
+        "/api/v1/inventarios/movimientos",
         json={
             "bodega_id": bodega_id,
             "tipo_movimiento": "INGRESO",
@@ -258,7 +258,7 @@ def seed_stock_por_movimiento(
     movimiento_id = crear_response.json()["id"]
 
     confirmar_response = client.post(
-        f"/v1/inventario/movimientos/{movimiento_id}/confirmar",
+        f"/api/v1/inventarios/movimientos/{movimiento_id}/confirmar",
         json={"usuario_auditoria": "smoke"},
     )
     assert confirmar_response.status_code == 200, confirmar_response.text

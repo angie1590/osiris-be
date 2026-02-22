@@ -40,7 +40,7 @@ def test_smoke_flujo_compras_inventario_cxp(client, db_session):
     compra_id = UUID(compra["id"])
 
     kardex_response = client.get(
-        "/v1/inventario/kardex",
+        "/api/v1/inventarios/kardex",
         params={"producto_id": producto_id, "bodega_id": bodega_id},
     )
     assert kardex_response.status_code == 200, kardex_response.text

@@ -143,7 +143,7 @@ def test_endpoint_valoracion_total():
     app.dependency_overrides[get_session] = override_get_session
     try:
         with TestClient(app) as client:
-            response = client.get("/api/v1/inventario/valoracion")
+            response = client.get("/api/v1/inventarios/valoracion")
         assert response.status_code == 200
         payload = response.json()
 

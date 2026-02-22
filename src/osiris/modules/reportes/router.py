@@ -38,7 +38,7 @@ REPORT_RESPONSES = {
     422: {"description": "Error de validación de parámetros de entrada."},
 }
 
-router = APIRouter(tags=["Reportes"])
+router = APIRouter(prefix="/api/v1/reportes", tags=["Reportes"])
 reportes_ventas_service = ReportesVentasService()
 reporte_tributario_service = ReporteTributarioService()
 reporte_inventario_service = ReporteInventarioService()
@@ -48,12 +48,7 @@ reporte_compras_service = ReporteComprasService()
 reporte_monitor_sri_service = ReporteMonitorSRIService()
 
 
-@router.get(
-    "/v1/reportes/ventas/resumen",
-    response_model=ReporteVentasResumenRead,
-    summary="Resumen de ventas",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/ventas/resumen", response_model=ReporteVentasResumenRead, summary="Resumen de ventas", responses=REPORT_RESPONSES)
 def obtener_reporte_ventas_resumen(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
@@ -61,7 +56,6 @@ def obtener_reporte_ventas_resumen(
     sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    """Consolida subtotales e IVA de ventas emitidas excluyendo documentos anulados."""
     return reportes_ventas_service.obtener_resumen_ventas(
         session,
         fecha_inicio=fecha_inicio,
@@ -71,12 +65,7 @@ def obtener_reporte_ventas_resumen(
     )
 
 
-@router.get(
-    "/v1/reportes/ventas/top-productos",
-    response_model=list[ReporteTopProductoRead],
-    summary="Top productos vendidos",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/ventas/top-productos", response_model=list[ReporteTopProductoRead], summary="Top productos vendidos", responses=REPORT_RESPONSES)
 def obtener_reporte_top_productos_ventas(
     fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
     fecha_fin: date | None = Query(default=None, description="Fecha final opcional"),
@@ -84,7 +73,6 @@ def obtener_reporte_top_productos_ventas(
     limite: int = Query(default=10, ge=1, le=100),
     session: Session = Depends(get_session),
 ):
-    """Devuelve ranking de productos por volumen y ganancia bruta estimada."""
     return reportes_ventas_service.obtener_top_productos(
         session,
         fecha_inicio=fecha_inicio,
@@ -94,19 +82,13 @@ def obtener_reporte_top_productos_ventas(
     )
 
 
-@router.get(
-    "/v1/reportes/ventas/tendencias",
-    response_model=list[ReporteVentasTendenciaRead],
-    summary="Tendencias de ventas",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/ventas/tendencias", response_model=list[ReporteVentasTendenciaRead], summary="Tendencias de ventas", responses=REPORT_RESPONSES)
 def obtener_reporte_tendencias_ventas(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     agrupacion: AgrupacionTendencia = Query(default=AgrupacionTendencia.DIARIA),
     session: Session = Depends(get_session),
 ):
-    """Agrupa ventas por periodo (diario, mensual o anual) para análisis temporal."""
     return reportes_ventas_service.obtener_tendencias_ventas(
         session,
         fecha_inicio=fecha_inicio,
@@ -115,18 +97,12 @@ def obtener_reporte_tendencias_ventas(
     )
 
 
-@router.get(
-    "/v1/reportes/ventas/por-vendedor",
-    response_model=list[ReporteVentasPorVendedorRead],
-    summary="Rendimiento por vendedor",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/ventas/por-vendedor", response_model=list[ReporteVentasPorVendedorRead], summary="Rendimiento por vendedor", responses=REPORT_RESPONSES)
 def obtener_reporte_ventas_por_vendedor(
     fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
     fecha_fin: date | None = Query(default=None, description="Fecha final opcional"),
     session: Session = Depends(get_session),
 ):
-    """Resume ventas por usuario emisor incluyendo monto total y número de facturas."""
     return reportes_ventas_service.obtener_ventas_por_vendedor(
         session,
         fecha_inicio=fecha_inicio,
@@ -134,19 +110,13 @@ def obtener_reporte_ventas_por_vendedor(
     )
 
 
-@router.get(
-    "/v1/reportes/compras/por-proveedor",
-    response_model=list[ReporteComprasPorProveedorRead],
-    summary="Volumen de compras por proveedor",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/compras/por-proveedor", response_model=list[ReporteComprasPorProveedorRead], summary="Volumen de compras por proveedor", responses=REPORT_RESPONSES)
 def obtener_reporte_compras_por_proveedor(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    """Consolida compras por proveedor ordenadas de mayor a menor volumen transaccional."""
     return reporte_compras_service.obtener_compras_por_proveedor(
         session,
         fecha_inicio=fecha_inicio,
@@ -155,19 +125,13 @@ def obtener_reporte_compras_por_proveedor(
     )
 
 
-@router.get(
-    "/v1/reportes/sri/monitor-estados",
-    response_model=list[ReporteMonitorSRIEstadoRead],
-    summary="Monitor de estados SRI",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/sri/monitor-estados", response_model=list[ReporteMonitorSRIEstadoRead], summary="Monitor de estados SRI", responses=REPORT_RESPONSES)
 def obtener_reporte_monitor_estados_sri(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    """Muestra conteos de documentos electrónicos agrupados por tipo y estado SRI."""
     return reporte_monitor_sri_service.obtener_monitor_estados(
         session,
         fecha_inicio=fecha_inicio,
@@ -176,18 +140,12 @@ def obtener_reporte_monitor_estados_sri(
     )
 
 
-@router.get(
-    "/v1/reportes/rentabilidad/por-cliente",
-    response_model=list[ReporteRentabilidadClienteRead],
-    summary="Rentabilidad por cliente",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/rentabilidad/por-cliente", response_model=list[ReporteRentabilidadClienteRead], summary="Rentabilidad por cliente", responses=REPORT_RESPONSES)
 def obtener_reporte_rentabilidad_por_cliente(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     session: Session = Depends(get_session),
 ):
-    """Calcula utilidad y margen porcentual por cliente con base en costos NIIF."""
     return reportes_ventas_service.obtener_rentabilidad_por_cliente(
         session,
         fecha_inicio=fecha_inicio,
@@ -195,18 +153,12 @@ def obtener_reporte_rentabilidad_por_cliente(
     )
 
 
-@router.get(
-    "/v1/reportes/rentabilidad/transacciones",
-    response_model=list[ReporteRentabilidadTransaccionRead],
-    summary="Rentabilidad transaccional",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/rentabilidad/transacciones", response_model=list[ReporteRentabilidadTransaccionRead], summary="Rentabilidad transaccional", responses=REPORT_RESPONSES)
 def obtener_reporte_rentabilidad_transaccional(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     session: Session = Depends(get_session),
 ):
-    """Lista utilidad y margen por factura para detectar ventas con pérdida."""
     return reportes_ventas_service.obtener_rentabilidad_transaccional(
         session,
         fecha_inicio=fecha_inicio,
@@ -214,19 +166,13 @@ def obtener_reporte_rentabilidad_transaccional(
     )
 
 
-@router.get(
-    "/v1/reportes/impuestos/mensual",
-    response_model=ReporteImpuestosMensualRead,
-    summary="Resumen mensual tributario (Pre-104)",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/impuestos/mensual", response_model=ReporteImpuestosMensualRead, summary="Resumen mensual tributario (Pre-104)", responses=REPORT_RESPONSES)
 def obtener_reporte_impuestos_mensual(
     mes: int = Query(..., ge=1, le=12, description="Mes fiscal (1-12)"),
     anio: int = Query(..., ge=2000, le=2100, description="Anio fiscal"),
     sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    """Consolida ventas, compras y retenciones del mes para apoyo al Formulario 104."""
     return reporte_tributario_service.obtener_reporte_mensual_impuestos(
         session,
         mes=mes,
@@ -235,25 +181,12 @@ def obtener_reporte_impuestos_mensual(
     )
 
 
-@router.get(
-    "/v1/reportes/inventario/valoracion",
-    response_model=ReporteInventarioValoracionRead,
-    summary="Valoración de inventario",
-    responses=REPORT_RESPONSES,
-)
-def obtener_reporte_valoracion_inventario(
-    session: Session = Depends(get_session),
-):
-    """Devuelve patrimonio de inventario a costo promedio vigente por producto y total."""
+@router.get("/inventario/valoracion", response_model=ReporteInventarioValoracionRead, summary="Valoración de inventario", responses=REPORT_RESPONSES)
+def obtener_reporte_valoracion_inventario(session: Session = Depends(get_session)):
     return reporte_inventario_service.obtener_valoracion_inventario(session)
 
 
-@router.get(
-    "/v1/reportes/inventario/kardex/{producto_id}",
-    response_model=ReporteInventarioKardexRead,
-    summary="Kárdex histórico NIIF",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/inventario/kardex/{producto_id}", response_model=ReporteInventarioKardexRead, summary="Kárdex histórico NIIF", responses=REPORT_RESPONSES)
 def obtener_reporte_kardex_inventario(
     producto_id: UUID,
     fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
@@ -261,7 +194,6 @@ def obtener_reporte_kardex_inventario(
     sucursal_id: UUID | None = Query(default=None, description="Filtro opcional por sucursal"),
     session: Session = Depends(get_session),
 ):
-    """Retorna trazabilidad cronológica de movimientos y saldos para un producto."""
     return reporte_inventario_service.obtener_kardex_historico(
         session,
         producto_id=producto_id,
@@ -271,45 +203,23 @@ def obtener_reporte_kardex_inventario(
     )
 
 
-@router.get(
-    "/v1/reportes/cartera/cobrar",
-    response_model=list[ReporteCarteraCobrarItemRead],
-    summary="Cartera por cobrar",
-    responses=REPORT_RESPONSES,
-)
-def obtener_reporte_cartera_cobrar(
-    session: Session = Depends(get_session),
-):
-    """Agrupa saldos pendientes de CxC por cliente excluyendo cuentas liquidadas."""
+@router.get("/cartera/cobrar", response_model=list[ReporteCarteraCobrarItemRead], summary="Cartera por cobrar", responses=REPORT_RESPONSES)
+def obtener_reporte_cartera_cobrar(session: Session = Depends(get_session)):
     return reporte_cartera_service.obtener_cartera_cobrar(session)
 
 
-@router.get(
-    "/v1/reportes/cartera/pagar",
-    response_model=list[ReporteCarteraPagarItemRead],
-    summary="Cartera por pagar",
-    responses=REPORT_RESPONSES,
-)
-def obtener_reporte_cartera_pagar(
-    session: Session = Depends(get_session),
-):
-    """Agrupa saldos pendientes de CxP por proveedor excluyendo cuentas liquidadas."""
+@router.get("/cartera/pagar", response_model=list[ReporteCarteraPagarItemRead], summary="Cartera por pagar", responses=REPORT_RESPONSES)
+def obtener_reporte_cartera_pagar(session: Session = Depends(get_session)):
     return reporte_cartera_service.obtener_cartera_pagar(session)
 
 
-@router.get(
-    "/v1/reportes/caja/cierre-diario",
-    response_model=ReporteCajaCierreDiarioRead,
-    summary="Cierre diario de caja",
-    responses=REPORT_RESPONSES,
-)
+@router.get("/caja/cierre-diario", response_model=ReporteCajaCierreDiarioRead, summary="Cierre diario de caja", responses=REPORT_RESPONSES)
 def obtener_reporte_cierre_caja_diario(
     fecha: date = Query(default_factory=date.today, description="Fecha del arqueo"),
     usuario_id: UUID | None = Query(default=None, description="Filtro opcional por usuario"),
     sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
-    """Consolida cobros reales del día por forma de pago y separa crédito tributario."""
     return reporte_caja_service.obtener_cierre_diario(
         session,
         fecha=fecha,
