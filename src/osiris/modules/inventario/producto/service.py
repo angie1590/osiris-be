@@ -4,15 +4,18 @@ from decimal import Decimal
 from typing import Iterable, Optional
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.core.errors import NotFoundError
 from osiris.domain.service import BaseService
 from osiris.modules.inventario.categoria.entity import Categoria  # existente
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
+from osiris.utils.pagination import build_pagination_meta
 from fastapi import HTTPException
 from .repository import ProductoRepository
 from .entity import (
@@ -85,83 +88,92 @@ class ProductoService(BaseService):
             )
 
     def create(self, session: Session, data):
-        def _val(obj, key):
-            if obj is None:
-                return None
-            if hasattr(obj, "get"):
-                try:
-                    return obj.get(key)
-                except Exception:
-                    pass
-            return getattr(obj, key, None)
+        try:
+            def _val(obj, key):
+                if obj is None:
+                    return None
+                if hasattr(obj, "get"):
+                    try:
+                        return obj.get(key)
+                    except Exception:
+                        pass
+                return getattr(obj, key, None)
 
-        categoria_ids: Optional[Iterable[UUID]] = _val(data, "categoria_ids")
-        self._validate_leaf_categories(session, categoria_ids or [])
+            categoria_ids: Optional[Iterable[UUID]] = _val(data, "categoria_ids")
+            self._validate_leaf_categories(session, categoria_ids or [])
 
-        # Validar impuestos antes de crear el producto
-        impuesto_ids: Optional[Iterable[UUID]] = _val(data, "impuesto_catalogo_ids")
-        tipo_producto = _val(data, "tipo")
-        if impuesto_ids:
-            self._validate_impuestos(session, impuesto_ids, tipo_producto)
+            # Validar impuestos antes de crear el producto
+            impuesto_ids: Optional[Iterable[UUID]] = _val(data, "impuesto_catalogo_ids")
+            tipo_producto = _val(data, "tipo")
+            if impuesto_ids:
+                self._validate_impuestos(session, impuesto_ids, tipo_producto)
 
-        prod = super().create(session, data)
-        pid = prod.id
+            prod = super().create(session, data, commit=False)
+            pid = prod.id
 
-        # asociaciones
-        if categoria_ids:
-            self.repo.set_categorias(session, pid, categoria_ids)
-        usuario_auditoria = _val(data, "usuario_auditoria")
+            # asociaciones
+            if categoria_ids:
+                self.repo.set_categorias(session, pid, categoria_ids)
+            usuario_auditoria = _val(data, "usuario_auditoria")
 
-        # Asociar impuestos automáticamente
-        if impuesto_ids:
-            for imp_id in impuesto_ids:
-                impuesto = session.get(ImpuestoCatalogo, imp_id)
-                if not impuesto:
-                    raise HTTPException(status_code=400, detail=f"Impuesto {imp_id} no existe.")
+            # Asociar impuestos automáticamente
+            if impuesto_ids:
+                for imp_id in impuesto_ids:
+                    impuesto = session.get(ImpuestoCatalogo, imp_id)
+                    if not impuesto:
+                        raise HTTPException(status_code=400, detail=f"Impuesto {imp_id} no existe.")
 
-                if impuesto.tipo_impuesto.value == "IVA":
-                    tarifa = impuesto.porcentaje_iva or 0
-                elif impuesto.tipo_impuesto.value == "ICE":
-                    tarifa = impuesto.tarifa_ad_valorem or 0
-                else:
-                    tarifa = 0
+                    if impuesto.tipo_impuesto.value == "IVA":
+                        tarifa = impuesto.porcentaje_iva or 0
+                    elif impuesto.tipo_impuesto.value == "ICE":
+                        tarifa = impuesto.tarifa_ad_valorem or 0
+                    else:
+                        tarifa = 0
 
-                producto_impuesto = ProductoImpuesto(
-                    producto_id=pid,
-                    impuesto_catalogo_id=imp_id,
-                    codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
-                    codigo_porcentaje_sri=impuesto.codigo_sri,
-                    tarifa=tarifa,
-                    usuario_auditoria=usuario_auditoria
-                )
-                session.add(producto_impuesto)
+                    producto_impuesto = ProductoImpuesto(
+                        producto_id=pid,
+                        impuesto_catalogo_id=imp_id,
+                        codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
+                        codigo_porcentaje_sri=impuesto.codigo_sri,
+                        tarifa=tarifa,
+                        usuario_auditoria=usuario_auditoria
+                    )
+                    session.add(producto_impuesto)
+
             session.commit()
-
-        return prod
+            session.refresh(prod)
+            return prod
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def update(self, session: Session, item_id: UUID, data):
-        # validar categorías si vienen
-        def _val(obj, key):
-            if obj is None:
-                return None
-            if hasattr(obj, "get"):
-                try:
-                    return obj.get(key)
-                except Exception:
-                    pass
-            return getattr(obj, key, None)
+        try:
+            # validar categorías si vienen
+            def _val(obj, key):
+                if obj is None:
+                    return None
+                if hasattr(obj, "get"):
+                    try:
+                        return obj.get(key)
+                    except Exception:
+                        pass
+                return getattr(obj, key, None)
 
-        categoria_ids = _val(data, "categoria_ids")
-        if categoria_ids is not None:
-            self._validate_leaf_categories(session, categoria_ids)
-        prod = super().update(session, item_id, data)
-        if prod is None:
-            return None
-        # asociaciones
-        if categoria_ids is not None:
-            self.repo.set_categorias(session, item_id, categoria_ids)
-        _val(data, "usuario_auditoria")
-        return prod
+            categoria_ids = _val(data, "categoria_ids")
+            if categoria_ids is not None:
+                self._validate_leaf_categories(session, categoria_ids)
+            prod = super().update(session, item_id, data, commit=False)
+            if prod is None:
+                return None
+            # asociaciones
+            if categoria_ids is not None:
+                self.repo.set_categorias(session, item_id, categoria_ids)
+            _val(data, "usuario_auditoria")
+            session.commit()
+            session.refresh(prod)
+            return prod
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def get(self, session: Session, item_id: UUID):
         prod = super().get(session, item_id)
@@ -372,21 +384,36 @@ class ProductoService(BaseService):
         from osiris.modules.inventario.categoria.entity import Categoria
         from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
 
-        items, meta = self.list_paginated(session, only_active=only_active, limit=limit, offset=offset)
-        if not items:
-            return [], meta
+        stmt_base = select(Producto)
+        if only_active is not None and hasattr(Producto, "activo"):
+            stmt_base = stmt_base.where(Producto.activo == only_active)
+        if hasattr(Producto, "activo") and only_active in {None, False}:
+            stmt_base = stmt_base.execution_options(
+                **{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True}
+            )
 
-        producto_ids = [item.id for item in items]
+        count_stmt = select(func.count()).select_from(stmt_base.subquery())
+        if hasattr(Producto, "activo") and only_active in {None, False}:
+            count_stmt = count_stmt.execution_options(
+                **{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True}
+            )
+        total: int = int(session.exec(count_stmt).one())
+        meta = build_pagination_meta(total=total, limit=limit, offset=offset)
 
         stmt_productos = (
-            select(Producto)
-            .where(Producto.id.in_(producto_ids))
+            stmt_base
+            .offset(offset)
+            .limit(limit)
             .options(
                 selectinload(Producto.producto_categorias).selectinload(ProductoCategoria.categoria),
                 selectinload(Producto.producto_impuestos).selectinload(ProductoImpuesto.impuesto_catalogo),
             )
         )
         productos_cargados = list(session.exec(stmt_productos).all())
+        if not productos_cargados:
+            return [], meta
+
+        producto_ids = [item.id for item in productos_cargados]
         producto_por_id = {producto.id: producto for producto in productos_cargados}
 
         casa_ids = {

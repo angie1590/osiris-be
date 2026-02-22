@@ -20,7 +20,7 @@ class ProductoRepository(BaseRepository):
         )
         for cid in categoria_ids:
             session.add(ProductoCategoria(producto_id=producto_id, categoria_id=cid))
-        session.commit()
+        session.flush()
 
     def set_proveedores_persona(self, session: Session, producto_id: UUID, prov_ids: Iterable[UUID]) -> None:
         session.exec(
@@ -28,7 +28,7 @@ class ProductoRepository(BaseRepository):
         )
         for pid in prov_ids:
             session.add(ProductoProveedorPersona(producto_id=producto_id, proveedor_persona_id=pid))
-        session.commit()
+        session.flush()
 
     def set_proveedores_sociedad(self, session: Session, producto_id: UUID, prov_ids: Iterable[UUID]) -> None:
         session.exec(
@@ -36,4 +36,4 @@ class ProductoRepository(BaseRepository):
         )
         for sid in prov_ids:
             session.add(ProductoProveedorSociedad(producto_id=producto_id, proveedor_sociedad_id=sid))
-        session.commit()
+        session.flush()

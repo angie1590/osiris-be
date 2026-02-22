@@ -266,9 +266,9 @@ def test_empleado_create_valida_rol_en_strategy(monkeypatch):
 
 
 # --------------------------
-# Compensación: si falla crear empleado tras crear usuario, elimina usuario
+# Atomicidad: si falla crear empleado, hace rollback de toda la UoW
 # --------------------------
-def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
+def test_empleado_create_rollback_si_falla_repo():
     session = _mk_session()
 
     fake_user = MagicMock()
@@ -276,19 +276,6 @@ def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
 
     strategy = EmpleadoCrearUsuarioStrategy(usuario_service=MagicMock())
     strategy.create_user_for_persona = MagicMock(return_value=fake_user)
-
-    called = {"deleted": False}
-
-    # 👈 Agrega 'self' al método de instancia
-    def _fake_delete(self, _session, _user_id):
-        called["deleted"] = True
-
-    # Parchea el método en la clase correcta
-    monkeypatch.setattr(
-        "osiris.modules.common.usuario.service.UsuarioService.delete",
-        _fake_delete,
-        raising=True,
-    )
 
     svc = EmpleadoService(strategy=strategy)
     svc.repo = MagicMock()
@@ -306,7 +293,7 @@ def test_empleado_create_compensacion_si_falla_repo(monkeypatch):
     with pytest.raises(RuntimeError):
         svc.create(session, payload)
 
-    assert called["deleted"] is True
+    session.rollback.assert_called_once()
 
 
 # --------------------------
