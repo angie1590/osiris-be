@@ -11,8 +11,8 @@ from sqlmodel import SQLModel, Session, create_engine
 from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.facturacion.compras.models import Compra, CuentaPorPagar
-from osiris.modules.facturacion.core_sri.types import (
+from osiris.modules.compras.models import Compra, CuentaPorPagar
+from osiris.modules.sri.core_sri.types import (
     EstadoCompra,
     EstadoCuentaPorCobrar,
     EstadoCuentaPorPagar,
@@ -21,7 +21,7 @@ from osiris.modules.facturacion.core_sri.types import (
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
 )
-from osiris.modules.facturacion.ventas.models import CuentaPorCobrar, Venta
+from osiris.modules.ventas.models import CuentaPorCobrar, Venta
 
 
 def _build_test_engine():

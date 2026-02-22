@@ -1,10 +1,9 @@
 # src/domain/service.py
 from typing import Any, Dict, Generic, Type, TypeVar, Union, Tuple
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select, SQLModel
 from fastapi import HTTPException
-from .repository import BaseRepository
-from osiris.core.errors import NotFoundError
-from osiris.utils.pagination import build_pagination_meta, PaginationMeta
+from osiris.utils.pagination import build_pagination_meta
 
 ModelT = TypeVar("ModelT")
 # Tipos aceptados para declarar FKs en cada service:
@@ -95,6 +94,12 @@ class BaseService(Generic[ModelT]):
         meta = build_pagination_meta(total=total, limit=limit, offset=offset)
         return items, meta
 
+    def _handle_transaction_error(self, session: Session, exc: Exception) -> None:
+        session.rollback()
+        if isinstance(exc, IntegrityError) and hasattr(self.repo, "_raise_integrity"):
+            self.repo._raise_integrity(exc)
+        raise exc
+
     # Hooks de dominio
     def validate_create(self, data: Dict[str, Any], session: Session) -> None: ...
     def validate_update(self, data: Dict[str, Any], session: Session) -> None: ...
@@ -103,25 +108,46 @@ class BaseService(Generic[ModelT]):
     def on_deleted(self, obj: ModelT, session: Session) -> None: ...
 
     # Operaciones
-    def create(self, session: Session, data: Dict[str, Any]) -> ModelT:
-        self.validate_create(data, session)
-        self._check_fk_active_and_exists(session, data)
-        obj = self.repo.create(session, data)
-        self.on_created(obj, session)
-        return obj
+    def create(self, session: Session, data: Dict[str, Any], *, commit: bool = True) -> ModelT:
+        try:
+            self.validate_create(data, session)
+            self._check_fk_active_and_exists(session, data)
+            obj = self.repo.create(session, data)
+            self.on_created(obj, session)
+            if commit:
+                session.commit()
+                session.refresh(obj)
+            return obj
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def get(self, session: Session, item_id: Any):
         return self.repo.get(session, item_id)
 
-    def update(self, session: Session, item_id: Any, data: Any):
-        db_obj = self.repo.get(session, item_id)
-        if not db_obj:
-            return None
-        self._check_fk_active_and_exists(session, data)
-        return self.repo.update(session, db_obj, data)
+    def update(self, session: Session, item_id: Any, data: Any, *, commit: bool = True):
+        try:
+            db_obj = self.repo.get(session, item_id)
+            if not db_obj:
+                return None
+            self._check_fk_active_and_exists(session, data)
+            updated = self.repo.update(session, db_obj, data)
+            self.on_updated(updated, session)
+            if commit:
+                session.commit()
+                session.refresh(updated)
+            return updated
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
-    def delete(self, session: Session, item_id: Any) -> bool | None:
-        db_obj = self.repo.get(session, item_id)
-        if not db_obj:
-            return None
-        return self.repo.delete(session, db_obj)
+    def delete(self, session: Session, item_id: Any, *, commit: bool = True) -> bool | None:
+        try:
+            db_obj = self.repo.get(session, item_id)
+            if not db_obj:
+                return None
+            deleted = self.repo.delete(session, db_obj)
+            self.on_deleted(db_obj, session)
+            if commit:
+                session.commit()
+            return deleted
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)

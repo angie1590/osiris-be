@@ -43,7 +43,7 @@ class AtributoValorNested(BaseOSModel):
 class ImpuestoNested(BaseOSModel):
     nombre: str
     codigo: str
-    porcentaje: float
+    porcentaje: Decimal
 
 
 class BodegaNested(BaseOSModel):

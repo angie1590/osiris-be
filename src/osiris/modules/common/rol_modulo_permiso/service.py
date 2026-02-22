@@ -20,9 +20,11 @@ class RolModuloPermisoService(BaseService):
             select(Modulo, RolModuloPermiso)
             .outerjoin(
                 RolModuloPermiso,
-                (Modulo.id == RolModuloPermiso.modulo_id) & (RolModuloPermiso.rol_id == rol_id) & (RolModuloPermiso.activo == True)
+                (Modulo.id == RolModuloPermiso.modulo_id)
+                & (RolModuloPermiso.rol_id == rol_id)
+                & (RolModuloPermiso.activo.is_(True))
             )
-            .where(Modulo.activo == True)
+            .where(Modulo.activo.is_(True))
             .order_by(Modulo.orden, Modulo.nombre)
         )
 

@@ -2,7 +2,6 @@ import pytest
 from uuid import uuid4
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
-from datetime import datetime
 
 # SUT
 from osiris.modules.common.proveedor_persona.service import ProveedorPersonaService
@@ -264,7 +263,7 @@ def test_proveedor_persona_update_valida_tc_si_llega(monkeypatch):
     svc.repo.get.return_value = current
     svc.repo.update.return_value = current
 
-    persona = _mk_persona()
+    _mk_persona()
     tc_ok = _mk_tc(codigo="03", nombre="Persona Natural")
 
     # En update, si viene tipo_contribuyente_id,

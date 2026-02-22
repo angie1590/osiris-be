@@ -71,19 +71,6 @@ def register_crud_routes(
             raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
         return updated
 
-    # (Opcional) PATCH parcial usando model_update:
-    # @router.patch(f"{base_path}/{{item_id}}", response_model=model_read, tags=tags)  # type: ignore[valid-type]
-    # def patch_item(
-    #     item_id: UUID | str = Path(...),
-    #     payload: model_update = Body(...),  # type: ignore[name-defined,valid-type]
-    #     session: Session = Depends(get_session),
-    # ):
-    #     updated = service.update(session, item_id, payload)
-    #     if updated is None:
-    #         singular = prefix[:-1].capitalize() if prefix.endswith("s") else prefix.capitalize()
-    #         raise HTTPException(status_code=404, detail=f"{singular} {item_id} not found")
-    #     return updated
-
     # -------- DELETE (204 / 404)
     @router.delete(f"{base_path}/{{item_id}}", status_code=status.HTTP_204_NO_CONTENT, tags=tags)
     def delete_item(

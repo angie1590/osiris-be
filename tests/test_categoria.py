@@ -7,7 +7,6 @@ from fastapi import HTTPException
 from osiris.modules.inventario.categoria.service import CategoriaService
 from osiris.modules.inventario.categoria.repository import CategoriaRepository
 from osiris.modules.inventario.categoria.entity import Categoria
-from osiris.modules.inventario.categoria.models import CategoriaCreate, CategoriaUpdate
 
 
 def test_categoria_validate_create_parent_rules():
@@ -53,7 +52,7 @@ def test_categoria_update_cleans_parent_and_prevents_self_ref():
     # Caso: actualizar a es_padre True -> parent_id se mantiene si se proporciona
     service.repo.update.return_value = existing
     data = {"es_padre": True, "parent_id": "22222222-2222-2222-2222-222222222222"}
-    updated = service.update(session, item_id, data)
+    service.update(session, item_id, data)
     # repo.update fue llamado y parent_id se conserva (argumento en posición 2)
     called_data = service.repo.update.call_args[0][2]
     assert called_data.get("parent_id") == "22222222-2222-2222-2222-222222222222"
@@ -73,4 +72,5 @@ def test_categoria_repository_delete_logico():
     assert ok is True
     assert obj.activo is False
     session.add.assert_called_once_with(obj)
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()

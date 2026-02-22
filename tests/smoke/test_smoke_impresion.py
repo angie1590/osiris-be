@@ -14,7 +14,7 @@ from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.usuario.entity import Usuario
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
     EstadoVenta,
@@ -287,7 +287,7 @@ def test_smoke_impresion_ride_ticket_matricial_reimpresion(client, db_session):
     ticket = client.get(f"/v1/impresion/documento/{doc_e_id}/ticket", params={"ancho": "80mm"})
     assert ticket.status_code == 200, ticket.text
 
-    matricial = client.get(f"/v1/impresion/documento/{doc_f_id}/matricial")
+    matricial = client.get(f"/v1/impresion/documento/{doc_f_id}/preimpresa")
     assert matricial.status_code == 200, matricial.text
     assert "padding-top" in matricial.text
 
@@ -310,4 +310,3 @@ def test_smoke_impresion_ride_ticket_matricial_reimpresion(client, db_session):
     ).first()
     assert audit is not None
     assert (audit.estado_nuevo or {}).get("motivo") == "Smoke test"
-

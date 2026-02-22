@@ -170,7 +170,8 @@ def test_sucursal_repository_delete_logico():
     assert ok is True
     assert obj.activo is False
     session.add.assert_called_once_with(obj)
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
     # opcional: garantizar que no refrescamos
     session.refresh.assert_not_called()
 

@@ -36,52 +36,56 @@ class ProductoImpuestoService(BaseService):
         """
         Asigna un impuesto a un producto con todas las validaciones de negocio.
         """
-        # 1. Validar que el producto existe
-        producto = session.get(Producto, producto_id)
-        if not producto or not producto.activo:
-            raise HTTPException(status_code=404, detail="Producto no encontrado o inactivo")
+        try:
+            # 1. Validar que el producto existe
+            producto = session.get(Producto, producto_id)
+            if not producto or not producto.activo:
+                raise HTTPException(status_code=404, detail="Producto no encontrado o inactivo")
 
-        # 2. Validar que el impuesto existe y está activo
-        impuesto = session.get(ImpuestoCatalogo, impuesto_catalogo_id)
-        if not impuesto or not impuesto.activo:
-            raise HTTPException(status_code=404, detail="Impuesto no encontrado o inactivo")
+            # 2. Validar que el impuesto existe y está activo
+            impuesto = session.get(ImpuestoCatalogo, impuesto_catalogo_id)
+            if not impuesto or not impuesto.activo:
+                raise HTTPException(status_code=404, detail="Impuesto no encontrado o inactivo")
 
-        # 3. Validar que el impuesto está vigente
-        if not self.impuesto_repo.es_vigente(impuesto, date.today()):
-            raise HTTPException(
-                status_code=400,
-                detail=f"El impuesto '{impuesto.codigo_sri}' no está vigente actualmente"
+            # 3. Validar que el impuesto está vigente
+            if not self.impuesto_repo.es_vigente(impuesto, date.today()):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"El impuesto '{impuesto.codigo_sri}' no está vigente actualmente"
+                )
+
+            # 4. Validar compatibilidad tipo producto vs aplica_a del impuesto
+            self._validar_compatibilidad_tipo(producto.tipo, impuesto.aplica_a)
+
+            # 5. Validar que no se duplique la asignación exacta (mismo impuesto)
+            self.repo.validar_duplicado(session, producto_id, impuesto_catalogo_id)
+
+            # 6. Si ya existe un impuesto del mismo tipo, eliminarlo primero (actualización)
+            # Esto permite cambiar IVA 0% -> IVA 15%, o actualizar ICE, etc.
+            impuestos_existentes = self.list_by_producto(session, producto_id)
+            for pi in impuestos_existentes:
+                imp_existente = session.get(ImpuestoCatalogo, pi.impuesto_catalogo_id)
+                if imp_existente and imp_existente.tipo_impuesto == impuesto.tipo_impuesto:
+                    # Marcar como inactivo (soft delete)
+                    pi.activo = False
+                    session.add(pi)
+
+            # 7. Crear la nueva asignación
+            producto_impuesto = ProductoImpuesto(
+                producto_id=producto_id,
+                impuesto_catalogo_id=impuesto_catalogo_id,
+                codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
+                codigo_porcentaje_sri=impuesto.codigo_sri,
+                tarifa=self._resolver_tarifa_principal(impuesto),
+                usuario_auditoria=usuario_auditoria
             )
 
-        # 4. Validar compatibilidad tipo producto vs aplica_a del impuesto
-        self._validar_compatibilidad_tipo(producto.tipo, impuesto.aplica_a)
-
-        # 5. Validar que no se duplique la asignación exacta (mismo impuesto)
-        self.repo.validar_duplicado(session, producto_id, impuesto_catalogo_id)
-
-        # 6. Si ya existe un impuesto del mismo tipo, eliminarlo primero (actualización)
-        # Esto permite cambiar IVA 0% -> IVA 15%, o actualizar ICE, etc.
-        impuestos_existentes = self.list_by_producto(session, producto_id)
-        for pi in impuestos_existentes:
-            imp_existente = session.get(ImpuestoCatalogo, pi.impuesto_catalogo_id)
-            if imp_existente and imp_existente.tipo_impuesto == impuesto.tipo_impuesto:
-                # Marcar como inactivo (soft delete)
-                pi.activo = False
-                session.add(pi)
-
-        session.commit()
-
-        # 7. Crear la nueva asignación
-        producto_impuesto = ProductoImpuesto(
-            producto_id=producto_id,
-            impuesto_catalogo_id=impuesto_catalogo_id,
-            codigo_impuesto_sri=impuesto.codigo_tipo_impuesto,
-            codigo_porcentaje_sri=impuesto.codigo_sri,
-            tarifa=self._resolver_tarifa_principal(impuesto),
-            usuario_auditoria=usuario_auditoria
-        )
-
-        return self.repo.create(session, producto_impuesto)
+            creado = self.repo.create(session, producto_impuesto)
+            session.commit()
+            session.refresh(creado)
+            return creado
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def _validar_compatibilidad_tipo(self, tipo_producto: TipoProducto, aplica_a: AplicaA) -> None:
         """
@@ -129,7 +133,12 @@ class ProductoImpuestoService(BaseService):
                 detail="No se puede eliminar el impuesto IVA. El IVA es obligatorio para todos los productos (requerimiento SRI). Para cambiar el IVA, asigne un nuevo IVA que reemplazará automáticamente el anterior."
             )
 
-        return self.repo.delete_by_id(session, producto_impuesto_id)
+        try:
+            deleted = self.repo.delete_by_id(session, producto_impuesto_id)
+            session.commit()
+            return deleted
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def get_impuestos_completos(self, session: Session, producto_id: UUID) -> List[ImpuestoCatalogo]:
         """

@@ -4,8 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import field_validator
-from sqlmodel import SQLModel, Field
-from typing import Optional
+from sqlmodel import Field
 
 from osiris.domain.base_models import BaseOSModel
 

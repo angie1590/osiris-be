@@ -1,0 +1,1550 @@
+The currently activated Python version 3.12.12 is not supported by the project (>=3.10,<3.12).
+Trying to find and use a compatible version.
+Using python3.10 (3.10.19)
+============================= test session starts ==============================
+platform linux -- Python 3.10.19, pytest-8.4.2, pluggy-1.6.0 -- /home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+testpaths: tests
+plugins: asyncio-0.23.8, anyio-4.12.1
+asyncio: mode=strict
+collecting ... collected 69 items / 59 errors
+
+==================================== ERRORS ====================================
+_________________________ ERROR collecting tests/smoke _________________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+/home/jules/.pyenv/versions/3.10.19/lib/python3.10/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1050: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1027: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1006: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:688: in _load_unlocked
+    ???
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+tests/smoke/conftest.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_atributo.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_atributo.py:5: in <module>
+    from osiris.modules.inventario.atributo.repository import AtributoRepository
+src/osiris/modules/inventario/atributo/repository.py:1: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_audit_log.py ___________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_audit_log.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+________________ ERROR collecting tests/test_auditoria_base.py _________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_auditoria_base.py:13: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION, get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+________________ ERROR collecting tests/test_casa_comercial.py _________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_casa_comercial.py:9: in <module>
+    from osiris.modules.inventario.casa_comercial.repository import CasaComercialRepository
+src/osiris/modules/inventario/casa_comercial/repository.py:1: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_categoria.py ___________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_categoria.py:7: in <module>
+    from osiris.modules.inventario.categoria.service import CategoriaService
+src/osiris/modules/inventario/categoria/service.py:11: in <module>
+    from .repository import CategoriaRepository
+src/osiris/modules/inventario/categoria/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_categoria_service.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_categoria_service.py:15: in <module>
+    from osiris.modules.inventario.categoria.service import CategoriaService  # noqa: E402
+src/osiris/modules/inventario/categoria/service.py:11: in <module>
+    from .repository import CategoriaRepository
+src/osiris/modules/inventario/categoria/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________________ ERROR collecting tests/test_cliente.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_cliente.py:10: in <module>
+    from osiris.modules.common.cliente.service import ClienteService
+src/osiris/modules/common/cliente/service.py:9: in <module>
+    from .repository import ClienteRepository
+src/osiris/modules/common/cliente/repository.py:4: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________________ ERROR collecting tests/test_detect_cycle.py __________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_detect_cycle.py:5: in <module>
+    from osiris.modules.inventario.categoria.service import CategoriaService
+src/osiris/modules/inventario/categoria/service.py:11: in <module>
+    from .repository import CategoriaRepository
+src/osiris/modules/inventario/categoria/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_documento_descarga_api.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_documento_descarga_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_empleado.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_empleado.py:12: in <module>
+    from osiris.modules.common.empleado.service import EmpleadoService
+src/osiris/modules/common/empleado/service.py:10: in <module>
+    from .repository import EmpleadoRepository
+src/osiris/modules/common/empleado/repository.py:4: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________________ ERROR collecting tests/test_empresa.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_empresa.py:23: in <module>
+    from osiris.modules.common.empresa.repository import EmpresaRepository
+src/osiris/modules/common/empresa/repository.py:10: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_estado_historial.py ________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_estado_historial.py:25: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.fe_mapper_service import FEMapperService
+src/osiris/modules/sri/facturacion_electronica/services/fe_mapper_service.py:10: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______ ERROR collecting tests/test_facturacion_inventario_orquestacion.py ______
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_facturacion_inventario_orquestacion.py:20: in <module>
+    from osiris.modules.ventas.services.venta_service import VentaService
+src/osiris/modules/ventas/services/venta_service.py:13: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_facturacion_router.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_facturacion_router.py:5: in <module>
+    from osiris.main import app
+src/osiris/main.py:12: in <module>
+    from osiris.core.db import engine
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_fe_mapper_service.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_fe_mapper_service.py:10: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.fe_mapper_service import FEMapperService
+src/osiris/modules/sri/facturacion_electronica/services/fe_mapper_service.py:10: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________ ERROR collecting tests/test_impresion_preimpresa_api.py ____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_impresion_preimpresa_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________ ERROR collecting tests/test_impresion_reimpresion_api.py ___________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_impresion_reimpresion_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_____________ ERROR collecting tests/test_impresion_ride_a4_api.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_impresion_ride_a4_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________ ERROR collecting tests/test_impresion_ticket_termico_api.py __________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_impresion_ticket_termico_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_impuesto_catalogo.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_impuesto_catalogo.py:17: in <module>
+    from osiris.modules.sri.impuesto_catalogo.repository import ImpuestoCatalogoRepository
+src/osiris/modules/sri/impuesto_catalogo/repository.py:9: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_____________ ERROR collecting tests/test_inventario_ajuste_api.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_inventario_ajuste_api.py:9: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________ ERROR collecting tests/test_inventario_valoracion_router.py __________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_inventario_valoracion_router.py:9: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________________ ERROR collecting tests/test_modulo.py _____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_modulo.py:6: in <module>
+    from osiris.modules.common.modulo.service import ModuloService
+src/osiris/modules/common/modulo/service.py:2: in <module>
+    from .repository import ModuloRepository
+src/osiris/modules/common/modulo/repository.py:1: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_orquestador_fe_service.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_orquestador_fe_service.py:29: in <module>
+    from osiris.modules.ventas.services.venta_service import VentaService
+src/osiris/modules/ventas/services/venta_service.py:13: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________________ ERROR collecting tests/test_persona.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_persona.py:16: in <module>
+    from osiris.modules.common.persona.service import PersonaService
+src/osiris/modules/common/persona/service.py:6: in <module>
+    from .repository import PersonaRepository
+src/osiris/modules/common/persona/repository.py:4: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+__________ ERROR collecting tests/test_postgres_driver_integration.py __________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_postgres_driver_integration.py:4: in <module>
+    from osiris.core.db import engine, get_engine
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_producto.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_producto.py:8: in <module>
+    from osiris.modules.inventario.producto.service import ProductoService
+src/osiris/modules/inventario/producto/service.py:11: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+________________ ERROR collecting tests/test_producto_bodega.py ________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_producto_bodega.py:10: in <module>
+    from osiris.modules.inventario.producto_bodega.service import ProductoBodegaService
+src/osiris/modules/inventario/producto_bodega/service.py:11: in <module>
+    from .repository import ProductoBodegaRepository
+src/osiris/modules/inventario/producto_bodega/repository.py:2: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_producto_impuesto.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_producto_impuesto.py:17: in <module>
+    from osiris.modules.inventario.producto_impuesto.repository import ProductoImpuestoRepository
+src/osiris/modules/inventario/producto_impuesto/repository.py:8: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_proveedor_persona.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_proveedor_persona.py:7: in <module>
+    from osiris.modules.common.proveedor_persona.service import ProveedorPersonaService
+src/osiris/modules/common/proveedor_persona/service.py:11: in <module>
+    from .repository import ProveedorPersonaRepository
+src/osiris/modules/common/proveedor_persona/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_proveedor_sociedad.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_proveedor_sociedad.py:12: in <module>
+    from osiris.modules.common.proveedor_sociedad.service import ProveedorSociedadService
+src/osiris/modules/common/proveedor_sociedad/service.py:10: in <module>
+    from .repository import ProveedorSociedadRepository
+src/osiris/modules/common/proveedor_sociedad/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________________ ERROR collecting tests/test_punto_emision.py _________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_punto_emision.py:17: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_reporte_caja_api.py ________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_caja_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_reporte_cartera_api.py ______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_cartera_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_reporte_compras_api.py ______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_compras_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________ ERROR collecting tests/test_reporte_inventario_kardex_api.py _________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_inventario_kardex_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______ ERROR collecting tests/test_reporte_inventario_valoracion_api.py _______
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_inventario_valoracion_api.py:9: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_reporte_monitor_sri_api.py ____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_monitor_sri_api.py:8: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_reporte_tributario_api.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reporte_tributario_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+__________ ERROR collecting tests/test_reportes_multi_sucursal_api.py __________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reportes_multi_sucursal_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________ ERROR collecting tests/test_reportes_rentabilidad_api.py ___________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reportes_rentabilidad_api.py:11: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_reportes_ventas_api.py ______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_reportes_ventas_api.py:10: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_retencion_cxp_flujo.py ______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_retencion_cxp_flujo.py:34: in <module>
+    from osiris.modules.compras.services.retencion_service import RetencionService
+src/osiris/modules/compras/services/retencion_service.py:21: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.fe_mapper_service import FEMapperService
+src/osiris/modules/sri/facturacion_electronica/services/fe_mapper_service.py:10: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_retencion_recibida.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_retencion_recibida.py:13: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_retencion_recibida_cxc.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_retencion_recibida_cxc.py:12: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_retencion_service.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_retencion_service.py:20: in <module>
+    from osiris.modules.compras.services.retencion_service import RetencionService
+src/osiris/modules/compras/services/retencion_service.py:21: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.fe_mapper_service import FEMapperService
+src/osiris/modules/sri/facturacion_electronica/services/fe_mapper_service.py:10: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________________ ERROR collecting tests/test_rol.py ______________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_rol.py:9: in <module>
+    from osiris.modules.common.rol.repository import RolRepository
+src/osiris/modules/common/rol/repository.py:1: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+______________ ERROR collecting tests/test_rol_modulo_permiso.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_rol_modulo_permiso.py:6: in <module>
+    from osiris.modules.common.rol_modulo_permiso.service import RolModuloPermisoService
+src/osiris/modules/common/rol_modulo_permiso/service.py:5: in <module>
+    from .repository import RolModuloPermisoRepository
+src/osiris/modules/common/rol_modulo_permiso/repository.py:1: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_____________ ERROR collecting tests/test_security_access_audit.py _____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_security_access_audit.py:9: in <module>
+    from osiris.core.db import get_session
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_settings.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_settings.py:5: in <module>
+    from osiris.core import settings as core_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_______________ ERROR collecting tests/test_sri_async_service.py _______________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_sri_async_service.py:24: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.sri_async_service import SriAsyncService
+src/osiris/modules/sri/facturacion_electronica/services/sri_async_service.py:12: in <module>
+    from osiris.core.db import engine as default_engine
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+___________________ ERROR collecting tests/test_sucursal.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_sucursal.py:15: in <module>
+    from osiris.modules.common.sucursal.service import SucursalService
+src/osiris/modules/common/sucursal/service.py:10: in <module>
+    from .repository import SucursalRepository
+src/osiris/modules/common/sucursal/repository.py:7: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________________ ERROR collecting tests/test_tipo_cliente.py __________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_tipo_cliente.py:14: in <module>
+    from osiris.modules.common.tipo_cliente.service import TipoClienteService
+src/osiris/modules/common/tipo_cliente/service.py:4: in <module>
+    from .repository import TipoClienteRepository
+src/osiris/modules/common/tipo_cliente/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________________ ERROR collecting tests/test_usuario.py ____________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_usuario.py:10: in <module>
+    from osiris.modules.common.usuario.service import UsuarioService
+src/osiris/modules/common/usuario/service.py:13: in <module>
+    from .repository import UsuarioRepository
+src/osiris/modules/common/usuario/repository.py:3: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________________ ERROR collecting tests/test_venta_core_e6.py _________________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_venta_core_e6.py:16: in <module>
+    from osiris.modules.ventas.services.venta_service import VentaService
+src/osiris/modules/ventas/services/venta_service.py:13: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+__________ ERROR collecting tests/test_venta_emision_orquestacion.py ___________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_venta_emision_orquestacion.py:26: in <module>
+    from osiris.modules.ventas.services.venta_service import VentaService
+src/osiris/modules/ventas/services/venta_service.py:13: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+_________ ERROR collecting tests/test_venta_snapshot_inmutabilidad.py __________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_venta_snapshot_inmutabilidad.py:9: in <module>
+    from osiris.modules.ventas.services.venta_service import VentaService
+src/osiris/modules/ventas/services/venta_service.py:13: in <module>
+    from osiris.modules.common.punto_emision.service import PuntoEmisionService
+src/osiris/modules/common/punto_emision/service.py:13: in <module>
+    from .repository import PuntoEmisionRepository
+src/osiris/modules/common/punto_emision/repository.py:6: in <module>
+    from osiris.domain.repository import BaseRepository
+src/osiris/domain/repository.py:12: in <module>
+    from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+____________ ERROR collecting tests/test_venta_sri_async_service.py ____________
+src/osiris/core/settings.py:148: in load_settings
+    return Settings(**merged_values)
+/home/jules/.cache/pypoetry/virtualenvs/osiris-be-9TtSrW0h-py3.10/lib/python3.10/site-packages/pydantic_settings/main.py:242: in __init__
+    super().__init__(**__pydantic_self__.__class__._settings_build_values(sources, init_kwargs))
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E     Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12 [type=value_error, input_value={'SHELL': '/bin/bash', 'P...OSTGRES_DB': 'postgres'}, input_type=dict]
+E       For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+The above exception was the direct cause of the following exception:
+tests/test_venta_sri_async_service.py:31: in <module>
+    from osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service import VentaSriAsyncService
+src/osiris/modules/sri/facturacion_electronica/services/venta_sri_async_service.py:13: in <module>
+    from osiris.core.db import engine as default_engine
+src/osiris/core/db.py:9: in <module>
+    from osiris.core.settings import get_settings
+src/osiris/core/settings.py:167: in <module>
+    settings = get_settings()
+src/osiris/core/settings.py:164: in get_settings
+    return load_settings()
+src/osiris/core/settings.py:159: in load_settings
+    raise ValueError("\n".join(lines)) from exc
+E   ValueError: Error de configuracion (.env.development):
+E    - : Value error, Archivo no encontrado en `FEEC_P12_PATH`: /tmp/dummy.p12
+=========================== short test summary info ============================
+ERROR tests/smoke - ValueError: Error de configuracion (.env.development):
+ERROR tests/test_atributo.py - ValueError: Error de configuracion (.env.devel...
+ERROR tests/test_audit_log.py - ValueError: Error de configuracion (.env.deve...
+ERROR tests/test_auditoria_base.py - ValueError: Error de configuracion (.env...
+ERROR tests/test_casa_comercial.py - ValueError: Error de configuracion (.env...
+ERROR tests/test_categoria.py - ValueError: Error de configuracion (.env.deve...
+ERROR tests/test_categoria_service.py - ValueError: Error de configuracion (....
+ERROR tests/test_cliente.py - ValueError: Error de configuracion (.env.develo...
+ERROR tests/test_detect_cycle.py - ValueError: Error de configuracion (.env.d...
+ERROR tests/test_documento_descarga_api.py - ValueError: Error de configuraci...
+ERROR tests/test_empleado.py - ValueError: Error de configuracion (.env.devel...
+ERROR tests/test_empresa.py - ValueError: Error de configuracion (.env.develo...
+ERROR tests/test_estado_historial.py - ValueError: Error de configuracion (.e...
+ERROR tests/test_facturacion_inventario_orquestacion.py - ValueError: Error d...
+ERROR tests/test_facturacion_router.py - ValueError: Error de configuracion (...
+ERROR tests/test_fe_mapper_service.py - ValueError: Error de configuracion (....
+ERROR tests/test_impresion_preimpresa_api.py - ValueError: Error de configura...
+ERROR tests/test_impresion_reimpresion_api.py - ValueError: Error de configur...
+ERROR tests/test_impresion_ride_a4_api.py - ValueError: Error de configuracio...
+ERROR tests/test_impresion_ticket_termico_api.py - ValueError: Error de confi...
+ERROR tests/test_impuesto_catalogo.py - ValueError: Error de configuracion (....
+ERROR tests/test_inventario_ajuste_api.py - ValueError: Error de configuracio...
+ERROR tests/test_inventario_valoracion_router.py - ValueError: Error de confi...
+ERROR tests/test_modulo.py - ValueError: Error de configuracion (.env.develop...
+ERROR tests/test_orquestador_fe_service.py - ValueError: Error de configuraci...
+ERROR tests/test_persona.py - ValueError: Error de configuracion (.env.develo...
+ERROR tests/test_postgres_driver_integration.py - ValueError: Error de config...
+ERROR tests/test_producto.py - ValueError: Error de configuracion (.env.devel...
+ERROR tests/test_producto_bodega.py - ValueError: Error de configuracion (.en...
+ERROR tests/test_producto_impuesto.py - ValueError: Error de configuracion (....
+ERROR tests/test_proveedor_persona.py - ValueError: Error de configuracion (....
+ERROR tests/test_proveedor_sociedad.py - ValueError: Error de configuracion (...
+ERROR tests/test_punto_emision.py - ValueError: Error de configuracion (.env....
+ERROR tests/test_reporte_caja_api.py - ValueError: Error de configuracion (.e...
+ERROR tests/test_reporte_cartera_api.py - ValueError: Error de configuracion ...
+ERROR tests/test_reporte_compras_api.py - ValueError: Error de configuracion ...
+ERROR tests/test_reporte_inventario_kardex_api.py - ValueError: Error de conf...
+ERROR tests/test_reporte_inventario_valoracion_api.py - ValueError: Error de ...
+ERROR tests/test_reporte_monitor_sri_api.py - ValueError: Error de configurac...
+ERROR tests/test_reporte_tributario_api.py - ValueError: Error de configuraci...
+ERROR tests/test_reportes_multi_sucursal_api.py - ValueError: Error de config...
+ERROR tests/test_reportes_rentabilidad_api.py - ValueError: Error de configur...
+ERROR tests/test_reportes_ventas_api.py - ValueError: Error de configuracion ...
+ERROR tests/test_retencion_cxp_flujo.py - ValueError: Error de configuracion ...
+ERROR tests/test_retencion_recibida.py - ValueError: Error de configuracion (...
+ERROR tests/test_retencion_recibida_cxc.py - ValueError: Error de configuraci...
+ERROR tests/test_retencion_service.py - ValueError: Error de configuracion (....
+ERROR tests/test_rol.py - ValueError: Error de configuracion (.env.development):
+ERROR tests/test_rol_modulo_permiso.py - ValueError: Error de configuracion (...
+ERROR tests/test_security_access_audit.py - ValueError: Error de configuracio...
+ERROR tests/test_settings.py - ValueError: Error de configuracion (.env.devel...
+ERROR tests/test_sri_async_service.py - ValueError: Error de configuracion (....
+ERROR tests/test_sucursal.py - ValueError: Error de configuracion (.env.devel...
+ERROR tests/test_tipo_cliente.py - ValueError: Error de configuracion (.env.d...
+ERROR tests/test_usuario.py - ValueError: Error de configuracion (.env.develo...
+ERROR tests/test_venta_core_e6.py - ValueError: Error de configuracion (.env....
+ERROR tests/test_venta_emision_orquestacion.py - ValueError: Error de configu...
+ERROR tests/test_venta_snapshot_inmutabilidad.py - ValueError: Error de confi...
+ERROR tests/test_venta_sri_async_service.py - ValueError: Error de configurac...
+!!!!!!!!!!!!!!!!!!! Interrupted: 59 errors during collection !!!!!!!!!!!!!!!!!!!
+============================== 59 errors in 6.02s ==============================

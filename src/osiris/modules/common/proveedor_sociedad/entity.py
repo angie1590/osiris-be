@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from uuid import UUID, uuid4
+from uuid import UUID
 from sqlalchemy import Column, ForeignKey
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 

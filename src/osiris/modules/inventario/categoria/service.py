@@ -57,7 +57,7 @@ class CategoriaService(BaseService):
         # Buscar hijos del nodo actual
         stmt = select(Categoria).where(
             Categoria.parent_id == current_id,
-            Categoria.activo == True,
+            Categoria.activo.is_(True),
         )
         children = session.exec(stmt).all()
 
@@ -74,39 +74,45 @@ class CategoriaService(BaseService):
         - si se marca es_padre=False se exige que exista parent_id (en data o en DB).
         - evita self-referencia y ciclos en la jerarquía
         """
-        data = self._ensure_dict(data)
-        db_obj = self.repo.get(session, item_id)
-        if not db_obj:
-            return None
+        try:
+            data = self._ensure_dict(data)
+            db_obj = self.repo.get(session, item_id)
+            if not db_obj:
+                return None
 
-        # Evitar que parent_id apunte a sí mismo
-        if data.get("parent_id") and data.get("parent_id") == item_id:
-            raise HTTPException(status_code=400, detail="parent_id no puede referenciar al mismo registro")
+            # Evitar que parent_id apunte a sí mismo
+            if data.get("parent_id") and data.get("parent_id") == item_id:
+                raise HTTPException(status_code=400, detail="parent_id no puede referenciar al mismo registro")
 
-        # Detectar ciclos si se está cambiando el parent_id (cuando se proporciona uno nuevo)
-        new_parent_id = data.get("parent_id")
-        if new_parent_id and new_parent_id != getattr(db_obj, "parent_id", None):
-            if self._detect_cycle(session, item_id, new_parent_id):
-                # Obtener nombres para mejorar el detalle del error (si están disponibles)
-                try:
-                    parent_obj = session.get(Categoria, new_parent_id)
-                except Exception:
-                    parent_obj = None
+            # Detectar ciclos si se está cambiando el parent_id (cuando se proporciona uno nuevo)
+            new_parent_id = data.get("parent_id")
+            if new_parent_id and new_parent_id != getattr(db_obj, "parent_id", None):
+                if self._detect_cycle(session, item_id, new_parent_id):
+                    # Obtener nombres para mejorar el detalle del error (si están disponibles)
+                    try:
+                        parent_obj = session.get(Categoria, new_parent_id)
+                    except Exception:
+                        parent_obj = None
 
-                parent_nombre = getattr(parent_obj, "nombre", str(new_parent_id))
-                item_nombre = getattr(db_obj, "nombre", str(item_id))
+                    parent_nombre = getattr(parent_obj, "nombre", str(new_parent_id))
+                    item_nombre = getattr(db_obj, "nombre", str(item_id))
 
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"La actualización crearía un ciclo en la jerarquía: intentar establecer "
-                        f"parent '{parent_nombre}' (id={new_parent_id}) como padre de "
-                        f"'{item_nombre}' (id={item_id}) formaría un bucle"
-                    ),
-                )
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"La actualización crearía un ciclo en la jerarquía: intentar establecer "
+                            f"parent '{parent_nombre}' (id={new_parent_id}) como padre de "
+                            f"'{item_nombre}' (id={item_id}) formaría un bucle"
+                        ),
+                    )
 
-        # Validar FKs si vienen en data
-        if "parent_id" in data:
-            self._check_fk_active_and_exists(session, data)
+            # Validar FKs si vienen en data
+            if "parent_id" in data:
+                self._check_fk_active_and_exists(session, data)
 
-        return self.repo.update(session, db_obj, data)
+            updated = self.repo.update(session, db_obj, data)
+            session.commit()
+            session.refresh(updated)
+            return updated
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)

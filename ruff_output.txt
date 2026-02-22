@@ -1,0 +1,4 @@
+The currently activated Python version 3.12.12 is not supported by the project (>=3.10,<3.12).
+Trying to find and use a compatible version.
+Using python3.10 (3.10.19)
+All checks passed!

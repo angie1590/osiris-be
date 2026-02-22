@@ -14,14 +14,14 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     EstadoVenta,
     FormaPagoSRI,
     TipoIdentificacionSRI,
     Venta,
     VentaDetalle,
 )
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     MovimientoInventario,
     MovimientoInventarioDetalle,

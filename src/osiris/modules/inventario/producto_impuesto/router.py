@@ -7,7 +7,6 @@ from uuid import UUID
 
 from osiris.core.db import get_session
 from osiris.modules.inventario.producto_impuesto.models import (
-    ProductoImpuestoCreate,
     ProductoImpuestoRead,
 )
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
