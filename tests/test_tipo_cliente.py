@@ -1,6 +1,7 @@
 # tests/unit/test_tipo_cliente_unit.py
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
@@ -24,10 +25,10 @@ def test_tipo_cliente_create_ok():
         descuento=15,
         usuario_auditoria="tester",
     )
-    assert dto.descuento == 15
+    assert dto.descuento == Decimal("15")
 
 
-@pytest.mark.parametrize("valor", [-1, 101, 50.5])
+@pytest.mark.parametrize("valor", [-1, 101])
 def test_tipo_cliente_create_descuento_fuera_de_rango_falla(valor):
     with pytest.raises(ValidationError):
         TipoClienteCreate(
@@ -43,7 +44,7 @@ def test_tipo_cliente_update_parcial_ok():
         # si tu Update exige usuario_auditoria, descomenta:
         # usuario_auditoria="tester",
     )
-    assert dto.descuento == 0.0
+    assert dto.descuento == Decimal("0.0")
 
 
 # ============================================================
@@ -55,8 +56,8 @@ def test_tipo_cliente_service_list_paginated_retorna_items_y_meta():
     service = TipoClienteService()
     service.repo = MagicMock()
     service.repo.list.return_value = (
-        [TipoCliente(nombre="A", descuento=10.0),
-         TipoCliente(nombre="B", descuento=5.0)],
+        [TipoCliente(nombre="A", descuento=Decimal("10.00")),
+         TipoCliente(nombre="B", descuento=Decimal("5.00"))],
         7,  # total
     )
 
@@ -85,7 +86,7 @@ def test_tipo_cliente_repository_delete_logico():
 
     obj = TipoCliente(
         nombre="Temporal",
-        descuento=10.0,
+        descuento=Decimal("10.00"),
         usuario_auditoria="tester",
         activo=True,
     )

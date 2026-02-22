@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Iterable, Optional
 from uuid import UUID
 
@@ -301,12 +302,17 @@ class ProductoService(BaseService):
             impuesto_service = ProductoImpuestoService()
             impuestos_raw = impuesto_service.get_impuestos_completos(session, producto_id)
             for imp in impuestos_raw:
-                porcentaje_val = 0.0
+                porcentaje_val = Decimal("0.00")
                 try:
                     # IVA usa porcentaje_iva, ICE usa tarifa_ad_valorem
-                    porcentaje_val = float(imp.porcentaje_iva or imp.tarifa_ad_valorem or 0)
+                    raw_porcentaje = imp.porcentaje_iva or imp.tarifa_ad_valorem or Decimal("0.00")
+                    porcentaje_val = (
+                        raw_porcentaje
+                        if isinstance(raw_porcentaje, Decimal)
+                        else Decimal(str(raw_porcentaje))
+                    )
                 except Exception:
-                    porcentaje_val = 0.0
+                    porcentaje_val = Decimal("0.00")
                 impuestos.append({
                     "nombre": imp.descripcion,
                     "codigo": imp.codigo_sri,
