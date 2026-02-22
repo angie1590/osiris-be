@@ -18,8 +18,11 @@ from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.persona.entity import Persona
 from osiris.modules.common.punto_emision.entity import PuntoEmision, PuntoEmisionSecuencial
+from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.sucursal.entity import Sucursal
+from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.facturacion.core_sri.models import (
     CuentaPorCobrar,
     DocumentoElectronico,
@@ -59,6 +62,9 @@ def test_engine():
         tables=[
             TipoContribuyente.__table__,
             AuditLog.__table__,
+            Persona.__table__,
+            Rol.__table__,
+            Usuario.__table__,
             Empresa.__table__,
             Sucursal.__table__,
             PuntoEmision.__table__,

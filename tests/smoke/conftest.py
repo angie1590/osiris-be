@@ -16,13 +16,18 @@ from osiris.modules.common.persona.entity import Persona
 from osiris.modules.common.punto_emision.entity import PuntoEmision, PuntoEmisionSecuencial
 from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
+from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.sucursal.entity import Sucursal
+from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.facturacion.core_sri.models import (
     Compra,
     CompraDetalle,
     CompraDetalleImpuesto,
     CuentaPorCobrar,
     CuentaPorPagar,
+    DocumentoElectronico,
+    DocumentoElectronicoHistorial,
+    DocumentoSriCola,
     PagoCxC,
     PagoCxP,
     RetencionRecibida,
@@ -85,6 +90,8 @@ def test_engine():
         ProductoImpuesto.__table__,
         ProductoBodega.__table__,
         Persona.__table__,
+        Rol.__table__,
+        Usuario.__table__,
         ProveedorPersona.__table__,
         ProveedorSociedad.__table__,
         Atributo.__table__,
@@ -104,6 +111,9 @@ def test_engine():
         PagoCxC.__table__,
         RetencionRecibida.__table__,
         RetencionRecibidaDetalle.__table__,
+        DocumentoElectronico.__table__,
+        DocumentoElectronicoHistorial.__table__,
+        DocumentoSriCola.__table__,
     ]
     _restore_metadata_tables(required_tables)
     SQLModel.metadata.create_all(engine, tables=required_tables)
