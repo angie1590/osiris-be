@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
 from pydantic import BaseModel
 
 # Repositorio/Servicio reales (no tocan BD porque mockeamos Session / repo)

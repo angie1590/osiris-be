@@ -8,14 +8,12 @@ from sqlmodel import Session, select
 from osiris.core.errors import NotFoundError
 from osiris.domain.service import BaseService
 from osiris.modules.inventario.categoria.entity import Categoria  # existente
-from osiris.modules.inventario.producto.entity import TipoProducto
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from fastapi import HTTPException
 from .repository import ProductoRepository
 from .entity import (
-    Producto,
     ProductoCategoria,
     ProductoProveedorPersona,
     ProductoProveedorSociedad,
@@ -158,7 +156,7 @@ class ProductoService(BaseService):
         # asociaciones
         if categoria_ids is not None:
             self.repo.set_categorias(session, item_id, categoria_ids)
-        usuario_auditoria = _val(data, "usuario_auditoria")
+        _val(data, "usuario_auditoria")
         return prod
 
     def get(self, session: Session, item_id: UUID):

@@ -65,7 +65,7 @@ def test_load_settings_fails_fast_with_clear_message_when_env_var_is_missing(
 
     env_file = tmp_path / ".env.e0_missing"
     lines = [
-        f"ENVIRONMENT=e0_missing",
+        "ENVIRONMENT=e0_missing",
         "POSTGRES_USER=postgres",
         "POSTGRES_PASSWORD=postgres",
         "POSTGRES_DB=osiris",

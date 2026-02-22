@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock
-from uuid import uuid4
 
 from osiris.modules.inventario.atributo.repository import AtributoRepository
 from osiris.modules.inventario.atributo.entity import Atributo, TipoDato

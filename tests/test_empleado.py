@@ -1,8 +1,7 @@
 # tests/test_empleado.py
 from __future__ import annotations
 
-import os
-from datetime import date, timedelta
+from datetime import date
 from uuid import uuid4
 from unittest.mock import MagicMock
 
@@ -18,7 +17,6 @@ from osiris.modules.common.empleado.models import (
 )
 from osiris.modules.common.empleado.entity import Empleado
 from osiris.modules.common.empleado.strategy import EmpleadoCrearUsuarioStrategy
-from osiris.modules.common.usuario.service import UsuarioService
 
 
 # --------------------------
@@ -349,8 +347,6 @@ def test_empleado_create_valida_empresa_existe(monkeypatch):
     svc = EmpleadoService(strategy=strategy)
 
     # Mock para que BaseService.create llame _validate_fks y falle en empresa_id
-    from osiris.modules.common.empresa.entity import Empresa
-    from osiris.modules.common.persona.entity import Persona
 
     def mock_exec(stmt):
         # Simular que Persona existe pero Empresa no

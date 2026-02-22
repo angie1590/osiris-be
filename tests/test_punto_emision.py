@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.common.punto_emision.models import PuntoEmisionCreate, PuntoEmisionUpdate
+from osiris.modules.common.punto_emision.models import PuntoEmisionCreate
 from osiris.modules.common.punto_emision.entity import (
     PuntoEmision,
     PuntoEmisionSecuencial,
@@ -319,7 +319,7 @@ def test_punto_emision_service_ajuste_manual_rechaza_sin_permiso_especifico():
         activo=True,
     )
     session.get.return_value = pe
-    seq = PuntoEmisionSecuencial(
+    PuntoEmisionSecuencial(
         punto_emision_id=pe.id,
         tipo_documento=TipoDocumentoSRI.FACTURA,
         secuencial_actual=10,

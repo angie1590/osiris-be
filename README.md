@@ -32,14 +32,15 @@ osiris-be/
 │       │   ├── repository.py
 │       │   ├── service.py
 │       │   └── router.py
-│       ├── modules/         # Módulos de dominio (common, aux, inventario)
+│       ├── modules/         # Módulos de dominio
 │       │   ├── common/      # Entidades comunes (empresa, persona, cliente, etc.)
-│       │   ├── aux/         # Catálogos auxiliares (impuestos, tipo_contribuyente)
-│       │   └── inventario/  # Módulo de inventario (producto, categoría, etc.)
+│       │   ├── inventario/  # Catálogo/maestros de inventario
+│       │   ├── sri/         # Catálogos tributarios SRI
+│       │   └── facturacion/ # Ventas, compras, FE, impresión, reportes
 │       ├── utils/           # Utilidades (validaciones, paginación)
 │       └── main.py          # Punto de entrada FastAPI
 ├── tests/                   # Pruebas unitarias y smoke tests
-│   ├── smoke/              # Pruebas de integración
+│   ├── smoke/              # Pruebas smoke de integración
 │   │   ├── test_all_endpoints.py
 │   │   ├── test_crud_smoke.py
 │   │   ├── test_producto_smoke.py
@@ -107,9 +108,9 @@ make db-makemigration   # Crea nueva migración autogenerada (requiere mensaje="
 make db-recreate        # DROP/CREATE DB + alembic upgrade (no toca migrations)
 
 # Testing
-make test               # Ejecuta pruebas unitarias (169 tests)
-make smoke              # Ejecuta smoke tests completos (requiere sistema levantado)
-make smoke-ci           # Ejecuta smoke tests seguros para CI (solo GET)
+make test               # Ejecuta la suite completa (incluye smoke live, sin skips)
+make smoke              # Ejecuta smoke tests (tests/smoke)
+make smoke-ci           # Ejecuta smoke tests seguros para CI (solo listados)
 
 # Utilidades
 make lint               # Ejecuta linters (ruff + mypy)
@@ -121,7 +122,18 @@ make cleanup-test-data  # Limpia datos de prueba
 make validate           # Valida configuración del entorno (multiplataforma)
 ```
 
-Nota: en instalaciones modernas de Docker el comando es el plugin `docker compose` (espacio). El `Makefile` ya usa `docker compose --env-file ...`, por lo que los objetivos `make build`/`make up` funcionarán con la CLI moderna. Si tu sistema aún requiere el binario legacy `docker-compose`, instala `docker-compose` o crea un alias local.
+Nota: en instalaciones modernas de Docker el comando es el plugin `docker compose` (espacio). El `Makefile` ya usa `docker compose --env-file ...`, por lo que los objetivos `make build`/`make run` funcionarán con la CLI moderna. Si tu sistema aún requiere el binario legacy `docker-compose`, instala `docker-compose` o crea un alias local.
+
+### ✅ Secuencia recomendada para dejar todo en verde
+
+```bash
+make validate
+make build
+make run
+make db-upgrade
+make test
+make stop
+```
 
 ### 🧯 Reseteo seguro de base de datos
 
@@ -339,7 +351,7 @@ El sistema incluye el catálogo oficial de impuestos del SRI (Servicio de Rentas
 - `descripcion`: Descripción del impuesto
 - **Restricción unique**: Combinación `(codigo_sri, descripcion)` permite códigos ICE repetidos con distintas descripciones
 
-### Endpoint: `GET /api/impuestos-catalogo`
+### Endpoint: `GET /api/impuestos/catalogo`
 
 - **Paginación**: `limit` (int) y `offset` (int)
 - **Filtro por tipo**: `tipo_impuesto` opcional (`IVA`, `ICE`, `IRBPNR`)
@@ -463,14 +475,14 @@ xml_firmado = ManejadorXML.firmar_xml(
 
 ## ✅ Pruebas
 
-El proyecto mantiene **169 tests unitarios** pasando. Se dividen en dos categorías:
+El repositorio mantiene pruebas unitarias/integración y smoke tests. Se dividen en dos categorías:
 
 ### Pruebas Unitarias (tests/)
 
-Validan lógica de negocio aisladamente con mocks:
+Incluyen validaciones de lógica, servicios y rutas con fixtures de base de datos:
 
 ```bash
-make test  # Ejecuta pytest con 169 tests
+make test
 ```
 
 **Cobertura:**
@@ -479,17 +491,17 @@ make test  # Ejecuta pytest con 169 tests
 - Repositorios (validación de duplicados, catálogo de impuestos)
 - Utilidades (paginación, jerarquía de categorías)
 
-✅ No requieren base de datos real (usa mocks).
+✅ `make test` corre la suite completa en contenedor con smoke live habilitado (sin skips).
 
 ### Smoke Tests (tests/smoke/)
 
 Validan integración completa contra sistema levantado:
 
 ```bash
-# Smoke tests completos (POST/PUT/DELETE)
+# Smoke tests (incluye flujos E2E y validaciones de API)
 make smoke
 
-# Solo pruebas seguras para CI (GET)
+# Solo pruebas seguras para CI (listados)
 make smoke-ci
 ```
 
@@ -505,6 +517,7 @@ make smoke-ci
 - Base de datos migrada (`make db-upgrade`)
 - `.env.development` configurado
 - Catálogo de impuestos cargado (84 registros SRI)
+- Para ejecutar smoke "live" manualmente: `RUN_LIVE_SMOKE=true make smoke`
 
 ---
 

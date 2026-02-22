@@ -3,7 +3,7 @@ from typing import Optional, Annotated
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, constr
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 Nombre = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=50)]
 Direccion = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=100)]

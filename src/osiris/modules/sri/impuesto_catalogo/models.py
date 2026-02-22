@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
-from pydantic import field_validator, model_validator
+from pydantic import model_validator
 
 from osiris.domain.base_models import BaseOSModel
 from osiris.modules.sri.impuesto_catalogo.entity import (

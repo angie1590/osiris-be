@@ -89,7 +89,7 @@ def test_producto_con_multiples_proveedores():
         }
         r = client.post(f"{BASE}/proveedores-persona", json=prov_persona1)
         assert r.status_code == 201, f"Failed to create proveedor persona 1: {r.text}"
-        prov_persona1_id = r.json()["id"]
+        r.json()["id"]
 
         prov_persona2 = {
             "persona_id": persona2_id,
@@ -126,14 +126,14 @@ def test_producto_con_multiples_proveedores():
         }
         r = client.post(f"{BASE}/proveedores-sociedad", json=prov_soc1)
         if r.status_code == 201:
-            prov_soc1_id = r.json()["id"]
+            r.json()["id"]
         elif r.status_code in (400, 409):
             # Si ya existe, intentar obtenerlo por RUC
             r_get = client.get(f"{BASE}/proveedores-sociedad")
             proveedores = r_get.json().get("items", [])
             prov_soc1_obj = next((p for p in proveedores if p.get("ruc") == "0190363902001"), None)
             if prov_soc1_obj:
-                prov_soc1_id = prov_soc1_obj["id"]
+                prov_soc1_obj["id"]
             else:
                 # Si no existe, el error era por otra razón
                 assert False, f"POST failed with {r.status_code}: {r.text}"
@@ -154,10 +154,10 @@ def test_producto_con_multiples_proveedores():
         }
         r = client.post(f"{BASE}/proveedores-sociedad", json=prov_soc2)
         if r.status_code == 201:
-            prov_soc2_id = r.json()["id"]
+            r.json()["id"]
         elif r.status_code in (400, 409):
             # Si ya existe por RUC duplicado, reutilizar el primero
-            prov_soc2_id = prov_soc1_id  # Simplemente reutilizamos el mismo proveedor
+            pass  # Simplemente reutilizamos el mismo proveedor
         else:
             assert False, f"Failed to create proveedor sociedad 2: {r.status_code} - {r.text}"
 

@@ -82,7 +82,7 @@ def test_producto_service_update_valida_hoja():
 
     # Caso válido: hoja
     session.exec.return_value = _mock_exec_with_child_exists(False)
-    out = service.update(session, db_obj.id, {"categoria_ids": [uuid4()]})
+    service.update(session, db_obj.id, {"categoria_ids": [uuid4()]})
     repo.set_categorias.assert_called()
 
 
@@ -106,7 +106,7 @@ def test_producto_cantidad_es_readonly_en_create():
     }
 
     # El servicio debe crear con cantidad=0 (default)
-    out = service.create(session, data)
+    service.create(session, data)
 
     # Verificar que repo.create fue llamado
     repo.create.assert_called_once()

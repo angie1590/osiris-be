@@ -7,7 +7,6 @@ from typing import Annotated, Optional
 from uuid import UUID
 
 from pydantic import Field as PydField, condecimal, model_validator
-from sqlmodel import Field
 from osiris.domain.base_models import BaseOSModel
 
 SalarioType = Annotated[condecimal(max_digits=10, decimal_places=2), "Salario decimal"]

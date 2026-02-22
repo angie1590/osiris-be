@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from uuid import UUID
 from decimal import Decimal
-from sqlmodel import Field, Relationship, Column, Numeric
+from sqlmodel import Field, Column, Numeric
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 

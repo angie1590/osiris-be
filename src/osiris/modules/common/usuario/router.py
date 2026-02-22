@@ -1,6 +1,6 @@
 # src/osiris/modules/common/usuario/router.py
 from typing import List
-from fastapi import APIRouter, Depends, Path, Body, HTTPException, status
+from fastapi import APIRouter, Depends, Path, Body, HTTPException
 from sqlmodel import Session
 from uuid import UUID
 
@@ -15,7 +15,6 @@ from .models import (
     UsuarioVerifyPasswordRequest,
 )
 from .service import UsuarioService
-from .repository import UsuarioRepository
 from osiris.modules.common.rol_modulo_permiso.service import RolModuloPermisoService
 from osiris.modules.common.rol_modulo_permiso.models import ModuloPermisoRead
 

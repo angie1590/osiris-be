@@ -57,7 +57,7 @@ class CategoriaService(BaseService):
         # Buscar hijos del nodo actual
         stmt = select(Categoria).where(
             Categoria.parent_id == current_id,
-            Categoria.activo == True,
+            Categoria.activo.is_(True),
         )
         children = session.exec(stmt).all()
 

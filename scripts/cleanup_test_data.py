@@ -34,7 +34,7 @@ def cleanup_test_data():
             FROM tbl_producto
         """))
         before = result.fetchone()
-        print(f"📊 Estado ANTES:")
+        print("📊 Estado ANTES:")
         print(f"   - Productos test: {before[0]}")
         print(f"   - Productos seed: {before[1]}")
         print(f"   - Total: {before[2]}\n")
@@ -280,7 +280,7 @@ def cleanup_test_data():
         """))
         after = result.fetchone()
 
-        print(f"\n📊 Estado DESPUÉS:")
+        print("\n📊 Estado DESPUÉS:")
         print(f"   - Productos test: {after[0]}")
         print(f"   - Productos seed: {after[1]}")
         print(f"   - Total: {after[2]}")

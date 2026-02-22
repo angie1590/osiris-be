@@ -344,7 +344,6 @@ class VentaSriAsyncService:
         )
         session.add(tarea)
 
-        estado_anterior = venta.estado_sri
         venta.estado_sri = EstadoSriDocumento.ENVIADO
         venta.sri_ultimo_error = None
         venta.usuario_auditoria = usuario_id

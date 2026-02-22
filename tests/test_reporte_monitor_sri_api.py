@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool

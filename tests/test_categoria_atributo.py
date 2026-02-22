@@ -6,7 +6,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
 
 from osiris.modules.inventario.categoria_atributo.service import CategoriaAtributoService
 from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
@@ -47,7 +46,7 @@ def test_categoria_atributo_service_create_ok():
 
     session.refresh.side_effect = mock_refresh
 
-    result = service.create(session, dto, usuario_auditoria="test_user")
+    service.create(session, dto, usuario_auditoria="test_user")
 
     session.add.assert_called_once()
     session.commit.assert_called_once()

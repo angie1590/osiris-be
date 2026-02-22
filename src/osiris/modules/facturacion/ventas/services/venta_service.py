@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from osiris.modules.facturacion.core_sri.services.template_method import TemplateMethodService
-from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
+from osiris.modules.common.empresa.entity import RegimenTributario
 from osiris.modules.common.punto_emision.entity import PuntoEmision, TipoDocumentoSRI
 from osiris.modules.common.punto_emision.service import PuntoEmisionService
 from osiris.modules.common.sucursal.entity import Sucursal

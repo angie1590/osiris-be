@@ -10,7 +10,6 @@ from sqlmodel import SQLModel
 from osiris.core.settings import get_settings
 
 # IMPORTA tus modelos para que Alembic detecte las tablas
-from osiris.modules.sri.tipo_contribuyente import entity as tipo_contribuyente_entity
 from osiris.modules.sri.impuesto_catalogo import entity as impuesto_catalogo_entity  # noqa: F401
 from osiris.modules.common.rol import entity as rol_entity  # noqa: F401
 from osiris.modules.common.audit_log import entity as audit_log_entity  # noqa: F401
