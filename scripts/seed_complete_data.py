@@ -136,13 +136,14 @@ def crear_sucursales(session: Session, sucursales_data: list, empresa_id: UUID) 
 
 def crear_puntos_emision(session: Session, puntos_data: list, empresa_id: UUID, sucursales_map: dict):
     """Crea los puntos de emisión."""
+    _ = empresa_id
     for punto_data in puntos_data:
-        sucursal_id = None
-        if punto_data["sucursal"]:
-            sucursal_id = sucursales_map.get(punto_data["sucursal"])
+        sucursal_codigo = punto_data.get("sucursal") or "001"
+        sucursal_id = sucursales_map.get(sucursal_codigo)
+        if sucursal_id is None:
+            raise ValueError(f"Sucursal '{sucursal_codigo}' no encontrada para punto de emisión {punto_data['codigo']}.")
 
         stmt = select(PuntoEmision).where(
-            PuntoEmision.empresa_id == empresa_id,
             PuntoEmision.codigo == punto_data["codigo"],
             PuntoEmision.sucursal_id == sucursal_id
         )
@@ -152,7 +153,6 @@ def crear_puntos_emision(session: Session, puntos_data: list, empresa_id: UUID, 
             punto = PuntoEmision(
                 codigo=punto_data["codigo"],
                 descripcion=punto_data["descripcion"],
-                empresa_id=empresa_id,
                 sucursal_id=sucursal_id,
                 usuario_auditoria=AUDIT_USER
             )

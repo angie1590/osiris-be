@@ -8,6 +8,7 @@ from sqlmodel import Session
 
 from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
 from osiris.modules.common.punto_emision.entity import PuntoEmision
+from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.facturacion.core_sri.models import TipoEmisionVenta
 from osiris.modules.facturacion.core_sri.all_schemas import VentaCreate, q2
 
@@ -49,7 +50,10 @@ class EmisionRimpeStrategy:
             punto = session.get(PuntoEmision, payload.punto_emision_id)
             if not punto or not punto.activo:
                 raise HTTPException(status_code=404, detail="Punto de emisión no encontrado o inactivo.")
-            empresa_id = punto.empresa_id
+            sucursal = session.get(Sucursal, punto.sucursal_id)
+            if not sucursal or not sucursal.activo:
+                raise HTTPException(status_code=404, detail="Sucursal del punto de emisión no encontrada o inactiva.")
+            empresa_id = sucursal.empresa_id
 
         if empresa_id is not None:
             empresa = session.get(Empresa, empresa_id)

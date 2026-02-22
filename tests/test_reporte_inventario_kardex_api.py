@@ -70,6 +70,7 @@ def _seed_contexto(session: Session):
         nombre="Sucursal Kardex",
         direccion="Av. 1",
         telefono="022000000",
+        es_matriz=True,
         empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,

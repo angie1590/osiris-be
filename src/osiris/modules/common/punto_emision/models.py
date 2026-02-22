@@ -13,8 +13,7 @@ class PuntoEmisionBase(BaseModel):
     descripcion: str
     secuencial_actual: int = Field(1, ge=1)
     usuario_auditoria: str
-    empresa_id: UUID
-    sucursal_id: Optional[UUID] = None
+    sucursal_id: UUID
 
 class PuntoEmisionCreate(PuntoEmisionBase):
     pass

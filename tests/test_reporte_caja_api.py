@@ -71,6 +71,7 @@ def _seed_empresa(session: Session):
         nombre="Sucursal Caja",
         direccion="Av. Caja 123",
         telefono="022111333",
+        es_matriz=True,
         empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,
@@ -83,7 +84,6 @@ def _seed_empresa(session: Session):
             descripcion="Punto Caja",
             secuencial_actual=1,
             sucursal_id=sucursal.id,
-            empresa_id=empresa.id,
             usuario_auditoria="seed",
             activo=True,
         )
