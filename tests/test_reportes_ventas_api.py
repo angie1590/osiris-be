@@ -77,6 +77,7 @@ def _seed_contexto(session: Session):
         nombre="Sucursal Reportes",
         direccion="Av. 1",
         telefono="022000000",
+        es_matriz=True,
         empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,
@@ -89,7 +90,6 @@ def _seed_contexto(session: Session):
         descripcion="Punto de emision reportes",
         secuencial_actual=1,
         sucursal_id=sucursal.id,
-        empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,
     )
@@ -143,11 +143,12 @@ def _crear_venta(
     subtotal_12: Decimal,
     monto_iva: Decimal,
     total: Decimal,
+    fecha_emision: date = date(2026, 2, 21),
 ):
     venta = Venta(
         empresa_id=empresa_id,
         punto_emision_id=punto_emision_id,
-        fecha_emision=date(2026, 2, 21),
+        fecha_emision=fecha_emision,
         tipo_identificacion_comprador=TipoIdentificacionSRI.RUC,
         identificacion_comprador="1790012345001",
         forma_pago=FormaPagoSRI.EFECTIVO,
@@ -236,6 +237,152 @@ def test_reporte_ventas_excluye_anuladas():
         assert Decimal(str(data["monto_iva"])) == Decimal("15.00")
         assert Decimal(str(data["total"])) == Decimal("165.00")
         assert int(data["total_ventas"]) == 1
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_reporte_tendencias_agrupacion():
+    engine = _build_test_engine()
+    with Session(engine) as session:
+        empresa_id, punto_emision_id, producto_id = _seed_contexto(session)
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.EMITIDA,
+            cantidad=Decimal("1.0000"),
+            precio_unitario=Decimal("30.00"),
+            subtotal_0=Decimal("30.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("30.00"),
+            fecha_emision=date(2026, 2, 20),
+        )
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.EMITIDA,
+            cantidad=Decimal("2.0000"),
+            precio_unitario=Decimal("50.00"),
+            subtotal_0=Decimal("100.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("100.00"),
+            fecha_emision=date(2026, 2, 21),
+        )
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.ANULADA,
+            cantidad=Decimal("1.0000"),
+            precio_unitario=Decimal("999.00"),
+            subtotal_0=Decimal("999.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("999.00"),
+            fecha_emision=date(2026, 2, 21),
+        )
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/v1/reportes/ventas/tendencias",
+                params={
+                    "fecha_inicio": "2026-02-01",
+                    "fecha_fin": "2026-02-28",
+                    "agrupacion": "DIARIA",
+                },
+            )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert [item["periodo"] for item in data] == ["2026-02-20", "2026-02-21"]
+        assert Decimal(str(data[0]["total"])) == Decimal("30.00")
+        assert int(data[0]["total_ventas"]) == 1
+        assert Decimal(str(data[1]["total"])) == Decimal("100.00")
+        assert int(data[1]["total_ventas"]) == 1
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_reporte_tendencias_agrupacion_anual():
+    engine = _build_test_engine()
+    with Session(engine) as session:
+        empresa_id, punto_emision_id, producto_id = _seed_contexto(session)
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.EMITIDA,
+            cantidad=Decimal("1.0000"),
+            precio_unitario=Decimal("40.00"),
+            subtotal_0=Decimal("40.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("40.00"),
+            fecha_emision=date(2025, 12, 15),
+        )
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.EMITIDA,
+            cantidad=Decimal("1.0000"),
+            precio_unitario=Decimal("70.00"),
+            subtotal_0=Decimal("70.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("70.00"),
+            fecha_emision=date(2026, 1, 10),
+        )
+        _crear_venta(
+            session,
+            empresa_id=empresa_id,
+            punto_emision_id=punto_emision_id,
+            producto_id=producto_id,
+            estado=EstadoVenta.ANULADA,
+            cantidad=Decimal("1.0000"),
+            precio_unitario=Decimal("999.00"),
+            subtotal_0=Decimal("999.00"),
+            subtotal_12=Decimal("0.00"),
+            monto_iva=Decimal("0.00"),
+            total=Decimal("999.00"),
+            fecha_emision=date(2026, 5, 10),
+        )
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/v1/reportes/ventas/tendencias",
+                params={
+                    "fecha_inicio": "2025-01-01",
+                    "fecha_fin": "2026-12-31",
+                    "agrupacion": "ANUAL",
+                },
+            )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert [item["periodo"] for item in data] == ["2025-01-01", "2026-01-01"]
+        assert Decimal(str(data[0]["total"])) == Decimal("40.00")
+        assert int(data[0]["total_ventas"]) == 1
+        assert Decimal(str(data[1]["total"])) == Decimal("70.00")
+        assert int(data[1]["total_ventas"]) == 1
     finally:
         app.dependency_overrides.pop(get_session, None)
 

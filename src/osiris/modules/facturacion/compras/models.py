@@ -24,6 +24,7 @@ from osiris.modules.facturacion.core_sri.types import (
 class Compra(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_compra"
 
+    sucursal_id: UUID | None = Field(default=None, nullable=True, index=True)
     proveedor_id: UUID = Field(nullable=False, index=True)
     secuencial_factura: str = Field(nullable=False, max_length=20, index=True)
     autorizacion_sri: str = Field(nullable=False, max_length=49, index=True)

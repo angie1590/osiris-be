@@ -163,12 +163,16 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         if not punto or not punto.activo:
             raise HTTPException(status_code=404, detail="Punto de emisión no encontrado o inactivo.")
 
-        if empresa_id_actual is not None and punto.empresa_id != empresa_id_actual:
+        sucursal = session.get(Sucursal, punto.sucursal_id)
+        if not sucursal or not sucursal.activo:
+            raise HTTPException(status_code=404, detail="Sucursal del punto de emisión no encontrada o inactiva.")
+
+        if empresa_id_actual is not None and sucursal.empresa_id != empresa_id_actual:
             raise HTTPException(
                 status_code=400,
                 detail="El punto de emisión no pertenece a la empresa indicada en la venta.",
             )
-        empresa_id = empresa_id_actual or punto.empresa_id
+        empresa_id = empresa_id_actual or sucursal.empresa_id
 
         secuencial_row = self.punto_emision_service._get_or_create_locked_secuencial(
             session,
@@ -180,11 +184,7 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         session.add(secuencial_row)
         secuencial = str(secuencial_row.secuencial_actual).zfill(9)
 
-        establecimiento = "001"
-        if punto.sucursal_id:
-            sucursal = session.get(Sucursal, punto.sucursal_id)
-            if sucursal and sucursal.codigo:
-                establecimiento = sucursal.codigo
+        establecimiento = sucursal.codigo or "001"
 
         secuencial_formateado = f"{establecimiento}-{punto.codigo}-{secuencial}"
         return empresa_id, secuencial_formateado

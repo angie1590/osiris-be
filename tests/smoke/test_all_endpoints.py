@@ -52,6 +52,7 @@ def test_empresa_sucursal_punto_emision_flow():
             "nombre": "Sucursal Principal",  # min 3 chars
             "direccion": "Avenida Central 123",  # min 3 chars
             "telefono": "0987654321",  # 7-10 dígitos
+            "es_matriz": True,
             "usuario_auditoria": "ci",
         }
         r = client.post(f"{BASE}/sucursales", json=sucursal_payload)
@@ -71,7 +72,6 @@ def test_empresa_sucursal_punto_emision_flow():
 
         # Punto de emisión
         punto_payload = {
-            "empresa_id": empresa_id,  # Requerido
             "sucursal_id": sucursal_id,
             "codigo": "001",  # 3 dígitos
             "descripcion": "Punto Principal",  # Requerido

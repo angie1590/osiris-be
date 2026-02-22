@@ -6,6 +6,9 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, create_engine
 
 from osiris.modules.common.sucursal.models import SucursalCreate, SucursalUpdate
 from osiris.modules.common.sucursal.entity import Sucursal
@@ -60,7 +63,6 @@ def test_sucursal_service_create_empresa_not_found_404():
     session.exec.return_value.first.return_value = None  # Empresa no existe
 
     svc = SucursalService()
-    svc.repo = MagicMock()
 
     payload = {
         "codigo": "001",
@@ -74,27 +76,53 @@ def test_sucursal_service_create_empresa_not_found_404():
 
     assert exc.value.status_code == 404
     assert "Empresa" in exc.value.detail
-    svc.repo.create.assert_not_called()
 
 
-def test_sucursal_service_create_ok_llama_repo_create():
+def test_sucursal_service_create_ok_commit_y_refresh():
     session = MagicMock()
     session.exec.return_value.first.return_value = object()  # Empresa existe
 
     svc = SucursalService()
-    svc.repo = MagicMock()
-    svc.repo.create.return_value = "CREATED"
 
     payload = {
         "codigo": "001",
         "nombre": "Sucursal X",
         "direccion": "Dir",
+        "usuario_auditoria": "tester",
         "empresa_id": uuid4(),
     }
 
     out = svc.create(session, payload)
-    assert out == "CREATED"
-    svc.repo.create.assert_called_once()
+    assert out.codigo == "001"
+    session.add.assert_called_once()
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once()
+
+
+def test_sucursal_service_create_duplica_codigo_devuelve_400():
+    session = MagicMock()
+    session.exec.return_value.first.return_value = object()  # Empresa existe
+    session.commit.side_effect = IntegrityError(
+        statement="INSERT INTO tbl_sucursal ...",
+        params={},
+        orig=Exception("duplicate key value violates unique constraint uq_sucursal_empresa_codigo"),
+    )
+    svc = SucursalService()
+
+    payload = {
+        "codigo": "002",
+        "nombre": "Sucursal Sur",
+        "direccion": "Dir",
+        "usuario_auditoria": "tester",
+        "empresa_id": uuid4(),
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        svc.create(session, payload)
+
+    assert exc.value.status_code == 400
+    assert exc.value.detail == "La empresa ya posee una sucursal con ese código"
+    session.rollback.assert_called_once()
 
 
 # =======================
@@ -145,3 +173,59 @@ def test_sucursal_repository_delete_logico():
     session.commit.assert_called_once()
     # opcional: garantizar que no refrescamos
     session.refresh.assert_not_called()
+
+
+def _engine_sqlite():
+    return create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+
+def test_sucursal_codigo_unico_por_empresa():
+    engine = _engine_sqlite()
+    Sucursal.__table__.create(bind=engine)
+    empresa_id = uuid4()
+
+    with Session(engine) as session:
+        session.add(
+            Sucursal(
+                codigo="002",
+                nombre="Sucursal Norte",
+                direccion="Quito",
+                es_matriz=False,
+                empresa_id=empresa_id,
+            )
+        )
+        session.commit()
+
+        session.add(
+            Sucursal(
+                codigo="002",
+                nombre="Sucursal Duplicada",
+                direccion="Quito",
+                es_matriz=False,
+                empresa_id=empresa_id,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_sucursal_matriz_solo_puede_ser_001():
+    engine = _engine_sqlite()
+    Sucursal.__table__.create(bind=engine)
+
+    with Session(engine) as session:
+        session.add(
+            Sucursal(
+                codigo="002",
+                nombre="Sucursal Incorrecta",
+                direccion="Guayaquil",
+                es_matriz=True,
+                empresa_id=uuid4(),
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()

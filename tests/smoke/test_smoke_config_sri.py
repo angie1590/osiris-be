@@ -15,7 +15,7 @@ pytestmark = pytest.mark.smoke
 def test_smoke_config_sri_basico(client):
     empresa_id = crear_empresa_general(client)
     sucursal_id = crear_sucursal(client, empresa_id)
-    punto_emision_id = crear_punto_emision(client, empresa_id, sucursal_id)
+    punto_emision_id = crear_punto_emision(client, sucursal_id)
 
     health_response = client.get("http://localhost:8000/health")
     if health_response.status_code != 200:
