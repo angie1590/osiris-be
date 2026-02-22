@@ -44,3 +44,25 @@ class ReporteVentasPorVendedorRead(BaseModel):
     vendedor: str
     total_vendido: Decimal
     facturas_emitidas: int
+
+
+class ReporteImpuestoAgrupadoRead(BaseModel):
+    codigo_sri: str
+    total_retenido: Decimal
+
+
+class ReportePre104BloqueRead(BaseModel):
+    base_0: Decimal
+    base_iva: Decimal
+    monto_iva: Decimal
+    total: Decimal
+    total_documentos: int
+
+
+class ReporteImpuestosMensualRead(BaseModel):
+    mes: int
+    anio: int
+    ventas: ReportePre104BloqueRead
+    compras: ReportePre104BloqueRead
+    retenciones_emitidas: dict[str, Decimal]
+    retenciones_recibidas: dict[str, Decimal]
