@@ -9,11 +9,15 @@ from sqlmodel import Session
 from osiris.core.db import get_session
 from osiris.modules.facturacion.reportes.schemas import (
     AgrupacionTendencia,
+    ReporteInventarioValoracionRead,
     ReporteImpuestosMensualRead,
     ReporteTopProductoRead,
     ReporteVentasPorVendedorRead,
     ReporteVentasResumenRead,
     ReporteVentasTendenciaRead,
+)
+from osiris.modules.facturacion.reportes.services.reporte_inventario_service import (
+    ReporteInventarioService,
 )
 from osiris.modules.facturacion.reportes.services.reporte_tributario_service import (
     ReporteTributarioService,
@@ -24,6 +28,7 @@ from osiris.modules.facturacion.reportes.services.reportes_service import Report
 router = APIRouter()
 reportes_ventas_service = ReportesVentasService()
 reporte_tributario_service = ReporteTributarioService()
+reporte_inventario_service = ReporteInventarioService()
 
 
 @router.get(
@@ -117,3 +122,14 @@ def obtener_reporte_impuestos_mensual(
         mes=mes,
         anio=anio,
     )
+
+
+@router.get(
+    "/v1/reportes/inventario/valoracion",
+    response_model=ReporteInventarioValoracionRead,
+    tags=["Reportes"],
+)
+def obtener_reporte_valoracion_inventario(
+    session: Session = Depends(get_session),
+):
+    return reporte_inventario_service.obtener_valoracion_inventario(session)

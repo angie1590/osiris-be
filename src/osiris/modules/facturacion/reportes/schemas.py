@@ -66,3 +66,16 @@ class ReporteImpuestosMensualRead(BaseModel):
     compras: ReportePre104BloqueRead
     retenciones_emitidas: dict[str, Decimal]
     retenciones_recibidas: dict[str, Decimal]
+
+
+class ReporteInventarioValoracionItemRead(BaseModel):
+    producto_id: UUID
+    nombre: str
+    cantidad_actual: Decimal
+    costo_promedio: Decimal
+    valor_total: Decimal
+
+
+class ReporteInventarioValoracionRead(BaseModel):
+    patrimonio_total: Decimal
+    productos: list[ReporteInventarioValoracionItemRead]
