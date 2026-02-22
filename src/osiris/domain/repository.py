@@ -167,13 +167,11 @@ class BaseRepository:
         if data is not None:
             obj = self.model(**data)  # instancia del modelo
 
-        session.add(obj)
         try:
-            session.commit()
+            session.add(obj)
+            session.flush()
         except IntegrityError as e:
-            session.rollback()
             self._raise_integrity(e)
-        session.refresh(obj)
         return obj
 
     def update(self, session: Session, db_obj: Any, data: dict) -> Any:
@@ -193,27 +191,24 @@ class BaseRepository:
             if hasattr(db_obj, field):
                 setattr(db_obj, field, value)
 
-        session.add(db_obj)
         try:
-            session.commit()
+            session.add(db_obj)
+            session.flush()
         except IntegrityError as e:
-            session.rollback()
             self._raise_integrity(e)
-        session.refresh(db_obj)
         return db_obj
 
     def delete(self, session: Session, db_obj: Any) -> bool:
-        # Si el modelo tiene campo 'activo', hacemos borrado lógico
-        if hasattr(db_obj, "activo"):
-            setattr(db_obj, "activo", False)
-            session.add(db_obj)
-        else:
-            # fallback: borrado físico
-            session.delete(db_obj)
-
         try:
-            session.commit()
+            # Si el modelo tiene campo 'activo', hacemos borrado lógico
+            if hasattr(db_obj, "activo"):
+                setattr(db_obj, "activo", False)
+                session.add(db_obj)
+            else:
+                # fallback: borrado físico
+                session.delete(db_obj)
+
+            session.flush()
         except IntegrityError as e:
-            session.rollback()
             self._raise_integrity(e)
         return True

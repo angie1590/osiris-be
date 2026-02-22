@@ -36,7 +36,7 @@ def verificar_permiso(
         return False
 
     # Obtener módulo
-    modulo_stmt = select(Modulo).where(Modulo.codigo == codigo_modulo, Modulo.activo == True)
+    modulo_stmt = select(Modulo).where(Modulo.codigo == codigo_modulo, Modulo.activo.is_(True))
     modulo = session.exec(modulo_stmt).first()
     if not modulo:
         return False
@@ -45,7 +45,7 @@ def verificar_permiso(
     permiso_stmt = select(RolModuloPermiso).where(
         RolModuloPermiso.rol_id == usuario.rol_id,
         RolModuloPermiso.modulo_id == modulo.id,
-        RolModuloPermiso.activo == True
+        RolModuloPermiso.activo.is_(True)
     )
     permiso = session.exec(permiso_stmt).first()
 

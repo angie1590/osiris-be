@@ -275,7 +275,7 @@ def test_concurrencia_stock_negativo(tmp_path):
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega_id,
             InventarioStock.producto_id == producto_id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock_final = session.exec(stmt).one()
         assert stock_final.cantidad_actual == Decimal("5.0000")
@@ -362,7 +362,7 @@ def test_calculo_promedio_ponderado():
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega.id,
             InventarioStock.producto_id == producto.id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock = session.exec(stmt).one()
         assert stock.cantidad_actual == Decimal("20.0000")
@@ -453,7 +453,7 @@ def test_egreso_congela_costo():
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega.id,
             InventarioStock.producto_id == producto.id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock_actualizado = session.exec(stmt).one()
         assert detalle.costo_unitario == Decimal("7.3456")

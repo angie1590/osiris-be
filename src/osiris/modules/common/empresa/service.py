@@ -36,16 +36,22 @@ class EmpresaService(BaseService):
         self._validate_regimen_modo(regimen, modo_emision)
 
     def update(self, session: Session, item_id, data):
-        db_obj = self.repo.get(session, item_id)
-        if not db_obj:
-            return None
+        try:
+            db_obj = self.repo.get(session, item_id)
+            if not db_obj:
+                return None
 
-        regimen = data.get("regimen", db_obj.regimen)
-        modo_emision = data.get("modo_emision", db_obj.modo_emision)
-        self._validate_regimen_modo(regimen, modo_emision)
+            regimen = data.get("regimen", db_obj.regimen)
+            modo_emision = data.get("modo_emision", db_obj.modo_emision)
+            self._validate_regimen_modo(regimen, modo_emision)
 
-        self._check_fk_active_and_exists(session, data)
-        return self.repo.update(session, db_obj, data)
+            self._check_fk_active_and_exists(session, data)
+            updated = self.repo.update(session, db_obj, data)
+            session.commit()
+            session.refresh(updated)
+            return updated
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def on_created(self, obj, session: Session) -> None:
         # En pruebas unitarias con sesiones mock, omitimos side-effects transaccionales.
@@ -74,4 +80,3 @@ class EmpresaService(BaseService):
                 activo=True,
             )
         )
-        session.commit()

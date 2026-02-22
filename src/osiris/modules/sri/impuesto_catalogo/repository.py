@@ -27,13 +27,13 @@ class ImpuestoCatalogoRepository(BaseRepository):
             fecha = date.today()
 
         stmt = select(ImpuestoCatalogo).where(
-            ImpuestoCatalogo.activo == True,
+            ImpuestoCatalogo.activo.is_(True),
             ImpuestoCatalogo.vigente_desde <= fecha,
         )
 
         # vigente_hasta puede ser null (vigencia indefinida) o >= fecha
         stmt = stmt.where(
-            (ImpuestoCatalogo.vigente_hasta == None) | (ImpuestoCatalogo.vigente_hasta >= fecha)
+            (ImpuestoCatalogo.vigente_hasta.is_(None)) | (ImpuestoCatalogo.vigente_hasta >= fecha)
         )
 
         return list(session.exec(stmt).all())
@@ -48,7 +48,7 @@ class ImpuestoCatalogoRepository(BaseRepository):
         """Lista impuestos por tipo, opcionalmente filtrando por vigencia."""
         stmt = select(ImpuestoCatalogo).where(
             ImpuestoCatalogo.tipo_impuesto == tipo,
-            ImpuestoCatalogo.activo == True
+            ImpuestoCatalogo.activo.is_(True)
         )
 
         if solo_vigentes:
@@ -56,7 +56,7 @@ class ImpuestoCatalogoRepository(BaseRepository):
                 fecha = date.today()
             stmt = stmt.where(
                 ImpuestoCatalogo.vigente_desde <= fecha,
-                (ImpuestoCatalogo.vigente_hasta == None) | (ImpuestoCatalogo.vigente_hasta >= fecha)
+                (ImpuestoCatalogo.vigente_hasta.is_(None)) | (ImpuestoCatalogo.vigente_hasta >= fecha)
             )
 
         return list(session.exec(stmt).all())

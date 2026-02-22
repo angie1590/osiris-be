@@ -63,14 +63,5 @@ class EmpresaRepository(BaseRepository):
 
         session.add(db_obj)
         session.add(audit)
-        try:
-            session.commit()
-        except Exception as e:
-            from sqlalchemy.exc import IntegrityError
-
-            session.rollback()
-            if isinstance(e, IntegrityError):
-                self._raise_integrity(e)
-            raise
-        session.refresh(db_obj)
+        session.flush()
         return db_obj

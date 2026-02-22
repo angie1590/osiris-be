@@ -6,7 +6,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
 
 from osiris.modules.inventario.bodega.service import BodegaService
 from osiris.modules.inventario.bodega.entity import Bodega
@@ -48,7 +47,7 @@ def test_bodega_service_create_ok():
 
     session.refresh.side_effect = mock_refresh
 
-    result = service.create(session, dto, usuario_auditoria="test_user")
+    service.create(session, dto, usuario_auditoria="test_user")
 
     session.add.assert_called_once()
     session.commit.assert_called_once()
@@ -86,7 +85,7 @@ def test_bodega_service_create_sin_sucursal():
 
     session.refresh.side_effect = mock_refresh
 
-    result = service.create(session, dto, usuario_auditoria="test_user")
+    service.create(session, dto, usuario_auditoria="test_user")
 
     session.add.assert_called_once()
     session.commit.assert_called_once()

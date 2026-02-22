@@ -2,7 +2,6 @@
 Tests unitarios para el módulo RolModuloPermiso
 """
 from unittest.mock import MagicMock
-import pytest
 
 from osiris.modules.common.rol_modulo_permiso.service import RolModuloPermisoService
 

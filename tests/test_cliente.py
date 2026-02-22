@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from uuid import uuid4
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
@@ -84,10 +83,9 @@ def test_repository_update_fk_violation_mapea_a_409():
     """
     session = MagicMock()
     session.add = MagicMock()
-    session.commit.side_effect = _mk_integrity_error(
+    session.flush.side_effect = _mk_integrity_error(
         "23503", constraint="fk_tbl_cliente_tipo_cliente_id", table="tbl_cliente"
     )
-    session.refresh = MagicMock()
 
     repo = ClienteRepository()
     db_obj = Cliente(persona_id=uuid4(), tipo_cliente_id=uuid4(), usuario_auditoria="x")  # instancia válida
@@ -119,7 +117,7 @@ def test_repository_delete_fk_violation_mapea_a_409_en_hard_delete():
 
     session = MagicMock()
     session.delete = MagicMock()
-    session.commit.side_effect = _mk_integrity_error(
+    session.flush.side_effect = _mk_integrity_error(
         "23503", constraint="fk_tbl_otro_algo", table="tbl_otro"
     )
 
@@ -151,7 +149,7 @@ def test_repository_delete_soft_ok():
         model = ConActivo
 
     session = MagicMock()
-    session.commit = MagicMock()
+    session.flush = MagicMock()
 
     repo = FakeRepo()
     obj = ConActivo()
@@ -159,4 +157,5 @@ def test_repository_delete_soft_ok():
 
     assert ok is True
     assert obj.activo is False
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()

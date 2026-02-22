@@ -2,7 +2,6 @@
 Tests unitarios para el módulo Modulo
 """
 from unittest.mock import MagicMock
-import pytest
 
 from osiris.modules.common.modulo.service import ModuloService
 
