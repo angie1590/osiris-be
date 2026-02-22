@@ -4,7 +4,8 @@ from __future__ import annotations
 from enum import Enum
 from uuid import UUID
 from decimal import Decimal
-from sqlmodel import Field, Column, Numeric
+from sqlmodel import Field, Column, Numeric, Relationship
+from sqlalchemy.orm import relationship
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 
 
@@ -28,7 +29,13 @@ class Producto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     cantidad: int = Field(default=0, nullable=False)
     casa_comercial_id: UUID | None = Field(default=None, foreign_key="tbl_casa_comercial.id")
 
-    # Relaciones M:N se materializan con tablas puente externas (no se declaran aquí para reducir acoplamiento)
+    # Relaciones de lectura para evitar N+1 en listados completos.
+    producto_categorias: list = Relationship(
+        sa_relationship=relationship("ProductoCategoria", back_populates="producto")
+    )
+    producto_impuestos: list = Relationship(
+        sa_relationship=relationship("ProductoImpuesto", back_populates="producto")
+    )
 
 # Puente: Producto-Categoría (solo nodos hoja)
 class ProductoCategoria(BaseTable, table=True):
@@ -36,6 +43,11 @@ class ProductoCategoria(BaseTable, table=True):
 
     producto_id: UUID = Field(foreign_key="tbl_producto.id", index=True, nullable=False)
     categoria_id: UUID = Field(foreign_key="tbl_categoria.id", index=True, nullable=False)
+
+    producto: object = Relationship(
+        sa_relationship=relationship("Producto", back_populates="producto_categorias")
+    )
+    categoria: object = Relationship(sa_relationship=relationship("Categoria"))
 
 # Puente: Producto-Proveedor Persona
 class ProductoProveedorPersona(BaseTable, table=True):
@@ -64,6 +76,11 @@ class ProductoImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
         sa_column=Column(Numeric(7, 4), nullable=False),
         default=Decimal("0.0000"),
     )
+
+    producto: object = Relationship(
+        sa_relationship=relationship("Producto", back_populates="producto_impuestos")
+    )
+    impuesto_catalogo: object = Relationship(sa_relationship=relationship("ImpuestoCatalogo"))
 
     # Restricción única: un impuesto específico solo se puede asignar una vez a un producto
     # Se implementará en la migración como UNIQUE(producto_id, impuesto_catalogo_id)

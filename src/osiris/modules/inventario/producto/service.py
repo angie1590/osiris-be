@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Iterable, Optional
 from uuid import UUID
 
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from osiris.core.errors import NotFoundError
@@ -15,9 +16,11 @@ from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from fastapi import HTTPException
 from .repository import ProductoRepository
 from .entity import (
+    Producto,
     ProductoCategoria,
     ProductoProveedorPersona,
     ProductoProveedorSociedad,
+    ProductoBodega,
     ProductoImpuesto,
 )
 
@@ -357,26 +360,239 @@ class ProductoService(BaseService):
         }
 
     def list_paginated_completo(self, session: Session, only_active: bool = True, limit: int = 50, offset: int = 0):
-        """Lista productos con toda su información completa"""
-        items, meta = self.list_paginated(session, only_active=only_active, limit=limit, offset=offset)
+        """Lista productos completos evitando N+1 con carga masiva."""
+        from collections import defaultdict
 
-        # Convertir cada producto a formato completo
-        productos_completos = []
-        for producto in items:
-            try:
-                producto_completo = self.get_producto_completo(session, producto.id)
-                productos_completos.append(producto_completo)
-            except Exception:
-                # Si falla, incluir el producto básico con campos mínimos del contrato
-                productos_completos.append({
+        from osiris.modules.common.persona.entity import Persona
+        from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
+        from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
+        from osiris.modules.inventario.atributo.entity import Atributo
+        from osiris.modules.inventario.bodega.entity import Bodega
+        from osiris.modules.inventario.casa_comercial.entity import CasaComercial
+        from osiris.modules.inventario.categoria.entity import Categoria
+        from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
+
+        items, meta = self.list_paginated(session, only_active=only_active, limit=limit, offset=offset)
+        if not items:
+            return [], meta
+
+        producto_ids = [item.id for item in items]
+
+        stmt_productos = (
+            select(Producto)
+            .where(Producto.id.in_(producto_ids))
+            .options(
+                selectinload(Producto.producto_categorias).selectinload(ProductoCategoria.categoria),
+                selectinload(Producto.producto_impuestos).selectinload(ProductoImpuesto.impuesto_catalogo),
+            )
+        )
+        productos_cargados = list(session.exec(stmt_productos).all())
+        producto_por_id = {producto.id: producto for producto in productos_cargados}
+
+        casa_ids = {
+            producto.casa_comercial_id
+            for producto in productos_cargados
+            if producto.casa_comercial_id is not None
+        }
+        casas_por_id: dict[UUID, CasaComercial] = {}
+        if casa_ids:
+            casas = session.exec(
+                select(CasaComercial).where(CasaComercial.id.in_(casa_ids))
+            ).all()
+            casas_por_id = {casa.id: casa for casa in casas}
+
+        proveedores_persona_por_producto: dict[UUID, list[dict]] = defaultdict(list)
+        rows_prov_persona = session.exec(
+            select(ProductoProveedorPersona.producto_id, ProveedorPersona, Persona)
+            .join(
+                ProveedorPersona,
+                ProveedorPersona.id == ProductoProveedorPersona.proveedor_persona_id,
+            )
+            .join(Persona, Persona.id == ProveedorPersona.persona_id)
+            .where(ProductoProveedorPersona.producto_id.in_(producto_ids))
+        ).all()
+        for producto_id, proveedor, persona in rows_prov_persona:
+            proveedores_persona_por_producto[producto_id].append(
+                {
+                    "nombres": persona.nombre,
+                    "apellidos": persona.apellido,
+                    "nombre_comercial": getattr(proveedor, "nombre_comercial", None),
+                }
+            )
+
+        proveedores_sociedad_por_producto: dict[UUID, list[dict]] = defaultdict(list)
+        rows_prov_sociedad = session.exec(
+            select(ProductoProveedorSociedad.producto_id, ProveedorSociedad)
+            .join(
+                ProveedorSociedad,
+                ProveedorSociedad.id == ProductoProveedorSociedad.proveedor_sociedad_id,
+            )
+            .where(ProductoProveedorSociedad.producto_id.in_(producto_ids))
+        ).all()
+        for producto_id, proveedor in rows_prov_sociedad:
+            proveedores_sociedad_por_producto[producto_id].append(
+                {
+                    "razon_social": proveedor.razon_social,
+                    "nombre_comercial": getattr(proveedor, "nombre_comercial", None),
+                }
+            )
+
+        bodegas_por_producto: dict[UUID, list[dict]] = defaultdict(list)
+        rows_bodega = session.exec(
+            select(ProductoBodega.producto_id, Bodega)
+            .join(Bodega, Bodega.id == ProductoBodega.bodega_id)
+            .where(ProductoBodega.producto_id.in_(producto_ids))
+        ).all()
+        for producto_id, bodega in rows_bodega:
+            bodegas_por_producto[producto_id].append(
+                {
+                    "codigo_bodega": bodega.codigo_bodega,
+                    "nombre_bodega": bodega.nombre_bodega,
+                }
+            )
+
+        categorias_por_producto: dict[UUID, list[dict]] = defaultdict(list)
+        categorias_directas_por_producto: dict[UUID, list[UUID]] = defaultdict(list)
+        parent_por_categoria: dict[UUID, UUID | None] = {}
+        categorias_relacionadas: set[UUID] = set()
+        rows_categorias_producto = session.exec(
+            select(
+                ProductoCategoria.producto_id,
+                Categoria.id,
+                Categoria.nombre,
+                Categoria.parent_id,
+            )
+            .join(Categoria, Categoria.id == ProductoCategoria.categoria_id)
+            .where(ProductoCategoria.producto_id.in_(producto_ids))
+        ).all()
+        for producto_id, categoria_id, categoria_nombre, categoria_parent_id in rows_categorias_producto:
+            categorias_por_producto[producto_id].append(
+                {"id": categoria_id, "nombre": categoria_nombre}
+            )
+            categorias_directas_por_producto[producto_id].append(categoria_id)
+            parent_por_categoria[categoria_id] = categoria_parent_id
+            categorias_relacionadas.add(categoria_id)
+
+        pendientes = {cid for cid in categorias_relacionadas if parent_por_categoria.get(cid)}
+        while pendientes:
+            rows_padres = session.exec(
+                select(Categoria.id, Categoria.parent_id).where(Categoria.id.in_(pendientes))
+            ).all()
+            nuevos_pendientes: set[UUID] = set()
+            for categoria_id, parent_id in rows_padres:
+                parent_por_categoria[categoria_id] = parent_id
+                if parent_id and parent_id not in parent_por_categoria:
+                    nuevos_pendientes.add(parent_id)
+            pendientes = nuevos_pendientes
+
+        ancestros_cache: dict[UUID, set[UUID]] = {}
+
+        def _expandir_ancestros(categoria_id: UUID) -> set[UUID]:
+            if categoria_id in ancestros_cache:
+                return ancestros_cache[categoria_id]
+
+            resultado = {categoria_id}
+            parent_id = parent_por_categoria.get(categoria_id)
+            while parent_id:
+                resultado.add(parent_id)
+                parent_id = parent_por_categoria.get(parent_id)
+
+            ancestros_cache[categoria_id] = resultado
+            return resultado
+
+        categorias_para_atributos: set[UUID] = set()
+        for categoria_id in categorias_relacionadas:
+            categorias_para_atributos.update(_expandir_ancestros(categoria_id))
+
+        atributos_por_categoria: dict[UUID, list[tuple[UUID, str]]] = defaultdict(list)
+        if categorias_para_atributos:
+            rows_atributos = session.exec(
+                select(CategoriaAtributo.categoria_id, Atributo.id, Atributo.nombre)
+                .join(Atributo, Atributo.id == CategoriaAtributo.atributo_id)
+                .where(CategoriaAtributo.categoria_id.in_(categorias_para_atributos))
+            ).all()
+            for categoria_id, atributo_id, nombre in rows_atributos:
+                atributos_por_categoria[categoria_id].append((atributo_id, nombre))
+
+        impuestos_por_producto: dict[UUID, list[dict]] = defaultdict(list)
+        rows_impuestos = session.exec(
+            select(ProductoImpuesto.producto_id, ImpuestoCatalogo)
+            .join(ImpuestoCatalogo, ImpuestoCatalogo.id == ProductoImpuesto.impuesto_catalogo_id)
+            .where(
+                ProductoImpuesto.producto_id.in_(producto_ids),
+                ProductoImpuesto.activo.is_(True),
+            )
+        ).all()
+        for producto_id, impuesto_catalogo in rows_impuestos:
+            if impuesto_catalogo is None or not impuesto_catalogo.activo:
+                continue
+
+            raw_porcentaje = (
+                impuesto_catalogo.porcentaje_iva
+                or impuesto_catalogo.tarifa_ad_valorem
+                or Decimal("0.00")
+            )
+            porcentaje_val = (
+                raw_porcentaje
+                if isinstance(raw_porcentaje, Decimal)
+                else Decimal(str(raw_porcentaje))
+            )
+            impuestos_por_producto[producto_id].append(
+                {
+                    "nombre": impuesto_catalogo.descripcion,
+                    "codigo": impuesto_catalogo.codigo_sri,
+                    "porcentaje": porcentaje_val,
+                }
+            )
+
+        productos_completos: list[dict] = []
+        for producto_id in producto_ids:
+            producto = producto_por_id.get(producto_id)
+            if producto is None:
+                continue
+
+            casa_comercial = None
+            if producto.casa_comercial_id:
+                casa = casas_por_id.get(producto.casa_comercial_id)
+                if casa is not None:
+                    casa_comercial = {"nombre": casa.nombre}
+
+            categorias = categorias_por_producto.get(producto.id, [])
+
+            atributos = []
+            atributos_vistos: set[UUID] = set()
+            categoria_ids_directas = categorias_directas_por_producto.get(producto.id, [])
+            categorias_expandidas: set[UUID] = set()
+            for categoria_id in categoria_ids_directas:
+                categorias_expandidas.update(_expandir_ancestros(categoria_id))
+
+            for categoria_id in categorias_expandidas:
+                for atributo_id, nombre_atributo in atributos_por_categoria.get(categoria_id, []):
+                    if atributo_id in atributos_vistos:
+                        continue
+                    atributos_vistos.add(atributo_id)
+                    atributos.append(
+                        {
+                            "atributo": {"nombre": nombre_atributo},
+                            "valor": None,
+                        }
+                    )
+
+            productos_completos.append(
+                {
                     "id": producto.id,
                     "nombre": producto.nombre,
-                    "casa_comercial": None,
-                    "categorias": [],
-                    "proveedores_persona": [],
-                    "proveedores_sociedad": [],
-                    "atributos": [],
-                    "impuestos": [],
-                })
+                    "tipo": producto.tipo,
+                    "pvp": producto.pvp,
+                    "cantidad": producto.cantidad,
+                    "casa_comercial": casa_comercial,
+                    "categorias": categorias,
+                    "proveedores_persona": proveedores_persona_por_producto.get(producto.id, []),
+                    "proveedores_sociedad": proveedores_sociedad_por_producto.get(producto.id, []),
+                    "atributos": atributos,
+                    "impuestos": impuestos_por_producto.get(producto.id, []),
+                    "bodegas": bodegas_por_producto.get(producto.id, []),
+                }
+            )
 
         return productos_completos, meta

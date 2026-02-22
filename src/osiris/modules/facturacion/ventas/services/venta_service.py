@@ -727,6 +727,8 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         return venta
 
     def obtener_venta_read(self, session: Session, venta_id) -> VentaRead:
+        from collections import defaultdict
+
         venta = session.get(Venta, venta_id)
         if not venta or not venta.activo:
             raise HTTPException(status_code=404, detail="Venta no encontrada")
@@ -736,14 +738,23 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
             VentaDetalle.activo.is_(True),
         )
         detalles_db = list(session.exec(stmt_detalle).all())
+        detalle_ids = [detalle.id for detalle in detalles_db]
+
+        impuestos_por_detalle: dict[UUID, list[VentaDetalleImpuesto]] = defaultdict(list)
+        if detalle_ids:
+            impuestos_db = list(
+                session.exec(
+                    select(VentaDetalleImpuesto).where(
+                        VentaDetalleImpuesto.venta_detalle_id.in_(detalle_ids),
+                        VentaDetalleImpuesto.activo.is_(True),
+                    )
+                ).all()
+            )
+            for impuesto in impuestos_db:
+                impuestos_por_detalle[impuesto.venta_detalle_id].append(impuesto)
 
         detalles_read: list[VentaDetalleRead] = []
         for detalle in detalles_db:
-            stmt_impuestos = select(VentaDetalleImpuesto).where(
-                VentaDetalleImpuesto.venta_detalle_id == detalle.id,
-                VentaDetalleImpuesto.activo.is_(True),
-            )
-            impuestos_db = list(session.exec(stmt_impuestos).all())
             impuestos_read = [
                 VentaDetalleImpuestoRead(
                     tipo_impuesto=imp.tipo_impuesto,
@@ -753,7 +764,7 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
                     base_imponible=imp.base_imponible,
                     valor_impuesto=imp.valor_impuesto,
                 )
-                for imp in impuestos_db
+                for imp in impuestos_por_detalle.get(detalle.id, [])
             ]
 
             detalles_read.append(
