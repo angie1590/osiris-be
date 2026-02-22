@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from osiris.modules.facturacion.core_sri.types import FormaPagoSRI
+
 
 class AgrupacionTendencia(str, Enum):
     DIARIA = "DIARIA"
@@ -89,3 +91,24 @@ class ReporteCarteraCobrarItemRead(BaseModel):
 class ReporteCarteraPagarItemRead(BaseModel):
     proveedor_id: UUID
     saldo_pendiente: Decimal
+
+
+class ReporteCajaFormaPagoRead(BaseModel):
+    forma_pago_sri: FormaPagoSRI
+    monto: Decimal
+
+
+class ReporteCajaDineroLiquidoRead(BaseModel):
+    total: Decimal
+    por_forma_pago: list[ReporteCajaFormaPagoRead]
+
+
+class ReporteCajaCreditoTributarioRead(BaseModel):
+    total_retenciones: Decimal
+
+
+class ReporteCajaCierreDiarioRead(BaseModel):
+    fecha: date
+    usuario_id: UUID | None = None
+    dinero_liquido: ReporteCajaDineroLiquidoRead
+    credito_tributario: ReporteCajaCreditoTributarioRead

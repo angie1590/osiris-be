@@ -9,6 +9,7 @@ from sqlmodel import Session
 from osiris.core.db import get_session
 from osiris.modules.facturacion.reportes.schemas import (
     AgrupacionTendencia,
+    ReporteCajaCierreDiarioRead,
     ReporteCarteraCobrarItemRead,
     ReporteCarteraPagarItemRead,
     ReporteInventarioValoracionRead,
@@ -20,6 +21,9 @@ from osiris.modules.facturacion.reportes.schemas import (
 )
 from osiris.modules.facturacion.reportes.services.reporte_cartera_service import (
     ReporteCarteraService,
+)
+from osiris.modules.facturacion.reportes.services.reporte_caja_service import (
+    ReporteCajaService,
 )
 from osiris.modules.facturacion.reportes.services.reporte_inventario_service import (
     ReporteInventarioService,
@@ -35,6 +39,7 @@ reportes_ventas_service = ReportesVentasService()
 reporte_tributario_service = ReporteTributarioService()
 reporte_inventario_service = ReporteInventarioService()
 reporte_cartera_service = ReporteCarteraService()
+reporte_caja_service = ReporteCajaService()
 
 
 @router.get(
@@ -161,3 +166,20 @@ def obtener_reporte_cartera_pagar(
     session: Session = Depends(get_session),
 ):
     return reporte_cartera_service.obtener_cartera_pagar(session)
+
+
+@router.get(
+    "/v1/reportes/caja/cierre-diario",
+    response_model=ReporteCajaCierreDiarioRead,
+    tags=["Reportes"],
+)
+def obtener_reporte_cierre_caja_diario(
+    fecha: date = Query(default_factory=date.today, description="Fecha del arqueo"),
+    usuario_id: UUID | None = Query(default=None, description="Filtro opcional por usuario"),
+    session: Session = Depends(get_session),
+):
+    return reporte_caja_service.obtener_cierre_diario(
+        session,
+        fecha=fecha,
+        usuario_id=usuario_id,
+    )
