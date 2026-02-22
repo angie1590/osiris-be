@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
+from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.facturacion.core_sri.schemas import q2
 from osiris.modules.facturacion.core_sri.types import EstadoRetencionRecibida
 from osiris.modules.facturacion.reportes.schemas import (
@@ -15,7 +16,7 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteCajaDineroLiquidoRead,
     ReporteCajaFormaPagoRead,
 )
-from osiris.modules.facturacion.ventas.models import PagoCxC, RetencionRecibida
+from osiris.modules.facturacion.ventas.models import CuentaPorCobrar, PagoCxC, RetencionRecibida, Venta
 
 
 class ReporteCajaService:
@@ -31,6 +32,7 @@ class ReporteCajaService:
         *,
         fecha: date,
         usuario_id: UUID | None = None,
+        sucursal_id: UUID | None = None,
     ) -> ReporteCajaCierreDiarioRead:
         filtros_pagos = [
             PagoCxC.activo.is_(True),
@@ -55,12 +57,26 @@ class ReporteCajaService:
                     RetencionRecibida.usuario_auditoria == usuario_id_str,
                 )
             )
+        if sucursal_id is not None:
+            filtros_pagos.append(PuntoEmision.sucursal_id == sucursal_id)
+            filtros_retenciones.append(PuntoEmision.sucursal_id == sucursal_id)
 
         pagos_stmt = (
             select(
                 PagoCxC.forma_pago_sri,
                 func.coalesce(func.sum(PagoCxC.monto), 0).label("monto"),
             )
+            .select_from(PagoCxC)
+        )
+        if sucursal_id is not None:
+            pagos_stmt = (
+                pagos_stmt
+                .join(CuentaPorCobrar, CuentaPorCobrar.id == PagoCxC.cuenta_por_cobrar_id)
+                .join(Venta, Venta.id == CuentaPorCobrar.venta_id)
+                .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
+            )
+        pagos_stmt = (
+            pagos_stmt
             .where(*filtros_pagos)
             .group_by(PagoCxC.forma_pago_sri)
             .order_by(PagoCxC.forma_pago_sri.asc())
@@ -75,14 +91,22 @@ class ReporteCajaService:
         ]
         total_dinero = q2(sum((pago.monto for pago in pagos), Decimal("0.00")))
 
-        retenciones_stmt = select(func.coalesce(func.sum(RetencionRecibida.total_retenido), 0)).where(
-            *filtros_retenciones
+        retenciones_stmt = select(func.coalesce(func.sum(RetencionRecibida.total_retenido), 0)).select_from(
+            RetencionRecibida
         )
+        if sucursal_id is not None:
+            retenciones_stmt = (
+                retenciones_stmt
+                .join(Venta, Venta.id == RetencionRecibida.venta_id)
+                .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
+            )
+        retenciones_stmt = retenciones_stmt.where(*filtros_retenciones)
         total_retenciones = q2(self._d(session.exec(retenciones_stmt).one()))
 
         return ReporteCajaCierreDiarioRead(
             fecha=fecha,
             usuario_id=usuario_id,
+            sucursal_id=sucursal_id,
             dinero_liquido=ReporteCajaDineroLiquidoRead(
                 total=total_dinero,
                 por_forma_pago=pagos,

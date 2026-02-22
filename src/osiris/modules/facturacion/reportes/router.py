@@ -52,6 +52,7 @@ def obtener_reporte_ventas_resumen(
     fecha_inicio: date = Query(..., description="Fecha inicial del rango"),
     fecha_fin: date = Query(..., description="Fecha final del rango"),
     punto_emision_id: UUID | None = Query(default=None),
+    sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     return reportes_ventas_service.obtener_resumen_ventas(
@@ -59,6 +60,7 @@ def obtener_reporte_ventas_resumen(
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
         punto_emision_id=punto_emision_id,
+        sucursal_id=sucursal_id,
     )
 
 
@@ -127,12 +129,14 @@ def obtener_reporte_ventas_por_vendedor(
 def obtener_reporte_impuestos_mensual(
     mes: int = Query(..., ge=1, le=12, description="Mes fiscal (1-12)"),
     anio: int = Query(..., ge=2000, le=2100, description="Anio fiscal"),
+    sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     return reporte_tributario_service.obtener_reporte_mensual_impuestos(
         session,
         mes=mes,
         anio=anio,
+        sucursal_id=sucursal_id,
     )
 
 
@@ -196,10 +200,12 @@ def obtener_reporte_cartera_pagar(
 def obtener_reporte_cierre_caja_diario(
     fecha: date = Query(default_factory=date.today, description="Fecha del arqueo"),
     usuario_id: UUID | None = Query(default=None, description="Filtro opcional por usuario"),
+    sucursal_id: UUID | None = Query(default=None),
     session: Session = Depends(get_session),
 ):
     return reporte_caja_service.obtener_cierre_diario(
         session,
         fecha=fecha,
         usuario_id=usuario_id,
+        sucursal_id=sucursal_id,
     )

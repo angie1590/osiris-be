@@ -17,6 +17,7 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteVentasResumenRead,
     ReporteVentasTendenciaRead,
 )
+from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.inventario.producto.entity import Producto
 
@@ -61,6 +62,7 @@ class ReportesVentasService:
         fecha_inicio: date,
         fecha_fin: date,
         punto_emision_id: UUID | None = None,
+        sucursal_id: UUID | None = None,
     ) -> ReporteVentasResumenRead:
         filtros = [
             Venta.activo.is_(True),
@@ -70,6 +72,8 @@ class ReportesVentasService:
         ]
         if punto_emision_id is not None:
             filtros.append(Venta.punto_emision_id == punto_emision_id)
+        if sucursal_id is not None:
+            filtros.append(PuntoEmision.sucursal_id == sucursal_id)
 
         stmt = select(
             func.coalesce(func.sum(Venta.subtotal_0), 0),
@@ -77,13 +81,17 @@ class ReportesVentasService:
             func.coalesce(func.sum(Venta.monto_iva), 0),
             func.coalesce(func.sum(Venta.valor_total), 0),
             func.count(Venta.id),
-        ).where(*filtros)
+        ).select_from(Venta)
+        if sucursal_id is not None:
+            stmt = stmt.join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
+        stmt = stmt.where(*filtros)
         subtotal_0, subtotal_12, monto_iva, total, total_ventas = session.exec(stmt).one()
 
         return ReporteVentasResumenRead(
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
             punto_emision_id=punto_emision_id,
+            sucursal_id=sucursal_id,
             subtotal_0=q2(self._d(subtotal_0)),
             subtotal_12=q2(self._d(subtotal_12)),
             monto_iva=q2(self._d(monto_iva)),

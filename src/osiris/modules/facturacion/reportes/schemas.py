@@ -21,6 +21,7 @@ class ReporteVentasResumenRead(BaseModel):
     fecha_inicio: date
     fecha_fin: date
     punto_emision_id: UUID | None = None
+    sucursal_id: UUID | None = None
     subtotal_0: Decimal
     subtotal_12: Decimal
     monto_iva: Decimal
@@ -65,6 +66,7 @@ class ReportePre104BloqueRead(BaseModel):
 class ReporteImpuestosMensualRead(BaseModel):
     mes: int
     anio: int
+    sucursal_id: UUID | None = None
     ventas: ReportePre104BloqueRead
     compras: ReportePre104BloqueRead
     retenciones_emitidas: dict[str, Decimal]
@@ -126,5 +128,6 @@ class ReporteCajaCreditoTributarioRead(BaseModel):
 class ReporteCajaCierreDiarioRead(BaseModel):
     fecha: date
     usuario_id: UUID | None = None
+    sucursal_id: UUID | None = None
     dinero_liquido: ReporteCajaDineroLiquidoRead
     credito_tributario: ReporteCajaCreditoTributarioRead

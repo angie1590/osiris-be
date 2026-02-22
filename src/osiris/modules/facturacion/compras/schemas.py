@@ -26,6 +26,7 @@ from osiris.modules.facturacion.core_sri.types import (
 
 
 class CompraCreate(BaseModel):
+    sucursal_id: UUID | None = None
     proveedor_id: UUID
     secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
     autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
@@ -101,6 +102,7 @@ class CompraCreate(BaseModel):
 
 
 class CompraRegistroCreate(BaseModel):
+    sucursal_id: UUID | None = None
     proveedor_id: UUID
     secuencial_factura: str = Field(..., pattern=r"^\d{3}-\d{3}-\d{9}$")
     autorizacion_sri: str = Field(..., pattern=r"^\d{37}$|^\d{49}$")
@@ -115,6 +117,7 @@ class CompraRegistroCreate(BaseModel):
 
 
 class CompraUpdate(BaseModel):
+    sucursal_id: UUID | None = None
     secuencial_factura: str | None = Field(default=None, pattern=r"^\d{3}-\d{3}-\d{9}$")
     autorizacion_sri: str | None = Field(default=None, pattern=r"^\d{37}$|^\d{49}$")
     fecha_emision: date | None = None
@@ -131,6 +134,7 @@ class CompraAnularRequest(BaseModel):
 
 class CompraRead(BaseModel):
     id: UUID
+    sucursal_id: UUID | None = None
     proveedor_id: UUID
     secuencial_factura: str
     autorizacion_sri: str
