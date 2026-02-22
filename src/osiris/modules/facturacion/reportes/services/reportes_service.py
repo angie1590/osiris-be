@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import String, cast, func
 from sqlmodel import Session, select
 
 from osiris.modules.facturacion.core_sri.models import EstadoVenta, Venta, VentaDetalle
-from osiris.modules.facturacion.core_sri.all_schemas import ReporteTopProductoRead, ReporteVentasResumenRead, q2
+from osiris.modules.facturacion.core_sri.schemas import q2
 from osiris.modules.facturacion.inventario.models import InventarioStock
+from osiris.modules.facturacion.reportes.schemas import (
+    AgrupacionTendencia,
+    ReporteTopProductoRead,
+    ReporteVentasPorVendedorRead,
+    ReporteVentasResumenRead,
+    ReporteVentasTendenciaRead,
+)
+from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.inventario.producto.entity import Producto
 
 
@@ -19,6 +27,32 @@ class ReportesVentasService:
         if value is None:
             return Decimal(default)
         return Decimal(str(value))
+
+    @staticmethod
+    def _to_period_date(value: object) -> date:
+        if isinstance(value, date):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, str):
+            return date.fromisoformat(value[:10])
+        raise ValueError("No se pudo convertir el periodo de tendencia a fecha")
+
+    @staticmethod
+    def _bucket_expr(session: Session, agrupacion: AgrupacionTendencia):
+        bind = session.get_bind()
+        dialect = bind.dialect.name if bind is not None else ""
+        if dialect == "postgresql":
+            if agrupacion == AgrupacionTendencia.ANUAL:
+                return func.date_trunc("year", Venta.fecha_emision)
+            if agrupacion == AgrupacionTendencia.MENSUAL:
+                return func.date_trunc("month", Venta.fecha_emision)
+            return func.date_trunc("day", Venta.fecha_emision)
+        if agrupacion == AgrupacionTendencia.ANUAL:
+            return func.strftime("%Y-01-01", Venta.fecha_emision)
+        if agrupacion == AgrupacionTendencia.MENSUAL:
+            return func.strftime("%Y-%m-01", Venta.fecha_emision)
+        return func.date(Venta.fecha_emision)
 
     def obtener_resumen_ventas(
         self,
@@ -135,3 +169,80 @@ class ReportesVentasService:
                 )
             )
         return items
+
+    def obtener_tendencias_ventas(
+        self,
+        session: Session,
+        *,
+        fecha_inicio: date,
+        fecha_fin: date,
+        agrupacion: AgrupacionTendencia,
+    ) -> list[ReporteVentasTendenciaRead]:
+        bucket = self._bucket_expr(session, agrupacion)
+        stmt = (
+            select(
+                bucket.label("periodo"),
+                func.coalesce(func.sum(Venta.valor_total), 0).label("total"),
+                func.count(Venta.id).label("total_ventas"),
+            )
+            .where(
+                Venta.activo.is_(True),
+                Venta.estado != EstadoVenta.ANULADA,
+                Venta.fecha_emision >= fecha_inicio,
+                Venta.fecha_emision <= fecha_fin,
+            )
+            .group_by(bucket)
+            .order_by(bucket.asc())
+        )
+        rows = session.exec(stmt).all()
+        return [
+            ReporteVentasTendenciaRead(
+                periodo=self._to_period_date(periodo),
+                total=q2(self._d(total)),
+                total_ventas=int(total_ventas or 0),
+            )
+            for periodo, total, total_ventas in rows
+        ]
+
+    def obtener_ventas_por_vendedor(
+        self,
+        session: Session,
+        *,
+        fecha_inicio: date | None = None,
+        fecha_fin: date | None = None,
+    ) -> list[ReporteVentasPorVendedorRead]:
+        filtros = [
+            Venta.activo.is_(True),
+            Venta.estado != EstadoVenta.ANULADA,
+        ]
+        if fecha_inicio is not None:
+            filtros.append(Venta.fecha_emision >= fecha_inicio)
+        if fecha_fin is not None:
+            filtros.append(Venta.fecha_emision <= fecha_fin)
+
+        join_cond = cast(Usuario.id, String) == Venta.created_by
+        vendedor_expr = func.coalesce(Usuario.username, Venta.created_by, "SIN_USUARIO")
+
+        stmt = (
+            select(
+                Usuario.id.label("usuario_id"),
+                vendedor_expr.label("vendedor"),
+                func.coalesce(func.sum(Venta.valor_total), 0).label("total_vendido"),
+                func.count(Venta.id).label("facturas_emitidas"),
+            )
+            .select_from(Venta)
+            .outerjoin(Usuario, join_cond)
+            .where(*filtros)
+            .group_by(Usuario.id, vendedor_expr)
+            .order_by(func.sum(Venta.valor_total).desc(), vendedor_expr.asc())
+        )
+        rows = session.exec(stmt).all()
+        return [
+            ReporteVentasPorVendedorRead(
+                usuario_id=usuario_id,
+                vendedor=str(vendedor),
+                total_vendido=q2(self._d(total_vendido)),
+                facturas_emitidas=int(facturas_emitidas or 0),
+            )
+            for usuario_id, vendedor, total_vendido, facturas_emitidas in rows
+        ]

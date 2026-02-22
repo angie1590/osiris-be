@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
+class AgrupacionTendencia(str, Enum):
+    DIARIA = "DIARIA"
+    MENSUAL = "MENSUAL"
+    ANUAL = "ANUAL"
 
 
 class ReporteVentasResumenRead(BaseModel):
@@ -24,3 +31,16 @@ class ReporteTopProductoRead(BaseModel):
     cantidad_vendida: Decimal
     total_dolares_vendido: Decimal
     ganancia_bruta_estimada: Decimal
+
+
+class ReporteVentasTendenciaRead(BaseModel):
+    periodo: date
+    total: Decimal
+    total_ventas: int
+
+
+class ReporteVentasPorVendedorRead(BaseModel):
+    usuario_id: UUID | None = None
+    vendedor: str
+    total_vendido: Decimal
+    facturas_emitidas: int
