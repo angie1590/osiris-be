@@ -44,7 +44,7 @@ class UsuarioService(BaseService):
             data["password_hash"] = security.hash_password(plain)
 
     # ---------- CREATE ----------
-    def create(self, session: Session, data: Any) -> Usuario:
+    def create(self, session: Session, data: Any, *, commit: bool = True) -> Usuario:
         data = self._ensure_dict(data)
 
         # Hash obligatorio en create
@@ -59,10 +59,10 @@ class UsuarioService(BaseService):
         # - validate_create (si lo sobreescribes)
         # - _check_fk_active_and_exists (con fk_models)
         # - repo.create (que captura IntegrityError y mapea a 409)
-        return super().create(session, data)
+        return super().create(session, data, commit=commit)
 
     # ---------- UPDATE (solo rol_id, password, usuario_auditoria) ----------
-    def update(self, session: Session, item_id: UUID, data: Any) -> Usuario | None:
+    def update(self, session: Session, item_id: UUID, data: Any, *, commit: bool = True) -> Usuario | None:
         incoming = self._ensure_dict(data)
 
         # 🔒 Campos permitidos en update
@@ -75,7 +75,7 @@ class UsuarioService(BaseService):
         # Nota: BaseService._check_fk_active_and_exists validará rol_id si viene en 'data'
         # Unicidades no aplican aquí (username/persona_id no cambian)
 
-        return super().update(session, item_id, data)
+        return super().update(session, item_id, data, commit=commit)
 
     # ---------- Auth opcional ----------
     def authenticate(self, session: Session, username: str, password: str) -> Usuario | None:
@@ -93,24 +93,29 @@ class UsuarioService(BaseService):
         return "".join(secrets.choice(alphabet) for _ in range(length))
 
     def reset_password(self, session: Session, item_id: UUID, *, usuario_auditoria: str | None = None) -> tuple[Usuario, str]:
-        user = self.repo.get(session, item_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-        if hasattr(user, "activo") and user.activo is False:
-            raise HTTPException(status_code=409, detail="Usuario inactivo")
+        try:
+            user = self.repo.get(session, item_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="Usuario no encontrado")
+            if hasattr(user, "activo") and user.activo is False:
+                raise HTTPException(status_code=409, detail="Usuario inactivo")
 
-        temp_password = self._generate_temp_password()
-        hashed = security.hash_password(temp_password)
+            temp_password = self._generate_temp_password()
+            hashed = security.hash_password(temp_password)
 
-        data: dict[str, Any] = {
-            "password_hash": hashed,
-            "requiere_cambio_password": True,
-        }
-        if usuario_auditoria:
-            data["usuario_auditoria"] = usuario_auditoria
+            data: dict[str, Any] = {
+                "password_hash": hashed,
+                "requiere_cambio_password": True,
+            }
+            if usuario_auditoria:
+                data["usuario_auditoria"] = usuario_auditoria
 
-        updated = self.repo.update(session, user, data)
-        return updated, temp_password
+            updated = self.repo.update(session, user, data)
+            session.commit()
+            session.refresh(updated)
+            return updated, temp_password
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     # ---------- Verify password ----------
     def verify_password(self, session: Session, item_id: UUID, password: str) -> bool:

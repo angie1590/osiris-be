@@ -4,18 +4,16 @@ Tests unitarios para ProductoImpuesto (repository, service, asignación)
 import pytest
 from datetime import date, timedelta
 from uuid import uuid4
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from fastapi import HTTPException
 
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import (
     ImpuestoCatalogo,
     TipoImpuesto,
-    ClasificacionIVA,
     AplicaA
 )
 from osiris.modules.inventario.producto.entity import ProductoImpuesto
-from osiris.modules.inventario.producto_impuesto.models import ProductoImpuestoCreate
 from osiris.modules.inventario.producto_impuesto.repository import ProductoImpuestoRepository
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 

@@ -23,7 +23,7 @@ class ProductoImpuestoRepository(BaseRepository):
         stmt = select(ProductoImpuesto).where(
             ProductoImpuesto.producto_id == producto_id,
             ProductoImpuesto.impuesto_catalogo_id == impuesto_catalogo_id,
-            ProductoImpuesto.activo == True
+            ProductoImpuesto.activo.is_(True)
         )
         return session.exec(stmt).first()
 
@@ -31,7 +31,7 @@ class ProductoImpuestoRepository(BaseRepository):
         """Lista todos los impuestos activos asignados a un producto."""
         stmt = select(ProductoImpuesto).where(
             ProductoImpuesto.producto_id == producto_id,
-            ProductoImpuesto.activo == True
+            ProductoImpuesto.activo.is_(True)
         )
         return list(session.exec(stmt).all())
 
@@ -47,9 +47,9 @@ class ProductoImpuestoRepository(BaseRepository):
             ProductoImpuesto.impuesto_catalogo_id == ImpuestoCatalogo.id
         ).where(
             ProductoImpuesto.producto_id == producto_id,
-            ProductoImpuesto.activo == True,
+            ProductoImpuesto.activo.is_(True),
             ImpuestoCatalogo.tipo_impuesto == tipo_impuesto,
-            ImpuestoCatalogo.activo == True
+            ImpuestoCatalogo.activo.is_(True)
         )
 
         resultados = session.exec(stmt).all()

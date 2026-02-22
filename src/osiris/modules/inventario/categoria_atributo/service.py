@@ -11,7 +11,7 @@ from .models import CategoriaAtributoCreate, CategoriaAtributoUpdate
 
 class CategoriaAtributoService:
     def list_paginated(self, session: Session, skip: int = 0, limit: int = 50, categoria_id: Optional[UUID] = None) -> list[CategoriaAtributo]:
-        query = select(CategoriaAtributo).where(CategoriaAtributo.activo == True)
+        query = select(CategoriaAtributo).where(CategoriaAtributo.activo.is_(True))
         if categoria_id:
             query = query.where(CategoriaAtributo.categoria_id == categoria_id)
         query = query.offset(skip).limit(limit)

@@ -1,7 +1,6 @@
 # tests/unit/test_persona_unit.py
 from __future__ import annotations
 
-from uuid import uuid4
 from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
@@ -11,7 +10,6 @@ from sqlalchemy.exc import IntegrityError
 from osiris.modules.common.persona.models import (
     PersonaCreate,
     PersonaUpdate,
-    PersonaRead,
     TipoIdentificacion,
 )
 from osiris.modules.common.persona.entity import Persona
@@ -240,6 +238,7 @@ def test_persona_repository_delete_logico():
     assert ok is True
     assert obj.activo is False
     session.add.assert_called_once_with(obj)
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
     # No exigimos refresh por ser DELETE 204 y no tener triggers de UPDATE
     session.refresh.assert_not_called()

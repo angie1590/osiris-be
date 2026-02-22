@@ -51,3 +51,5 @@ fact_firmado.xml
 
 # Archivos de producción
 *.whl
+.venv/
+__pycache__/

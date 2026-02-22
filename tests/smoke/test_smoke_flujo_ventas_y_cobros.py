@@ -9,9 +9,9 @@ import httpx
 from sqlmodel import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from osiris.modules.facturacion.core_sri.models import CuentaPorCobrar, EstadoCuentaPorCobrar
-from osiris.modules.facturacion.ventas.services.retencion_recibida_service import RetencionRecibidaService
-from osiris.modules.facturacion.core_sri.all_schemas import q2
+from osiris.modules.sri.core_sri.models import CuentaPorCobrar, EstadoCuentaPorCobrar
+from osiris.modules.ventas.services.retencion_recibida_service import RetencionRecibidaService
+from osiris.modules.sri.core_sri.all_schemas import q2
 from tests.smoke.flow_helpers import (
     crear_bodega,
     crear_categoria_hoja,

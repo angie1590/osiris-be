@@ -2,8 +2,7 @@
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from sqlmodel import Field
-from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin, BaseOSModel
+from osiris.domain.base_models import BaseOSModel
 
 # DTOs (Pydantic-only)
 class RolCreate(BaseOSModel):

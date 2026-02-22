@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -11,8 +12,7 @@ from sqlmodel import SQLModel
 # modules that declare models. This is safe in unit tests where we mock sessions
 SQLModel.metadata.clear()
 
-from osiris.modules.inventario.categoria.service import CategoriaService
-from types import SimpleNamespace
+from osiris.modules.inventario.categoria.service import CategoriaService  # noqa: E402
 
 
 def make_db_obj(id_: uuid.UUID, parent_id=None):

@@ -62,10 +62,9 @@ def test_permisos_crud_completo():
     data = response.json()
     if isinstance(data, dict) and "meta" in data and "items" in data:
         assert data["meta"]["total"] >= 1
-        items = data["items"]
+        data["items"]
     else:
         assert isinstance(data, list)
-        items = data
 
     # 5. Obtener permiso por ID
     response = client.get(f"/api/roles-modulos-permisos/{permiso_id}")
@@ -99,7 +98,6 @@ def test_permisos_crud_completo():
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_permisos_usuario():
     """Test obtener permisos de un usuario."""
-    from tests.smoke.ruc_utils import generar_ruc_empresa
     import os as _os
     _os.environ["DISABLE_ID_VALIDATION"] = "true"
 
@@ -249,7 +247,6 @@ def test_obtener_permisos_usuario():
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_menu_usuario():
     """Test obtener menú dinámico de usuario."""
-    from tests.smoke.ruc_utils import generar_ruc_empresa
     import os as _os
     _os.environ["DISABLE_ID_VALIDATION"] = "true"
 

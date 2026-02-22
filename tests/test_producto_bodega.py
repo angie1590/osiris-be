@@ -156,7 +156,7 @@ def test_producto_bodega_update_cantidad_crea_si_no_existe():
     bodega_id = uuid4()
     cantidad = 15
 
-    result = service.update_cantidad(session, producto_id, bodega_id, cantidad)
+    service.update_cantidad(session, producto_id, bodega_id, cantidad)
 
     session.add.assert_called()
     session.commit.assert_called_once()
@@ -181,7 +181,7 @@ def test_producto_bodega_update_cantidad_actualiza_si_existe():
     session.exec.return_value = exec_mock
 
     nueva_cantidad = 20
-    result = service.update_cantidad(session, existing.producto_id, existing.bodega_id, nueva_cantidad)
+    service.update_cantidad(session, existing.producto_id, existing.bodega_id, nueva_cantidad)
 
     assert existing.cantidad == nueva_cantidad
     session.add.assert_called()

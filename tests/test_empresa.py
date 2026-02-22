@@ -118,8 +118,9 @@ def test_empresa_repository_create_desde_dict_instancia_y_persiste():
     assert isinstance(created, Empresa)
     assert created.razon_social == "Mi Empresa"
     session.add.assert_called_once()
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(created)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_empresa_repository_update_parcial_no_pisa_campos_no_enviados():
@@ -160,8 +161,9 @@ def test_empresa_repository_update_parcial_no_pisa_campos_no_enviados():
     assert audit.estado_nuevo["nombre_comercial"] == "Nuevo NC"
     assert audit.estado_anterior["regimen"] == "GENERAL"
     assert audit.estado_nuevo["modo_emision"] == "ELECTRONICO"
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(db_obj)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_empresa_repository_delete_logico_activo_a_false():
@@ -185,7 +187,8 @@ def test_empresa_repository_delete_logico_activo_a_false():
     assert db_obj.activo is False
     session.add.assert_called_once_with(db_obj)
     session.delete.assert_not_called()
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
 
 
 # =======================
@@ -346,8 +349,9 @@ def test_empresa_update_puede_actualizar_logo():
     add_calls = session.add.call_args_list
     assert any(call.args and call.args[0] is db_obj for call in add_calls)
     assert any(isinstance(call.args[0], AuditLog) for call in add_calls if call.args)
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(db_obj)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_empresa_after_update_listener_registra_before_after_json():

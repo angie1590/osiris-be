@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import select
 
 from osiris.domain.repository import BaseRepository
 from .entity import Sucursal

@@ -12,9 +12,12 @@ TIMEOUT = 10.0
 
 # Flag para determinar si hacer hard delete (físico) o soft delete (a través de API)
 USE_HARD_DELETE = os.getenv("TEST_HARD_DELETE", "false").lower() == "true"
+RUN_LIVE_SMOKE = os.getenv("RUN_LIVE_SMOKE", "false").lower() in {"true", "1", "yes"}
 
 
 def is_port_open(host: str, port: int) -> bool:
+    if not RUN_LIVE_SMOKE:
+        return False
     try:
         with socket.create_connection((host, port), timeout=1):
             return True

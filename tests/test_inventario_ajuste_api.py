@@ -13,7 +13,7 @@ from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,

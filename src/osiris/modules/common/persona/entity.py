@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import ENUM as PgEnum
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field
 
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 

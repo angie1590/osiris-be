@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from osiris.modules.facturacion.core_sri.all_schemas import q2
+from osiris.modules.sri.core_sri.all_schemas import q2
 from tests.smoke.flow_helpers import (
     crear_bodega,
     crear_categoria_hoja,

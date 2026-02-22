@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 from typing import Optional
-from sqlmodel import SQLModel, Field, Column, Relationship  # Relationship no usado
-from sqlalchemy import String, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID as SA_UUID
+from sqlmodel import Field, Column  # Relationship no usado
+from sqlalchemy import String
 
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
 

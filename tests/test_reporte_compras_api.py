@@ -11,8 +11,8 @@ from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.persona.entity import Persona, TipoIdentificacion
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
-from osiris.modules.facturacion.compras.models import Compra
-from osiris.modules.facturacion.core_sri.types import (
+from osiris.modules.compras.models import Compra
+from osiris.modules.sri.core_sri.types import (
     EstadoCompra,
     FormaPagoSRI,
     SustentoTributarioSRI,

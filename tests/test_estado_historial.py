@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     Compra,
     CompraEstadoHistorial,
     DocumentoElectronico,
@@ -21,8 +21,8 @@ from osiris.modules.facturacion.core_sri.models import (
     Venta,
     VentaEstadoHistorial,
 )
-from osiris.modules.facturacion.facturacion_electronica.services.estado_historial_service import EstadoHistorialService
-from osiris.modules.facturacion.facturacion_electronica.services.fe_mapper_service import FEMapperService
+from osiris.modules.sri.facturacion_electronica.services.estado_historial_service import EstadoHistorialService
+from osiris.modules.sri.facturacion_electronica.services.fe_mapper_service import FEMapperService
 
 
 def _build_test_engine():

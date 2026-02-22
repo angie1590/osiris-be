@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from osiris.domain.base_models import BaseOSModel
 
 class TipoClienteBase(BaseOSModel):
     nombre: str
-    descuento: int = Field(ge=0, le=100)
+    descuento: Decimal = Field(ge=0, le=100)
 
 
 class TipoClienteCreate(TipoClienteBase):
@@ -19,7 +20,7 @@ class TipoClienteCreate(TipoClienteBase):
 
 class TipoClienteUpdate(BaseOSModel):
     nombre: Optional[str] = None
-    descuento: Optional[float] = Field(default=None, ge=0, le=100)
+    descuento: Optional[Decimal] = Field(default=None, ge=0, le=100)
     usuario_auditoria: Optional[str] = None
 
 
