@@ -42,6 +42,7 @@ def generar_ticket_termico(
 
 
 @router.get("/v1/impresion/documento/{documento_id}/preimpresa", tags=["Facturacion"])
+@router.get("/v1/impresion/documento/{documento_id}/matricial", tags=["Facturacion"])
 def generar_preimpresa_nota_venta(
     documento_id: UUID,
     formato: Literal["HTML", "PDF"] = Query(default="HTML"),
