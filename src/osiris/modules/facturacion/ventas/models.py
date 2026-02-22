@@ -47,6 +47,7 @@ class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     estado_sri: EstadoSriDocumento = Field(default=EstadoSriDocumento.PENDIENTE, nullable=False, max_length=20)
     sri_intentos: int = Field(default=0, nullable=False)
     sri_ultimo_error: str | None = Field(default=None, max_length=1000)
+    cantidad_impresiones: int = Field(default=0, nullable=False)
 
 
 class VentaDetalle(BaseTable, AuditMixin, SoftDeleteMixin, table=True):

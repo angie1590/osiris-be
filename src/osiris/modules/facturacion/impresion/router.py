@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, Response
 from sqlmodel import Session
 
+from osiris.core.audit_context import get_current_user_id
 from osiris.core.db import get_session
+from osiris.modules.facturacion.impresion.schemas import ReimpresionRequest
 from osiris.modules.facturacion.impresion.services.impresion_service import ImpresionService
 
 
@@ -37,3 +39,22 @@ def generar_ticket_termico(
         ancho=ancho,
     )
     return HTMLResponse(content=html)
+
+
+@router.post("/v1/impresion/documento/{documento_id}/reimprimir", tags=["Facturacion"])
+def reimprimir_documento(
+    documento_id: UUID,
+    payload: ReimpresionRequest,
+    session: Session = Depends(get_session),
+):
+    resultado = impresion_service.reimprimir_documento(
+        session,
+        documento_id=documento_id,
+        motivo=payload.motivo,
+        formato=payload.formato,
+        user_id=get_current_user_id(),
+    )
+    headers = {"Content-Disposition": f'inline; filename="{resultado["filename"]}"'}
+    if resultado["media_type"] == "application/pdf":
+        return Response(content=resultado["content"], media_type="application/pdf", headers=headers)
+    return HTMLResponse(content=resultado["content"], headers=headers)

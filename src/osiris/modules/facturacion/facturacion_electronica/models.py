@@ -40,6 +40,7 @@ class DocumentoElectronico(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     xml_autorizado: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     intentos: int = Field(default=0, nullable=False)
     next_retry_at: datetime | None = Field(default=None, nullable=True, index=True)
+    cantidad_impresiones: int = Field(default=0, nullable=False)
 
 
 class DocumentoElectronicoHistorial(BaseTable, table=True):

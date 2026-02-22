@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -8,7 +9,10 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from osiris.core.settings import get_settings
+from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
+from osiris.modules.common.rol.entity import Rol
+from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.facturacion.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
@@ -196,3 +200,127 @@ class ImpresionService:
             "width_mm": ancho,
         }
         return self.ticket_strategy.render_ticket_html(context, ancho=ancho)
+
+    @staticmethod
+    def _require_cajero_admin(session: Session, user_id: str | None) -> UUID:
+        if not user_id:
+            raise HTTPException(status_code=403, detail="Usuario no autenticado.")
+        try:
+            user_uuid = UUID(str(user_id))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=403, detail="Usuario autenticado inválido.") from None
+
+        row = session.exec(
+            select(Usuario, Rol)
+            .join(Rol, Rol.id == Usuario.rol_id)
+            .where(
+                Usuario.id == user_uuid,
+                Usuario.activo.is_(True),
+                Rol.activo.is_(True),
+            )
+        ).first()
+        if not row:
+            raise HTTPException(status_code=403, detail="Usuario no autorizado para reimpresión.")
+
+        _, rol = row
+        if rol.nombre.strip().upper() not in {"CAJERO", "ADMIN", "ADMINISTRADOR"}:
+            raise HTTPException(status_code=403, detail="Solo Cajero o Administrador pueden reimprimir.")
+        return user_uuid
+
+    def reimprimir_documento(
+        self,
+        session: Session,
+        *,
+        documento_id: UUID,
+        motivo: str,
+        formato: str,
+        user_id: str | None,
+    ) -> dict:
+        user_uuid = self._require_cajero_admin(session, user_id)
+
+        documento = session.get(DocumentoElectronico, documento_id)
+        if not documento or not documento.activo:
+            raise HTTPException(status_code=404, detail="Documento electrónico no encontrado.")
+        if documento.estado_sri != EstadoDocumentoElectronico.AUTORIZADO:
+            raise HTTPException(status_code=400, detail="Solo se puede reimprimir un documento AUTORIZADO.")
+
+        motivo_limpio = (motivo or "").strip()
+        if not motivo_limpio:
+            raise HTTPException(status_code=400, detail="El motivo de reimpresión es obligatorio.")
+
+        venta = None
+        if documento.tipo_documento == TipoDocumentoElectronico.FACTURA:
+            venta_id = documento.referencia_id or documento.venta_id
+            if venta_id is not None:
+                venta = session.get(Venta, venta_id)
+
+        before = {
+            "documento_id": str(documento.id),
+            "documento_cantidad_impresiones": documento.cantidad_impresiones,
+            "venta_id": str(venta.id) if venta else None,
+            "venta_cantidad_impresiones": venta.cantidad_impresiones if venta else None,
+        }
+
+        documento.cantidad_impresiones = int(documento.cantidad_impresiones or 0) + 1
+        session.add(documento)
+        if venta is not None:
+            venta.cantidad_impresiones = int(venta.cantidad_impresiones or 0) + 1
+            session.add(venta)
+
+        after = {
+            "documento_id": str(documento.id),
+            "documento_cantidad_impresiones": documento.cantidad_impresiones,
+            "venta_id": str(venta.id) if venta else None,
+            "venta_cantidad_impresiones": venta.cantidad_impresiones if venta else None,
+            "motivo": motivo_limpio,
+            "formato": formato,
+        }
+        actor = str(user_uuid)
+        session.add(
+            AuditLog(
+                tabla_afectada="tbl_documento_electronico",
+                registro_id=str(documento.id),
+                entidad="DocumentoElectronico",
+                entidad_id=documento.id,
+                accion="REIMPRESION_DOCUMENTO",
+                estado_anterior=before,
+                estado_nuevo=after,
+                before_json=before,
+                after_json=after,
+                usuario_id=actor,
+                usuario_auditoria=actor,
+                created_by=actor,
+                updated_by=actor,
+                fecha=datetime.utcnow(),
+                creado_en=datetime.utcnow(),
+            )
+        )
+        session.commit()
+        session.refresh(documento)
+        if venta is not None:
+            session.refresh(venta)
+
+        formato_normalizado = formato.strip().upper()
+        if formato_normalizado == "A4":
+            pdf = self.generar_ride_a4(session, documento_id=documento.id)
+            return {
+                "content": pdf,
+                "media_type": "application/pdf",
+                "filename": f"ride-{documento.id}.pdf",
+            }
+        if formato_normalizado == "TICKET_58MM":
+            html = self.generar_ticket_termico_html(session, documento_id=documento.id, ancho="58mm")
+            return {
+                "content": html,
+                "media_type": "text/html",
+                "filename": f"ticket-{documento.id}-58mm.html",
+            }
+        if formato_normalizado == "TICKET_80MM":
+            html = self.generar_ticket_termico_html(session, documento_id=documento.id, ancho="80mm")
+            return {
+                "content": html,
+                "media_type": "text/html",
+                "filename": f"ticket-{documento.id}-80mm.html",
+            }
+
+        raise HTTPException(status_code=400, detail="Formato no soportado para reimpresión.")
