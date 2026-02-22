@@ -160,6 +160,7 @@ def obtener_reporte_kardex_inventario(
     producto_id: UUID,
     fecha_inicio: date | None = Query(default=None, description="Fecha inicial opcional"),
     fecha_fin: date | None = Query(default=None, description="Fecha final opcional"),
+    sucursal_id: UUID | None = Query(default=None, description="Filtro opcional por sucursal"),
     session: Session = Depends(get_session),
 ):
     return reporte_inventario_service.obtener_kardex_historico(
@@ -167,6 +168,7 @@ def obtener_reporte_kardex_inventario(
         producto_id=producto_id,
         fecha_inicio=fecha_inicio,
         fecha_fin=fecha_fin,
+        sucursal_id=sucursal_id,
     )
 
 

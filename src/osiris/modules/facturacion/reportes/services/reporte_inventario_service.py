@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import UUID
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -18,7 +19,9 @@ from osiris.modules.facturacion.reportes.schemas import (
     ReporteInventarioKardexRead,
     ReporteInventarioValoracionItemRead,
     ReporteInventarioValoracionRead,
+    TipoMovimientoKardex,
 )
+from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.producto.entity import Producto
 
 
@@ -98,6 +101,7 @@ class ReporteInventarioService:
         producto_id,
         fecha_inicio: date | None = None,
         fecha_fin: date | None = None,
+        sucursal_id: UUID | None = None,
     ) -> ReporteInventarioKardexRead:
         hoy = date.today()
         inicio = fecha_inicio or (hoy - timedelta(days=365))
@@ -109,6 +113,7 @@ class ReporteInventarioService:
             select(
                 MovimientoInventario.fecha,
                 MovimientoInventario.tipo_movimiento,
+                MovimientoInventario.referencia_documento,
                 MovimientoInventarioDetalle.cantidad,
                 MovimientoInventarioDetalle.costo_unitario,
             )
@@ -128,22 +133,31 @@ class ReporteInventarioService:
                 MovimientoInventarioDetalle.id.asc(),
             )
         )
+        if sucursal_id is not None:
+            stmt = stmt.join(Bodega, Bodega.id == MovimientoInventario.bodega_id).where(
+                Bodega.activo.is_(True),
+                Bodega.sucursal_id == sucursal_id,
+            )
 
         rows = session.exec(stmt).all()
         saldo = Decimal("0.0000")
         movimientos: list[ReporteInventarioKardexMovimientoRead] = []
-        for mov_fecha, tipo_movimiento, cantidad, costo_unitario in rows:
+        for mov_fecha, tipo_movimiento, referencia_documento, cantidad, costo_unitario in rows:
             cantidad_d = q4(self._d(cantidad))
             costo_d = q4(self._d(costo_unitario))
             if tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}:
                 saldo = q4(saldo - cantidad_d)
+                tipo_kardex = TipoMovimientoKardex.EGRESO
+                if (referencia_documento or "").startswith("VENTA:"):
+                    tipo_kardex = TipoMovimientoKardex.VENTA
             else:
                 saldo = q4(saldo + cantidad_d)
+                tipo_kardex = TipoMovimientoKardex.INGRESO
 
             movimientos.append(
                 ReporteInventarioKardexMovimientoRead(
                     fecha=mov_fecha,
-                    tipo_movimiento=tipo_movimiento,
+                    tipo_movimiento=tipo_kardex,
                     cantidad=cantidad_d,
                     costo_unitario=costo_d,
                     saldo_cantidad=saldo,
