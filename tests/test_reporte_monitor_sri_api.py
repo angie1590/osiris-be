@@ -7,8 +7,8 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from osiris.core.db import get_session
 from osiris.main import app
-from osiris.modules.facturacion.core_sri.types import EstadoDocumentoElectronico, TipoDocumentoElectronico
-from osiris.modules.facturacion.facturacion_electronica.models import DocumentoElectronico
+from osiris.modules.sri.core_sri.types import EstadoDocumentoElectronico, TipoDocumentoElectronico
+from osiris.modules.sri.facturacion_electronica.models import DocumentoElectronico
 
 
 def _build_test_engine():

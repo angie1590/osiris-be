@@ -39,9 +39,13 @@ from osiris.modules.inventario.categoria_atributo.router import router as catego
 from osiris.modules.inventario.bodega.router import router as bodega_router
 from osiris.modules.inventario.producto.router import router as producto_router
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
-from osiris.modules.facturacion.inventario.router import router as movimiento_inventario_router
+from osiris.modules.inventario.movimientos.router import router as movimiento_inventario_router
 from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catalogo_router
-from osiris.modules.facturacion.router import router as facturacion_router
+from osiris.modules.ventas.router import router as ventas_router
+from osiris.modules.compras.router import router as compras_router
+from osiris.modules.sri.facturacion_electronica.router import router as fe_router
+from osiris.modules.impresion.router import router as impresion_router
+from osiris.modules.reportes.router import router as reportes_router
 
 
 @asynccontextmanager
@@ -208,4 +212,8 @@ app.include_router(producto_router, prefix="/api")
 app.include_router(producto_impuesto_router, prefix="/api/productos")
 app.include_router(movimiento_inventario_router, prefix="/api")
 app.include_router(impuesto_catalogo_router, prefix="/api/impuestos")
-app.include_router(facturacion_router, prefix="/api")
+app.include_router(ventas_router, prefix="/api")
+app.include_router(compras_router, prefix="/api")
+app.include_router(fe_router, prefix="/api")
+app.include_router(impresion_router, prefix="/api")
+app.include_router(reportes_router, prefix="/api")

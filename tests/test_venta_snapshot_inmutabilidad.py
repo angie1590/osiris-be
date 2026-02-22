@@ -4,9 +4,9 @@ from decimal import Decimal
 from datetime import date
 from unittest.mock import MagicMock
 
-from osiris.modules.facturacion.core_sri.models import VentaDetalleImpuesto
-from osiris.modules.facturacion.core_sri.all_schemas import VentaRegistroCreate, VentaCompraDetalleRegistroCreate
-from osiris.modules.facturacion.ventas.services.venta_service import VentaService
+from osiris.modules.sri.core_sri.models import VentaDetalleImpuesto
+from osiris.modules.sri.core_sri.all_schemas import VentaRegistroCreate, VentaCompraDetalleRegistroCreate
+from osiris.modules.ventas.services.venta_service import VentaService
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto, TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import AplicaA, ImpuestoCatalogo, TipoImpuesto
 

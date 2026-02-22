@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from osiris.modules.common.empresa.entity import RegimenTributario
-from osiris.modules.facturacion.core_sri.all_schemas import (
+from osiris.modules.sri.core_sri.all_schemas import (
     CompraCreate,
     ImpuestoAplicadoInput,
     VentaCompraDetalleCreate,

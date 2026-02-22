@@ -10,8 +10,8 @@ from fastapi import HTTPException
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel, Session, create_engine, select
 
-from osiris.modules.facturacion.compras.services.cxp_service import CuentaPorPagarService
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.compras.services.cxp_service import CuentaPorPagarService
+from osiris.modules.sri.core_sri.models import (
     Compra,
     CuentaPorPagar,
     EstadoCompra,
@@ -21,7 +21,7 @@ from osiris.modules.facturacion.core_sri.models import (
     SustentoTributarioSRI,
     TipoIdentificacionSRI,
 )
-from osiris.modules.facturacion.core_sri.all_schemas import PagoCxPCreate
+from osiris.modules.sri.core_sri.all_schemas import PagoCxPCreate
 
 
 def _build_test_engine():

@@ -22,7 +22,7 @@ from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.tipo_cliente.entity import TipoCliente
 from osiris.modules.common.usuario.entity import Usuario
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     Compra,
     CompraDetalle,
     CompraDetalleImpuesto,
@@ -39,7 +39,7 @@ from osiris.modules.facturacion.core_sri.models import (
     VentaDetalle,
     VentaDetalleImpuesto,
 )
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,

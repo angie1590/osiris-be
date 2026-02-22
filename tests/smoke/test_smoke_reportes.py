@@ -10,13 +10,13 @@ from osiris.modules.common.persona.entity import Persona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.usuario.entity import Usuario
-from osiris.modules.facturacion.compras.models import (
+from osiris.modules.compras.models import (
     Compra,
     CuentaPorPagar,
     Retencion,
     RetencionDetalle,
 )
-from osiris.modules.facturacion.ventas.models import (
+from osiris.modules.ventas.models import (
     RetencionRecibida,
     RetencionRecibidaDetalle,
     Venta,

@@ -8,7 +8,7 @@ import httpx
 from sqlmodel import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from osiris.modules.facturacion.core_sri.models import CuentaPorPagar
+from osiris.modules.sri.core_sri.models import CuentaPorPagar
 from tests.smoke.flow_helpers import (
     crear_bodega,
     crear_categoria_hoja,

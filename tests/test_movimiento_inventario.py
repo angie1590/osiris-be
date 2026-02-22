@@ -13,15 +13,15 @@ from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
-from osiris.modules.facturacion.inventario.schemas import MovimientoInventarioCreate
-from osiris.modules.facturacion.inventario.services.movimiento_inventario_service import MovimientoInventarioService
+from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
+from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 

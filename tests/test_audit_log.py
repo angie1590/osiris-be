@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.facturacion.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta
+from osiris.modules.sri.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 
