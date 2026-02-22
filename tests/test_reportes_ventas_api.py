@@ -77,6 +77,7 @@ def _seed_contexto(session: Session):
         nombre="Sucursal Reportes",
         direccion="Av. 1",
         telefono="022000000",
+        es_matriz=True,
         empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,
@@ -89,7 +90,6 @@ def _seed_contexto(session: Session):
         descripcion="Punto de emision reportes",
         secuencial_actual=1,
         sucursal_id=sucursal.id,
-        empresa_id=empresa.id,
         usuario_auditoria="seed",
         activo=True,
     )

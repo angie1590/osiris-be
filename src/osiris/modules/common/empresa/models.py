@@ -14,7 +14,6 @@ RazonSocial = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r'
 NombreComercial = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r'^[A-Za-zÁÉÍÓÚÑáéíóúñ0-9\s\.\,\-]+$')]
 RUC = Annotated[str, StringConstraints(min_length=13, max_length=13, pattern=r'^\d{13}$')]
 Telefono = Annotated[str, StringConstraints(pattern=r'^\d{7,10}$')]
-CodigoEst = Annotated[str, StringConstraints(min_length=3, max_length=3, pattern=r'^\d{3}$')]
 TipoContribuyenteID = Annotated[str, StringConstraints(min_length=2, max_length=2)]
 
 
@@ -25,7 +24,6 @@ class EmpresaBase(BaseModel):
     direccion_matriz: str
     telefono: Optional[Telefono] = None
     logo: Optional[str] = None
-    codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: bool = False
     regimen: RegimenTributario = RegimenTributario.GENERAL
     modo_emision: ModoEmisionEmpresa = ModoEmisionEmpresa.ELECTRONICO
@@ -50,7 +48,6 @@ class EmpresaUpdate(BaseModel):
     direccion_matriz: Optional[str] = None
     telefono: Optional[Telefono] = None
     logo: Optional[str] = None
-    codigo_establecimiento: Optional[CodigoEst] = None
     obligado_contabilidad: Optional[bool] = None
     regimen: Optional[RegimenTributario] = None
     modo_emision: Optional[ModoEmisionEmpresa] = None

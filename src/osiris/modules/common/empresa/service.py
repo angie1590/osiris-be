@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.domain.service import BaseService
+from osiris.modules.common.sucursal.entity import Sucursal
 from .entity import ModoEmisionEmpresa, RegimenTributario
 from .models import EmpresaRegimenModoRules
 from .repository import EmpresaRepository
@@ -45,3 +46,32 @@ class EmpresaService(BaseService):
 
         self._check_fk_active_and_exists(session, data)
         return self.repo.update(session, db_obj, data)
+
+    def on_created(self, obj, session: Session) -> None:
+        # En pruebas unitarias con sesiones mock, omitimos side-effects transaccionales.
+        if not isinstance(session, Session):
+            return
+
+        matriz = session.exec(
+            select(Sucursal).where(
+                Sucursal.empresa_id == obj.id,
+                Sucursal.codigo == "001",
+                Sucursal.activo.is_(True),
+            )
+        ).first()
+        if matriz is not None:
+            return
+
+        session.add(
+            Sucursal(
+                codigo="001",
+                nombre="Matriz",
+                direccion=obj.direccion_matriz,
+                telefono=obj.telefono,
+                empresa_id=obj.id,
+                es_matriz=True,
+                usuario_auditoria=obj.usuario_auditoria,
+                activo=True,
+            )
+        )
+        session.commit()

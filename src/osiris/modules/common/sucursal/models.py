@@ -18,6 +18,7 @@ class SucursalBase(BaseModel):
     nombre: str
     direccion: str
     telefono: Optional[Telefono] = None
+    es_matriz: bool = False
     usuario_auditoria: str
     empresa_id: UUID
 
@@ -29,6 +30,7 @@ class SucursalUpdate(BaseModel):
     nombre: Optional[Nombre] = None
     direccion: Optional[Direccion] = None
     telefono: Optional[Telefono] = None
+    es_matriz: Optional[bool] = None
     activo: Optional[bool] = True
     usuario_auditoria: Optional[UsuarioAuditoria] = None
 
