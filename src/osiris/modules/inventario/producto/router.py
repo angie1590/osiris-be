@@ -7,7 +7,12 @@ from sqlmodel import Session
 
 from osiris.core.db import get_session
 from osiris.domain.schemas import PaginatedResponse
-from osiris.modules.inventario.producto.models import ProductoCompletoRead, ProductoCreate, ProductoUpdate
+from osiris.modules.inventario.producto.models import (
+    ProductoCompletoRead,
+    ProductoCreate,
+    ProductoListadoRead,
+    ProductoUpdate,
+)
 from osiris.modules.inventario.producto.models_atributos import (
     ProductoAtributoValorRead,
     ProductoAtributoValorUpsert,
@@ -21,7 +26,7 @@ service = ProductoService()
 atributo_valor_service = ProductoAtributoValorService()
 
 
-@router.get("", response_model=PaginatedResponse[ProductoCompletoRead])
+@router.get("", response_model=PaginatedResponse[ProductoListadoRead])
 def list_productos(
     limit: int = Query(50, ge=1, le=1000, description="Máximo de registros a devolver"),
     offset: int = Query(0, ge=0, description="Número de registros a saltar"),

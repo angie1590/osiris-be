@@ -110,6 +110,14 @@ class ProductoRead(BaseOSModel):
     usuario_auditoria: Optional[str] = None
 
 
+class ProductoListadoRead(BaseOSModel):
+    id: UUID
+    nombre: str
+    tipo: TipoProductoEnum
+    pvp: Decimal
+    cantidad: int
+
+
 class ProductoCompletoRead(BaseOSModel):
     """Contrato de respuesta completa de producto"""
     id: UUID

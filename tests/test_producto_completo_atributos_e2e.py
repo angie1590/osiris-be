@@ -121,6 +121,45 @@ def _seed_data_for_producto_completo(session: Session):
     return producto.id, garantia.id, peso.id
 
 
+def _seed_data_conflicto_herencia_abuelo_padre_hijo(session: Session):
+    abuelo = Categoria(nombre=f"Abuelo-{uuid4().hex[:6]}", es_padre=True, usuario_auditoria="test")
+    padre = Categoria(nombre=f"Padre-{uuid4().hex[:6]}", es_padre=True, parent_id=abuelo.id, usuario_auditoria="test")
+    hijo = Categoria(nombre=f"Hijo-{uuid4().hex[:6]}", es_padre=False, parent_id=padre.id, usuario_auditoria="test")
+
+    garantia = Atributo(nombre=f"Garantia-{uuid4().hex[:6]}", tipo_dato=TipoDato.STRING, usuario_auditoria="test")
+    producto = Producto(
+        nombre=f"Producto-{uuid4().hex[:6]}",
+        tipo=TipoProducto.BIEN,
+        pvp=Decimal("55.00"),
+        usuario_auditoria="test",
+    )
+
+    session.add_all([abuelo, padre, hijo, garantia, producto])
+    session.flush()
+
+    session.add_all(
+        [
+            CategoriaAtributo(
+                categoria_id=abuelo.id,
+                atributo_id=garantia.id,
+                obligatorio=False,  # opcional en abuelo
+                orden=1,
+                usuario_auditoria="test",
+            ),
+            CategoriaAtributo(
+                categoria_id=padre.id,
+                atributo_id=garantia.id,
+                obligatorio=True,  # obligatorio en padre (más específico que abuelo)
+                orden=2,
+                usuario_auditoria="test",
+            ),
+            ProductoCategoria(producto_id=producto.id, categoria_id=hijo.id),
+        ]
+    )
+    session.commit()
+    return producto.id, garantia.id
+
+
 def test_get_producto_completo_incluye_atributos_heredados_y_valores_persistidos():
     engine = _build_test_engine()
 
@@ -157,5 +196,55 @@ def test_get_producto_completo_incluye_atributos_heredados_y_valores_persistidos
             assert peso["atributo"]["tipo_dato"] == "decimal"
             assert peso["valor"] is None
             assert peso["obligatorio"] is False
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_get_producto_detalle_conflicto_herencia_abuelo_padre_hijo_gana_mas_especifico():
+    engine = _build_test_engine()
+
+    with Session(engine) as session:
+        producto_id, garantia_id = _seed_data_conflicto_herencia_abuelo_padre_hijo(session)
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/v1/productos/{producto_id}")
+            assert response.status_code == 200
+            body = response.json()
+            atributos = body.get("atributos", [])
+            by_id = {item["atributo"]["id"]: item for item in atributos}
+
+            assert str(garantia_id) in by_id
+            assert by_id[str(garantia_id)]["obligatorio"] is True
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_list_productos_retorna_metadata_basica_sin_detalle_de_atributos():
+    engine = _build_test_engine()
+    with Session(engine) as session:
+        _seed_data_for_producto_completo(session)
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/v1/productos?limit=50&offset=0&only_active=true")
+            assert response.status_code == 200
+            payload = response.json()
+
+            assert "items" in payload and isinstance(payload["items"], list)
+            assert len(payload["items"]) >= 1
+            item = payload["items"][0]
+
+            assert set(item.keys()) == {"id", "nombre", "tipo", "pvp", "cantidad"}
     finally:
         app.dependency_overrides.pop(get_session, None)
