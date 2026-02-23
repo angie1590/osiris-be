@@ -213,16 +213,22 @@ class ProductoService(BaseService):
         return " > ".join(ruta_parts)
 
     @staticmethod
-    def _extract_non_null_valor(registro: ProductoAtributoValor):
-        if registro.valor_string is not None:
+    def _extract_valor_por_tipo(tipo_dato: object, registro: ProductoAtributoValor | None):
+        if registro is None:
+            return None
+
+        tipo = tipo_dato.value if hasattr(tipo_dato, "value") else tipo_dato
+        tipo_normalizado = str(tipo).lower() if tipo is not None else ""
+
+        if tipo_normalizado == "string":
             return registro.valor_string
-        if registro.valor_integer is not None:
+        if tipo_normalizado == "integer":
             return registro.valor_integer
-        if registro.valor_decimal is not None:
+        if tipo_normalizado == "decimal":
             return registro.valor_decimal
-        if registro.valor_boolean is not None:
+        if tipo_normalizado == "boolean":
             return registro.valor_boolean
-        if registro.valor_date is not None:
+        if tipo_normalizado == "date":
             return registro.valor_date
         return None
 
@@ -323,9 +329,13 @@ class ProductoService(BaseService):
             valores_rows = session.exec(
                 select(ProductoAtributoValor).where(ProductoAtributoValor.producto_id == producto_id)
             ).all()
+            valores_rows_por_atributo = {row.atributo_id: row for row in valores_rows}
             valores_por_atributo = {
-                row.atributo_id: self._extract_non_null_valor(row)
-                for row in valores_rows
+                item["atributo_id"]: self._extract_valor_por_tipo(
+                    item.get("tipo_dato"),
+                    valores_rows_por_atributo.get(item["atributo_id"]),
+                )
+                for item in esqueleto
             }
 
             atributos = self._merge_atributos_esqueleto_con_valores(esqueleto, valores_por_atributo)
