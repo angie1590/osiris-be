@@ -199,6 +199,51 @@ def _seed_data_soft_delete_categoria_atributo(session: Session):
     return producto.id, peso.id, vinculo.id
 
 
+def _seed_data_cambio_familia_producto(session: Session):
+    categoria_a = Categoria(nombre=f"Laptops-{uuid4().hex[:6]}", es_padre=False, usuario_auditoria="test")
+    categoria_b = Categoria(nombre=f"Televisores-{uuid4().hex[:6]}", es_padre=False, usuario_auditoria="test")
+    atributo_x = Atributo(nombre=f"RAM-{uuid4().hex[:6]}", tipo_dato=TipoDato.STRING, usuario_auditoria="test")
+    atributo_y = Atributo(nombre=f"Resolucion-{uuid4().hex[:6]}", tipo_dato=TipoDato.STRING, usuario_auditoria="test")
+    producto = Producto(
+        nombre=f"Producto-{uuid4().hex[:6]}",
+        tipo=TipoProducto.BIEN,
+        pvp=Decimal("799.00"),
+        usuario_auditoria="test",
+    )
+
+    session.add_all([categoria_a, categoria_b, atributo_x, atributo_y, producto])
+    session.flush()
+
+    session.add_all(
+        [
+            CategoriaAtributo(
+                categoria_id=categoria_a.id,
+                atributo_id=atributo_x.id,
+                obligatorio=False,
+                orden=1,
+                usuario_auditoria="test",
+            ),
+            CategoriaAtributo(
+                categoria_id=categoria_b.id,
+                atributo_id=atributo_y.id,
+                obligatorio=False,
+                orden=1,
+                usuario_auditoria="test",
+            ),
+            ProductoCategoria(producto_id=producto.id, categoria_id=categoria_a.id),
+            ProductoAtributoValor(
+                producto_id=producto.id,
+                atributo_id=atributo_x.id,
+                valor_string="Hola",
+                usuario_auditoria="test",
+            ),
+        ]
+    )
+    session.commit()
+
+    return producto.id, categoria_b.id, atributo_x.id, atributo_y.id
+
+
 def test_get_producto_completo_incluye_atributos_heredados_y_valores_persistidos():
     engine = _build_test_engine()
 
@@ -333,5 +378,51 @@ def test_soft_delete_categoria_atributo_oculta_en_producto_y_conserva_valor_eav(
             ).first()
             assert eav_db is not None
             assert eav_db.valor_string == "2kg"
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_cambio_categoria_oculta_atributo_huerfano_pero_conserva_historico_eav():
+    engine = _build_test_engine()
+    with Session(engine) as session:
+        producto_id, categoria_b_id, atributo_x_id, atributo_y_id = _seed_data_cambio_familia_producto(session)
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            before = client.get(f"/api/v1/productos/{producto_id}")
+            assert before.status_code == 200
+            atributos_before = before.json().get("atributos", [])
+            by_id_before = {item["atributo"]["id"]: item for item in atributos_before}
+            assert str(atributo_x_id) in by_id_before
+            assert by_id_before[str(atributo_x_id)]["valor"] == "Hola"
+
+            update_resp = client.put(
+                f"/api/v1/productos/{producto_id}",
+                json={"categoria_ids": [str(categoria_b_id)]},
+            )
+            assert update_resp.status_code == 200
+
+            after = client.get(f"/api/v1/productos/{producto_id}")
+            assert after.status_code == 200
+            atributos_after = after.json().get("atributos", [])
+            by_id_after = {item["atributo"]["id"]: item for item in atributos_after}
+
+            assert str(atributo_x_id) not in by_id_after
+            assert str(atributo_y_id) in by_id_after
+            assert by_id_after[str(atributo_y_id)]["valor"] is None
+
+        with Session(engine) as session:
+            eav_x = session.exec(
+                select(ProductoAtributoValor)
+                .where(ProductoAtributoValor.producto_id == producto_id)
+                .where(ProductoAtributoValor.atributo_id == atributo_x_id)
+            ).first()
+            assert eav_x is not None
+            assert eav_x.valor_string == "Hola"
     finally:
         app.dependency_overrides.pop(get_session, None)
