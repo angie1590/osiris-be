@@ -44,7 +44,41 @@ def _create_table_under_test(engine) -> None:
     ProductoAtributoValor.__table__.create(bind=engine, checkfirst=True)
 
 
-def test_producto_atributo_valor_unique_constraint_raises_integrity_error():
+def test_producto_atributo_valor_check_constraint_falla_por_doble_valor():
+    engine = _engine_sqlite()
+    _create_table_under_test(engine)
+
+    with Session(engine) as session:
+        session.add(
+            ProductoAtributoValor(
+                producto_id=uuid4(),
+                atributo_id=uuid4(),
+                valor_string="Hola",
+                valor_integer=10,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+
+def test_producto_atributo_valor_check_constraint_falla_por_todos_nulos():
+    engine = _engine_sqlite()
+    _create_table_under_test(engine)
+
+    with Session(engine) as session:
+        session.add(
+            ProductoAtributoValor(
+                producto_id=uuid4(),
+                atributo_id=uuid4(),
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+
+def test_producto_atributo_valor_unique_constraint_falla_por_duplicidad():
     engine = _engine_sqlite()
     _create_table_under_test(engine)
 
@@ -66,40 +100,6 @@ def test_producto_atributo_valor_unique_constraint_raises_integrity_error():
                 producto_id=producto_id,
                 atributo_id=atributo_id,
                 valor_integer=10,
-            )
-        )
-        with pytest.raises(IntegrityError):
-            session.commit()
-        session.rollback()
-
-
-def test_producto_atributo_valor_check_constraint_blocks_multiple_value_columns():
-    engine = _engine_sqlite()
-    _create_table_under_test(engine)
-
-    with Session(engine) as session:
-        session.add(
-            ProductoAtributoValor(
-                producto_id=uuid4(),
-                atributo_id=uuid4(),
-                valor_string="azul",
-                valor_integer=42,
-            )
-        )
-        with pytest.raises(IntegrityError):
-            session.commit()
-        session.rollback()
-
-
-def test_producto_atributo_valor_check_constraint_blocks_zero_value_columns():
-    engine = _engine_sqlite()
-    _create_table_under_test(engine)
-
-    with Session(engine) as session:
-        session.add(
-            ProductoAtributoValor(
-                producto_id=uuid4(),
-                atributo_id=uuid4(),
             )
         )
         with pytest.raises(IntegrityError):
