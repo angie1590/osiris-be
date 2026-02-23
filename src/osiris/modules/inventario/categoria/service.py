@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, literal
+from sqlalchemy import func, literal, update
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
@@ -31,6 +31,80 @@ class CategoriaService(BaseService):
         if "parent_id" in data and data.get("parent_id"):
             # _check_fk_active_and_exists conoce fk_models y validará parent_id
             self._check_fk_active_and_exists(session, data)
+
+    def _aplicar_regla_b3_migracion(self, session: Session, parent_id: UUID) -> None:
+        """
+        Regla B3:
+        Si la categoría padre (hoy hoja) ya tiene productos asociados y va a recibir hijos,
+        crear/reusar subcategoría "General" y migrar allí esos productos en la misma transacción.
+        """
+        from osiris.modules.inventario.producto.entity import ProductoCategoria
+
+        parent = session.exec(
+            select(Categoria)
+            .where(Categoria.id == parent_id)
+            .with_for_update()
+        ).first()
+        if not parent:
+            return
+
+        has_productos = session.exec(
+            select(ProductoCategoria.producto_id)
+            .where(ProductoCategoria.categoria_id == parent_id)
+            .limit(1)
+        ).first()
+        if not has_productos:
+            return
+
+        general = session.exec(
+            select(Categoria)
+            .where(Categoria.parent_id == parent_id)
+            .where(func.lower(Categoria.nombre) == "general")
+            .with_for_update()
+        ).first()
+
+        if general is None:
+            general = Categoria(
+                nombre="General",
+                es_padre=False,
+                parent_id=parent_id,
+                usuario_auditoria=getattr(parent, "usuario_auditoria", None),
+            )
+            session.add(general)
+            session.flush()
+
+        session.exec(
+            update(ProductoCategoria)
+            .where(ProductoCategoria.categoria_id == parent_id)
+            .values(categoria_id=general.id)
+        )
+        session.flush()
+
+        parent.es_padre = True
+        session.add(parent)
+        session.flush()
+
+    def create(self, session: Session, data: dict, *, commit: bool = True):
+        """
+        Override de create para inyectar la Regla B3 dentro de una única transacción.
+        """
+        try:
+            data = self._ensure_dict(data)
+            self.validate_create(data, session)
+            self._check_fk_active_and_exists(session, data)
+
+            parent_id = data.get("parent_id")
+            if parent_id:
+                self._aplicar_regla_b3_migracion(session, parent_id)
+
+            obj = self.repo.create(session, data)
+            self.on_created(obj, session)
+            if commit:
+                session.commit()
+                session.refresh(obj)
+            return obj
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
 
     def _detect_cycle(self, session: Session, current_id: UUID, target_parent_id: UUID, visited: set = None) -> bool:
         """Detecta si hay un ciclo en la jerarquía al establecer target_parent_id como padre de current_id.
