@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.inventario.categoria_atributo.service import CategoriaAtributoService
 from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
 from osiris.modules.inventario.categoria_atributo.models import (
@@ -32,6 +33,7 @@ def _build_test_engine():
     SQLModel.metadata.create_all(
         engine,
         tables=[
+            AuditLog.__table__,
             CasaComercial.__table__,
             Categoria.__table__,
             Atributo.__table__,

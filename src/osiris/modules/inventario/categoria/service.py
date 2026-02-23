@@ -253,6 +253,7 @@ class CategoriaService(BaseService):
             )
             .join(ancestros_cte, CategoriaAtributo.categoria_id == ancestros_cte.c.categoria_id)
             .join(Atributo, Atributo.id == CategoriaAtributo.atributo_id)
+            .where(CategoriaAtributo.activo.is_(True))
             .cte(name="atributos_ranked")
         )
 

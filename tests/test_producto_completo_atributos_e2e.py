@@ -7,8 +7,9 @@ import sqlalchemy as sa
 from fastapi.testclient import TestClient
 from sqlalchemy import Column, Table
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
@@ -160,6 +161,44 @@ def _seed_data_conflicto_herencia_abuelo_padre_hijo(session: Session):
     return producto.id, garantia.id
 
 
+def _seed_data_soft_delete_categoria_atributo(session: Session):
+    categoria = Categoria(nombre=f"Categoria-{uuid4().hex[:6]}", es_padre=False, usuario_auditoria="test")
+    peso = Atributo(nombre=f"Peso-{uuid4().hex[:6]}", tipo_dato=TipoDato.STRING, usuario_auditoria="test")
+    producto = Producto(
+        nombre=f"Producto-{uuid4().hex[:6]}",
+        tipo=TipoProducto.BIEN,
+        pvp=Decimal("49.90"),
+        usuario_auditoria="test",
+    )
+
+    session.add_all([categoria, peso, producto])
+    session.flush()
+
+    vinculo = CategoriaAtributo(
+        categoria_id=categoria.id,
+        atributo_id=peso.id,
+        obligatorio=False,
+        orden=1,
+        usuario_auditoria="test",
+    )
+
+    session.add_all(
+        [
+            vinculo,
+            ProductoCategoria(producto_id=producto.id, categoria_id=categoria.id),
+            ProductoAtributoValor(
+                producto_id=producto.id,
+                atributo_id=peso.id,
+                valor_string="2kg",
+                usuario_auditoria="test",
+            ),
+        ]
+    )
+    session.commit()
+
+    return producto.id, peso.id, vinculo.id
+
+
 def test_get_producto_completo_incluye_atributos_heredados_y_valores_persistidos():
     engine = _build_test_engine()
 
@@ -246,5 +285,53 @@ def test_list_productos_retorna_metadata_basica_sin_detalle_de_atributos():
             item = payload["items"][0]
 
             assert set(item.keys()) == {"id", "nombre", "tipo", "pvp", "cantidad"}
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_soft_delete_categoria_atributo_oculta_en_producto_y_conserva_valor_eav():
+    engine = _build_test_engine()
+    with Session(engine) as session:
+        producto_id, peso_id, vinculo_id = _seed_data_soft_delete_categoria_atributo(session)
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            before = client.get(f"/api/v1/productos/{producto_id}")
+            assert before.status_code == 200
+            atributos_before = before.json().get("atributos", [])
+            by_id_before = {item["atributo"]["id"]: item for item in atributos_before}
+            assert str(peso_id) in by_id_before
+            assert by_id_before[str(peso_id)]["valor"] == "2kg"
+
+            delete_resp = client.delete(f"/api/v1/categorias-atributos/{vinculo_id}")
+            assert delete_resp.status_code == 204
+
+            after = client.get(f"/api/v1/productos/{producto_id}")
+            assert after.status_code == 200
+            atributos_after = after.json().get("atributos", [])
+            by_id_after = {item["atributo"]["id"]: item for item in atributos_after}
+            assert str(peso_id) not in by_id_after
+
+        with Session(engine) as session:
+            vinculo_db = session.exec(
+                select(CategoriaAtributo)
+                .where(CategoriaAtributo.id == vinculo_id)
+                .execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+            ).first()
+            assert vinculo_db is not None
+            assert vinculo_db.activo is False
+
+            eav_db = session.exec(
+                select(ProductoAtributoValor)
+                .where(ProductoAtributoValor.producto_id == producto_id)
+                .where(ProductoAtributoValor.atributo_id == peso_id)
+            ).first()
+            assert eav_db is not None
+            assert eav_db.valor_string == "2kg"
     finally:
         app.dependency_overrides.pop(get_session, None)
