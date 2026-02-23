@@ -69,7 +69,7 @@ def test_contextvar_user_injection():
 
         with TestClient(app) as client:
             response = client.post(
-                "/api/roles",
+                "/api/v1/roles",
                 json=payload,
                 headers={"Authorization": f"Bearer {token}"},
             )
@@ -95,19 +95,19 @@ def test_soft_delete_exclusion():
     try:
         role_name = f"ROL-{uuid4().hex[:8]}"
         with TestClient(app) as client:
-            create_resp = client.post("/api/roles", json={"nombre": role_name, "descripcion": "SoftDelete"})
+            create_resp = client.post("/api/v1/roles", json={"nombre": role_name, "descripcion": "SoftDelete"})
             assert create_resp.status_code == 201
             role_id = create_resp.json()["id"]
 
-            list_before = client.get("/api/roles")
+            list_before = client.get("/api/v1/roles")
             assert list_before.status_code == 200
             ids_before = {item["id"] for item in list_before.json()["items"]}
             assert role_id in ids_before
 
-            delete_resp = client.delete(f"/api/roles/{role_id}")
+            delete_resp = client.delete(f"/api/v1/roles/{role_id}")
             assert delete_resp.status_code == 204
 
-            list_after = client.get("/api/roles")
+            list_after = client.get("/api/v1/roles")
             assert list_after.status_code == 200
             ids_after = {item["id"] for item in list_after.json()["items"]}
             assert role_id not in ids_after

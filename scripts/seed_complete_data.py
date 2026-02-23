@@ -31,10 +31,8 @@ from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.inventario.producto.entity import Producto, ProductoCategoria, ProductoProveedorPersona, ProductoProveedorSociedad, ProductoImpuesto, ProductoBodega
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
-from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.common.rol.entity import Rol
-from osiris.modules.common.cliente.entity import Cliente
 from osiris.modules.common.empleado.entity import Empleado
 from osiris.modules.common.modulo.entity import Modulo
 from osiris.modules.common.rol_modulo_permiso.entity import RolModuloPermiso
@@ -374,7 +372,7 @@ def crear_proveedores_sociedad(session: Session, proveedores_data: list, persona
 
 def obtener_impuestos(session: Session) -> dict:
     """Obtiene los impuestos del catálogo por código_sri."""
-    stmt = select(ImpuestoCatalogo).where(ImpuestoCatalogo.activo == True)
+    stmt = select(ImpuestoCatalogo).where(ImpuestoCatalogo.activo.is_(True))
     impuestos = session.exec(stmt).all()
 
     impuestos_map = {}
@@ -510,7 +508,6 @@ def crear_roles(session: Session, roles_data: list) -> dict:
 
 def crear_modulos(session: Session, modulos_data: list) -> dict:
     """Crea módulos del sistema y retorna un mapa {codigo: id}."""
-    from osiris.modules.common.modulo.entity import Modulo
 
     modulos_map = {}
 
@@ -542,7 +539,6 @@ def crear_modulos(session: Session, modulos_data: list) -> dict:
 
 def crear_permisos(session: Session, permisos_data: list, roles_map: dict, modulos_map: dict):
     """Crea permisos asociando roles con módulos."""
-    from osiris.modules.common.rol_modulo_permiso.entity import RolModuloPermiso
 
     for perm_data in permisos_data:
         rol_nombre = perm_data["rol"]
@@ -729,8 +725,8 @@ def main():
         print("\n" + "=" * 80)
         print("✓ SEED COMPLETADO EXITOSAMENTE")
         print("=" * 80)
-        print(f"\nResumen:")
-        print(f"  - Empresa: 1 (OpenLatina)")
+        print("\nResumen:")
+        print("  - Empresa: 1 (OpenLatina)")
         print(f"  - Sucursales: {len(sucursales_map)}")
         print(f"  - Puntos de emisión: {len(data['puntos_emision'])}")
         print(f"  - Bodegas: {len(bodegas_map)}")

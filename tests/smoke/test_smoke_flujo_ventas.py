@@ -9,7 +9,7 @@ from uuid import UUID
 import pytest
 from sqlmodel import select
 
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
     EstadoSriDocumento,
@@ -17,10 +17,10 @@ from osiris.modules.facturacion.core_sri.models import (
     TipoDocumentoElectronico,
     Venta,
 )
-from osiris.modules.facturacion.facturacion_electronica.router import (
+from osiris.modules.sri.facturacion_electronica.router import (
     orquestador_fe_service as fe_orquestador_router_service,
 )
-from osiris.modules.facturacion.ventas.router import venta_service as venta_router_service
+from osiris.modules.ventas.router import venta_service as venta_router_service
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto, TipoProducto
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from tests.smoke.flow_helpers import (
@@ -108,7 +108,7 @@ def test_smoke_flujo_ventas(client, db_session):
         ],
     }
 
-    crear_venta = client.post("/ventas", json=venta_payload)
+    crear_venta = client.post("/api/v1/ventas", json=venta_payload)
     assert crear_venta.status_code == 201, crear_venta.text
     venta_data = crear_venta.json()
     venta_id = UUID(venta_data["id"])
@@ -132,8 +132,8 @@ def test_smoke_flujo_ventas(client, db_session):
             costo_unitario="12.00",
         )
 
-    with patch("osiris.modules.facturacion.facturacion_electronica.services.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
-        "osiris.modules.facturacion.facturacion_electronica.services.venta_sri_async_service.SRIService"
+    with patch("osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
+        "osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service.SRIService"
     ) as mock_sri, patch("starlette.background.BackgroundTasks.add_task", return_value=None):
         venta_router_service.venta_sri_async_service.db_engine = db_session.get_bind()
         venta_router_service.orquestador_fe_service.db_engine = db_session.get_bind()
@@ -148,7 +148,7 @@ def test_smoke_flujo_ventas(client, db_session):
         }
 
         emitir = client.post(
-            f"/ventas/{venta_id}/emitir",
+            f"/api/v1/ventas/{venta_id}/emitir",
             json={"usuario_auditoria": "smoke"},
         )
         assert emitir.status_code == 200, emitir.text
@@ -163,7 +163,7 @@ def test_smoke_flujo_ventas(client, db_session):
         assert documento_encolado is not None
         assert documento_encolado.estado_sri == EstadoDocumentoElectronico.EN_COLA
 
-        procesar_cola = client.post("/v1/fe/procesar-cola")
+        procesar_cola = client.post("/api/v1/fe/procesar-cola")
         assert procesar_cola.status_code == 200, procesar_cola.text
 
         db_session.expire_all()
@@ -177,7 +177,7 @@ def test_smoke_flujo_ventas(client, db_session):
         assert documento_autorizado.estado_sri == EstadoDocumentoElectronico.AUTORIZADO
 
     kardex = client.get(
-        "/v1/inventario/kardex",
+        "/api/v1/inventarios/kardex",
         params={"producto_id": producto_id, "bodega_id": bodega_id},
     )
     assert kardex.status_code == 200, kardex.text
@@ -188,7 +188,7 @@ def test_smoke_flujo_ventas(client, db_session):
 
     venta_get = None
     for _ in range(5):
-        venta_get = client.get(f"/ventas/{venta_id}")
+        venta_get = client.get(f"/api/v1/ventas/{venta_id}")
         assert venta_get.status_code == 200, venta_get.text
         if venta_get.json().get("estado_sri") == "AUTORIZADO":
             break
@@ -196,14 +196,14 @@ def test_smoke_flujo_ventas(client, db_session):
     assert venta_get is not None
     assert venta_get.json()["estado_sri"] == "AUTORIZADO"
 
-    cxc_get = client.get(f"/v1/cxc/{venta_id}")
+    cxc_get = client.get(f"/api/v1/cxc/{venta_id}")
     assert cxc_get.status_code == 200, cxc_get.text
     cxc_data = cxc_get.json()
     saldo = Decimal(str(cxc_data["saldo_pendiente"]))
     assert saldo > Decimal("0.00")
 
     pago = client.post(
-        f"/v1/cxc/{venta_id}/pagos",
+        f"/api/v1/cxc/{venta_id}/pagos",
         json={
             "monto": str(saldo),
             "fecha": date.today().isoformat(),
@@ -213,7 +213,7 @@ def test_smoke_flujo_ventas(client, db_session):
     )
     assert pago.status_code == 201, pago.text
 
-    cxc_final = client.get(f"/v1/cxc/{venta_id}")
+    cxc_final = client.get(f"/api/v1/cxc/{venta_id}")
     assert cxc_final.status_code == 200, cxc_final.text
     cxc_final_data = cxc_final.json()
     assert cxc_final_data["estado"] == "PAGADA"

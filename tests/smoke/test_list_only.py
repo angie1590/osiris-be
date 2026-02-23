@@ -15,7 +15,7 @@ def test_list_endpoints_simple():
 
     prefixes = [
         "roles",
-        "empresa",
+        "empresas",
         "sucursales",
         "puntos-emision",
         "personas",

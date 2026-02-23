@@ -19,7 +19,14 @@ class EmpleadoCrearUsuarioStrategy:
     def __init__(self, usuario_service: UsuarioService | None = None) -> None:
         self.usuario_service = usuario_service or UsuarioService()
 
-    def create_user_for_persona(self, session: Session, *, persona_id: UUID, usuario_payload: Dict[str, Any]):
+    def create_user_for_persona(
+        self,
+        session: Session,
+        *,
+        persona_id: UUID,
+        usuario_payload: Dict[str, Any],
+        commit: bool = True,
+    ):
         if not usuario_payload:
             raise HTTPException(status_code=400, detail="Debe enviar el bloque 'usuario' con username, password y rol_id")
 
@@ -44,5 +51,5 @@ class EmpleadoCrearUsuarioStrategy:
         usuario_payload["persona_id"] = persona_id
 
         # Crear el usuario (UsuarioService también valida FKs vía fk_models)
-        user = self.usuario_service.create(session, usuario_payload)
+        user = self.usuario_service.create(session, usuario_payload, commit=commit)
         return user

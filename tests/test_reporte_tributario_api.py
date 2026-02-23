@@ -14,8 +14,8 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.compras.models import Compra, Retencion, RetencionDetalle
-from osiris.modules.facturacion.core_sri.types import (
+from osiris.modules.compras.models import Compra, Retencion, RetencionDetalle
+from osiris.modules.sri.core_sri.types import (
     EstadoCompra,
     EstadoRetencion,
     EstadoRetencionRecibida,
@@ -25,7 +25,7 @@ from osiris.modules.facturacion.core_sri.types import (
     TipoIdentificacionSRI,
     TipoRetencionSRI,
 )
-from osiris.modules.facturacion.ventas.models import RetencionRecibida, RetencionRecibidaDetalle, Venta
+from osiris.modules.ventas.models import RetencionRecibida, RetencionRecibidaDetalle, Venta
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
 

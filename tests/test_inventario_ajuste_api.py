@@ -13,7 +13,7 @@ from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,
@@ -99,7 +99,7 @@ def test_ajuste_requiere_motivo():
     try:
         with TestClient(app) as client:
             crear = client.post(
-                "/api/v1/inventario/movimientos",
+                "/api/v1/inventarios/movimientos",
                 json={
                     "bodega_id": bodega_id,
                     "tipo_movimiento": "AJUSTE",
@@ -117,7 +117,7 @@ def test_ajuste_requiere_motivo():
             movimiento_id = crear.json()["id"]
 
             confirmar = client.post(
-                f"/api/v1/inventario/movimientos/{movimiento_id}/confirmar",
+                f"/api/v1/inventarios/movimientos/{movimiento_id}/confirmar",
                 json={},
             )
 

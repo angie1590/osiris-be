@@ -14,8 +14,8 @@ from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.ventas.services.cxc_service import CuentaPorCobrarService
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.ventas.services.cxc_service import CuentaPorCobrarService
+from osiris.modules.sri.core_sri.models import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
     FormaPagoSRI,
@@ -24,7 +24,7 @@ from osiris.modules.facturacion.core_sri.models import (
     Venta,
 )
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
-from osiris.modules.facturacion.core_sri.all_schemas import PagoCxCCreate
+from osiris.modules.sri.core_sri.all_schemas import PagoCxCCreate
 
 
 def _build_test_engine():

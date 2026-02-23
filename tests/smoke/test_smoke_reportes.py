@@ -10,13 +10,13 @@ from osiris.modules.common.persona.entity import Persona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.usuario.entity import Usuario
-from osiris.modules.facturacion.compras.models import (
+from osiris.modules.compras.models import (
     Compra,
     CuentaPorPagar,
     Retencion,
     RetencionDetalle,
 )
-from osiris.modules.facturacion.ventas.models import (
+from osiris.modules.ventas.models import (
     RetencionRecibida,
     RetencionRecibidaDetalle,
     Venta,
@@ -72,20 +72,20 @@ def test_smoke_reporteria_endpoints(client, db_session):
     fecha_inicio = fecha_fin - timedelta(days=365)
 
     requests = [
-        ("/v1/reportes/ventas/resumen", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat(), "sucursal_id": str(sucursal_id)}),
-        ("/v1/reportes/ventas/top-productos", None),
-        ("/v1/reportes/ventas/tendencias", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat(), "agrupacion": "DIARIA"}),
-        ("/v1/reportes/ventas/por-vendedor", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
-        ("/v1/reportes/impuestos/mensual", {"mes": 2, "anio": 2026}),
-        ("/v1/reportes/inventario/valoracion", None),
-        ("/v1/reportes/cartera/cobrar", None),
-        ("/v1/reportes/cartera/pagar", None),
-        ("/v1/reportes/caja/cierre-diario", {"fecha": fecha_fin.isoformat()}),
-        (f"/v1/reportes/inventario/kardex/{producto_id}", None),
-        ("/v1/reportes/compras/por-proveedor", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
-        ("/v1/reportes/sri/monitor-estados", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
-        ("/v1/reportes/rentabilidad/por-cliente", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
-        ("/v1/reportes/rentabilidad/transacciones", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
+        ("/api/v1/reportes/ventas/resumen", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat(), "sucursal_id": str(sucursal_id)}),
+        ("/api/v1/reportes/ventas/top-productos", None),
+        ("/api/v1/reportes/ventas/tendencias", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat(), "agrupacion": "DIARIA"}),
+        ("/api/v1/reportes/ventas/por-vendedor", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
+        ("/api/v1/reportes/impuestos/mensual", {"mes": 2, "anio": 2026}),
+        ("/api/v1/reportes/inventario/valoracion", None),
+        ("/api/v1/reportes/cartera/cobrar", None),
+        ("/api/v1/reportes/cartera/pagar", None),
+        ("/api/v1/reportes/caja/cierre-diario", {"fecha": fecha_fin.isoformat()}),
+        (f"/api/v1/reportes/inventario/kardex/{producto_id}", None),
+        ("/api/v1/reportes/compras/por-proveedor", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
+        ("/api/v1/reportes/sri/monitor-estados", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
+        ("/api/v1/reportes/rentabilidad/por-cliente", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
+        ("/api/v1/reportes/rentabilidad/transacciones", {"fecha_inicio": fecha_inicio.isoformat(), "fecha_fin": fecha_fin.isoformat()}),
     ]
 
     for path, params in requests:

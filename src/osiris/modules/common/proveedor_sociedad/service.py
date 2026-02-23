@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from typing import Any
 from uuid import UUID
-from datetime import datetime
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
@@ -11,7 +10,7 @@ from osiris.domain.service import BaseService
 from .repository import ProveedorSociedadRepository
 from .entity import ProveedorSociedad
 
-from osiris.modules.common.persona.entity import Persona, TipoIdentificacion
+from osiris.modules.common.persona.entity import Persona
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 from osiris.utils.validacion_identificacion import ValidacionCedulaRucService
 

@@ -51,22 +51,21 @@ class EmpleadoService(BaseService):
         usuario_payload = data.pop("usuario", None)
 
         # 1) Crear Usuario (con persona_id forzado)
-        created_user = self.strategy.create_user_for_persona(
-            session, persona_id=persona_id, usuario_payload=usuario_payload
+        self.strategy.create_user_for_persona(
+            session,
+            persona_id=persona_id,
+            usuario_payload=usuario_payload,
+            commit=False,
         )
 
         # 2) Crear Empleado
+        empleado = super().create(session, data, commit=False)
         try:
-            empleado = super().create(session, data)
-            return empleado
-        except Exception:
-            # Compensación: si falla Empleado, desactivar/eliminar usuario creado
-            try:
-                from osiris.modules.common.usuario.service import UsuarioService
-                UsuarioService().delete(session, created_user.id)
-            except Exception:
-                pass
-            raise
+            session.commit()
+            session.refresh(empleado)
+        except Exception as exc:
+            self._handle_transaction_error(session, exc)
+        return empleado
 
     # --- UPDATE: bloquear persona_id + validar coherencia de fechas ---
     def update(self, session: Session, item_id: UUID, data: Any) -> Empleado | None:

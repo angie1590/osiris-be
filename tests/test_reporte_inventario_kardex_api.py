@@ -12,7 +12,7 @@ from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     MovimientoInventario,
     MovimientoInventarioDetalle,

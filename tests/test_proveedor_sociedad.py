@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 from uuid import uuid4
-from datetime import datetime
 from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import exc as sa_exc
-from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 
 # SUT imports

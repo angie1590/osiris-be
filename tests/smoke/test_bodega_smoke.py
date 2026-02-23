@@ -6,7 +6,7 @@ import uuid
 import pytest
 import httpx
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 10.0
 
 
@@ -50,7 +50,7 @@ def test_bodega_crud_completo():
                 "tipo_contribuyente_id": "01",
                 "usuario_auditoria": "smoke_test"
             }
-            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            r = client.post(f"{BASE}/empresas", json=empresa_data)
             if r.status_code in (201, 409):
                 empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
                 break
@@ -83,7 +83,7 @@ def test_bodega_crud_completo():
             "empresa_id": empresa_id,
             "sucursal_id": sucursal_id,
         }
-        r = client.post(f"{BASE}/bodegas/", json=bodega_data)
+        r = client.post(f"{BASE}/bodegas", json=bodega_data)
         assert r.status_code == 201, f"Failed to create bodega: {r.text}"
         bodega_id = r.json()["id"]
 
@@ -97,7 +97,7 @@ def test_bodega_crud_completo():
         assert data["nombre_bodega"] == f"Bodega_Test_{unique_suffix}"
 
         # 5. Listar bodegas de esta empresa
-        r = client.get(f"{BASE}/bodegas/?empresa_id={empresa_id}")
+        r = client.get(f"{BASE}/bodegas?empresa_id={empresa_id}")
         assert r.status_code == 200
         items = r.json()
         assert len(items) >= 1
@@ -125,14 +125,14 @@ def test_bodega_crud_completo():
         r = client.get(f"{BASE}/bodegas/{bodega_id}")
         # Si implementas filtro de activos, debería retornar 404 o no encontrarse
         # Por ahora verificamos que no está en el listado activo
-        r = client.get(f"{BASE}/bodegas/?empresa_id={empresa_id}")
+        r = client.get(f"{BASE}/bodegas?empresa_id={empresa_id}")
         items = r.json()
         found = any(item["id"] == bodega_id for item in items)
         assert not found, "Bodega eliminada aún aparece en listado activo"
 
         # Cleanup: eliminar sucursal y empresa
         client.delete(f"{BASE}/sucursales/{sucursal_id}")
-        client.delete(f"{BASE}/empresa/{empresa_id}")
+        client.delete(f"{BASE}/empresas/{empresa_id}")
 
 
 @pytest.mark.skipif(
@@ -161,7 +161,7 @@ def test_bodega_sin_sucursal():
                 "tipo_contribuyente_id": "01",
                 "usuario_auditoria": "smoke_test"
             }
-            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            r = client.post(f"{BASE}/empresas", json=empresa_data)
             if r.status_code in (201, 409):
                 empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
                 break
@@ -181,7 +181,7 @@ def test_bodega_sin_sucursal():
             "empresa_id": empresa_id,
             "sucursal_id": None,
         }
-        r = client.post(f"{BASE}/bodegas/", json=bodega_data)
+        r = client.post(f"{BASE}/bodegas", json=bodega_data)
         assert r.status_code == 201, f"Failed to create bodega sin sucursal: {r.text}"
         bodega_id = r.json()["id"]
 
@@ -194,7 +194,7 @@ def test_bodega_sin_sucursal():
 
         # Cleanup
         client.delete(f"{BASE}/bodegas/{bodega_id}")
-        client.delete(f"{BASE}/empresa/{empresa_id}")
+        client.delete(f"{BASE}/empresas/{empresa_id}")
 
 
 @pytest.mark.skipif(
@@ -223,7 +223,7 @@ def test_bodega_filtro_por_sucursal():
                 "tipo_contribuyente_id": "01",
                 "usuario_auditoria": "smoke_test"
             }
-            r = client.post(f"{BASE}/empresa", json=empresa_data)
+            r = client.post(f"{BASE}/empresas", json=empresa_data)
             if r.status_code in (201, 409):
                 empresa_id = r.json()["id"] if r.status_code == 201 else r.json().get("id")
                 break
@@ -268,7 +268,7 @@ def test_bodega_filtro_por_sucursal():
             "empresa_id": empresa_id,
             "sucursal_id": sucursal1_id,
         }
-        r = client.post(f"{BASE}/bodegas/", json=bodega1_data)
+        r = client.post(f"{BASE}/bodegas", json=bodega1_data)
         assert r.status_code == 201
         bodega1_id = r.json()["id"]
 
@@ -279,12 +279,12 @@ def test_bodega_filtro_por_sucursal():
             "empresa_id": empresa_id,
             "sucursal_id": sucursal2_id,
         }
-        r = client.post(f"{BASE}/bodegas/", json=bodega2_data)
+        r = client.post(f"{BASE}/bodegas", json=bodega2_data)
         assert r.status_code == 201
         bodega2_id = r.json()["id"]
 
         # Filtrar por sucursal 1
-        r = client.get(f"{BASE}/bodegas/?sucursal_id={sucursal1_id}")
+        r = client.get(f"{BASE}/bodegas?sucursal_id={sucursal1_id}")
         assert r.status_code == 200
         items = r.json()
         found_bodega1 = any(item["id"] == bodega1_id for item in items)
@@ -293,7 +293,7 @@ def test_bodega_filtro_por_sucursal():
         assert not found_bodega2, "Bodega 2 aparece en filtro por sucursal 1"
 
         # Filtrar por sucursal 2
-        r = client.get(f"{BASE}/bodegas/?sucursal_id={sucursal2_id}")
+        r = client.get(f"{BASE}/bodegas?sucursal_id={sucursal2_id}")
         assert r.status_code == 200
         items = r.json()
         found_bodega1 = any(item["id"] == bodega1_id for item in items)
@@ -306,4 +306,4 @@ def test_bodega_filtro_por_sucursal():
         client.delete(f"{BASE}/bodegas/{bodega2_id}")
         client.delete(f"{BASE}/sucursales/{sucursal1_id}")
         client.delete(f"{BASE}/sucursales/{sucursal2_id}")
-        client.delete(f"{BASE}/empresa/{empresa_id}")
+        client.delete(f"{BASE}/empresas/{empresa_id}")

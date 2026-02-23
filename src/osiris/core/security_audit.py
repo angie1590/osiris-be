@@ -26,14 +26,14 @@ class SensitiveEndpointRule:
 SENSITIVE_ENDPOINT_RULES: tuple[SensitiveEndpointRule, ...] = (
     SensitiveEndpointRule(
         method="PUT",
-        path_regex=re.compile(r"^/api/empresa/[0-9a-fA-F-]{36}$"),
+        path_regex=re.compile(r"^/api(?:/v1)?/empresas/[0-9a-fA-F-]{36}$"),
         modulo_codigo="EMPRESA",
         accion="actualizar",
     ),
     SensitiveEndpointRule(
         method="POST",
         path_regex=re.compile(
-            r"^/api/puntos-emision/[0-9a-fA-F-]{36}/secuenciales/[^/]+/ajuste-manual$"
+            r"^/api(?:/v1)?/puntos-emision/[0-9a-fA-F-]{36}/secuenciales/[^/]+/ajuste-manual$"
         ),
         modulo_codigo="PUNTOS_EMISION",
         accion="actualizar",

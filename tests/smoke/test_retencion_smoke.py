@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from osiris.modules.facturacion.core_sri.all_schemas import q2
+from osiris.modules.sri.core_sri.all_schemas import q2
 from tests.smoke.flow_helpers import (
     crear_bodega,
     crear_categoria_hoja,
@@ -59,7 +59,7 @@ def test_retencion_recibida_smoke(client):
             }
         ],
     }
-    response = client.post("/v1/retenciones-recibidas", json=payload)
+    response = client.post("/api/v1/retenciones-recibidas", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["estado"] == "BORRADOR"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.facturacion.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta
+from osiris.modules.sri.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 

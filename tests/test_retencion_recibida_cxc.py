@@ -12,7 +12,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from osiris.core.db import get_session
 from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
-from osiris.modules.facturacion.core_sri.models import (
+from osiris.modules.sri.core_sri.models import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
     EstadoRetencionRecibida,
@@ -23,7 +23,7 @@ from osiris.modules.facturacion.core_sri.models import (
     TipoIdentificacionSRI,
     Venta,
 )
-from osiris.modules.facturacion.ventas.services.retencion_recibida_service import RetencionRecibidaService
+from osiris.modules.ventas.services.retencion_recibida_service import RetencionRecibidaService
 
 
 def _build_test_engine():

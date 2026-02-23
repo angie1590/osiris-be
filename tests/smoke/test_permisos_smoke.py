@@ -20,7 +20,7 @@ def test_permisos_crud_completo():
         "descripcion": "Rol para test smoke de permisos",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles", json=rol_data)
+    response = client.post("/api/v1/roles", json=rol_data)
     assert response.status_code in (201, 409)
     rol_id = response.json().get("id") if response.status_code == 409 else response.json()["id"]
 
@@ -30,7 +30,7 @@ def test_permisos_crud_completo():
         "nombre": "Módulo Smoke Permisos",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/modulos", json=modulo_data)
+    response = client.post("/api/v1/modulos", json=modulo_data)
     assert response.status_code == 201
     modulo_id = response.json()["id"]
 
@@ -45,7 +45,7 @@ def test_permisos_crud_completo():
         "usuario_auditoria": "smoke_test"
     }
 
-    response = client.post("/api/roles-modulos-permisos", json=permiso_data)
+    response = client.post("/api/v1/roles-modulos-permisos", json=permiso_data)
     assert response.status_code == 201
     permiso_creado = response.json()
     permiso_id = permiso_creado["id"]
@@ -57,18 +57,17 @@ def test_permisos_crud_completo():
     assert permiso_creado["puede_actualizar"] is False
 
     # 4. Listar permisos
-    response = client.get("/api/roles-modulos-permisos")
+    response = client.get("/api/v1/roles-modulos-permisos")
     assert response.status_code == 200
     data = response.json()
     if isinstance(data, dict) and "meta" in data and "items" in data:
         assert data["meta"]["total"] >= 1
-        items = data["items"]
+        data["items"]
     else:
         assert isinstance(data, list)
-        items = data
 
     # 5. Obtener permiso por ID
-    response = client.get(f"/api/roles-modulos-permisos/{permiso_id}")
+    response = client.get(f"/api/v1/roles-modulos-permisos/{permiso_id}")
     assert response.status_code == 200
     permiso = response.json()
     assert permiso["rol_id"] == rol_id
@@ -80,7 +79,7 @@ def test_permisos_crud_completo():
         "usuario_auditoria": "smoke_test"
     }
 
-    response = client.put(f"/api/roles-modulos-permisos/{permiso_id}", json=update_data)
+    response = client.put(f"/api/v1/roles-modulos-permisos/{permiso_id}", json=update_data)
     assert response.status_code == 200
     permiso_actualizado = response.json()
     assert permiso_actualizado["puede_actualizar"] is True
@@ -88,18 +87,17 @@ def test_permisos_crud_completo():
     assert permiso_actualizado["puede_leer"] is True  # No cambia
 
     # 7. Eliminar permiso
-    response = client.delete(f"/api/roles-modulos-permisos/{permiso_id}")
+    response = client.delete(f"/api/v1/roles-modulos-permisos/{permiso_id}")
     assert response.status_code in (200, 204)
 
     # Limpiar
-    client.delete(f"/api/modulos/{modulo_id}")
-    client.delete(f"/api/roles/{rol_id}")
+    client.delete(f"/api/v1/modulos/{modulo_id}")
+    client.delete(f"/api/v1/roles/{rol_id}")
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_permisos_usuario():
     """Test obtener permisos de un usuario."""
-    from tests.smoke.ruc_utils import generar_ruc_empresa
     import os as _os
     _os.environ["DISABLE_ID_VALIDATION"] = "true"
 
@@ -114,13 +112,13 @@ def test_obtener_permisos_usuario():
         "nombre": rol_nombre,
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles", json=rol_data)
+    response = client.post("/api/v1/roles", json=rol_data)
     assert response.status_code in (201, 409)
     if response.status_code == 201:
         rol_id = response.json()["id"]
     else:
         # Buscar el rol por nombre - obtener más registros para evitar paginación
-        response = client.get("/api/roles?limit=100")
+        response = client.get("/api/v1/roles?limit=100")
         roles_data = response.json()
         if isinstance(roles_data, dict) and "items" in roles_data:
             roles = roles_data["items"]
@@ -138,7 +136,7 @@ def test_obtener_permisos_usuario():
         "nombre": "Módulo 1",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/modulos", json=modulo1_data)
+    response = client.post("/api/v1/modulos", json=modulo1_data)
     assert response.status_code == 201
     modulo1_id = response.json()["id"]
 
@@ -148,7 +146,7 @@ def test_obtener_permisos_usuario():
         "nombre": "Módulo 2",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/modulos", json=modulo2_data)
+    response = client.post("/api/v1/modulos", json=modulo2_data)
     assert response.status_code == 201
     modulo2_id = response.json()["id"]
 
@@ -160,7 +158,7 @@ def test_obtener_permisos_usuario():
         "puede_crear": True,
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles-modulos-permisos", json=permiso1_data)
+    response = client.post("/api/v1/roles-modulos-permisos", json=permiso1_data)
     assert response.status_code == 201
     permiso1_id = response.json()["id"]
 
@@ -171,7 +169,7 @@ def test_obtener_permisos_usuario():
         "puede_crear": False,
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles-modulos-permisos", json=permiso2_data)
+    response = client.post("/api/v1/roles-modulos-permisos", json=permiso2_data)
     assert response.status_code == 201
     permiso2_id = response.json()["id"]
 
@@ -185,7 +183,7 @@ def test_obtener_permisos_usuario():
         "apellido": "Permisos Usuario",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/personas", json=persona_data)
+    response = client.post("/api/v1/personas", json=persona_data)
     assert response.status_code == 201
     persona_id = response.json()["id"]
 
@@ -199,10 +197,10 @@ def test_obtener_permisos_usuario():
         "password": "TestPassword123!",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/usuarios", json=usuario_data)
+    response = client.post("/api/v1/usuarios", json=usuario_data)
     if response.status_code == 409:
         # Usuario ya existe para esta persona, obtenerlo
-        response_usuarios = client.get("/api/usuarios")
+        response_usuarios = client.get("/api/v1/usuarios")
         usuarios_data = response_usuarios.json()
         usuarios_list = usuarios_data.get("items", usuarios_data) if isinstance(usuarios_data, dict) else usuarios_data
         usuario_existente = next((u for u in usuarios_list if u.get("persona_id") == persona_id), None)
@@ -215,7 +213,7 @@ def test_obtener_permisos_usuario():
         usuario_id = response.json()["id"]
 
     # Obtener permisos del usuario
-    response = client.get(f"/api/usuarios/{usuario_id}/permisos")
+    response = client.get(f"/api/v1/usuarios/{usuario_id}/permisos")
     assert response.status_code == 200
     permisos = response.json()
 
@@ -235,21 +233,20 @@ def test_obtener_permisos_usuario():
     assert perm_mod2["puede_crear"] is False
 
     # Limpiar
-    client.delete(f"/api/usuarios/{usuario_id}")
-    client.delete(f"/api/personas/{persona_id}")
-    client.delete(f"/api/roles-modulos-permisos/{permiso1_id}")
-    client.delete(f"/api/roles-modulos-permisos/{permiso2_id}")
-    client.delete(f"/api/modulos/{modulo1_id}")
-    client.delete(f"/api/modulos/{modulo2_id}")
-    client.delete(f"/api/roles/{rol_id}")
+    client.delete(f"/api/v1/usuarios/{usuario_id}")
+    client.delete(f"/api/v1/personas/{persona_id}")
+    client.delete(f"/api/v1/roles-modulos-permisos/{permiso1_id}")
+    client.delete(f"/api/v1/roles-modulos-permisos/{permiso2_id}")
+    client.delete(f"/api/v1/modulos/{modulo1_id}")
+    client.delete(f"/api/v1/modulos/{modulo2_id}")
+    client.delete(f"/api/v1/roles/{rol_id}")
     if empresa_id:
-        client.delete(f"/api/empresa/{empresa_id}")
+        client.delete(f"/api/v1/empresas/{empresa_id}")
 
 
 @pytest.mark.skipif(not is_port_open("localhost", 8000), reason="Server not listening on localhost:8000")
 def test_obtener_menu_usuario():
     """Test obtener menú dinámico de usuario."""
-    from tests.smoke.ruc_utils import generar_ruc_empresa
     import os as _os
     _os.environ["DISABLE_ID_VALIDATION"] = "true"
 
@@ -264,13 +261,13 @@ def test_obtener_menu_usuario():
         "nombre": rol_nombre,
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles", json=rol_data)
+    response = client.post("/api/v1/roles", json=rol_data)
     assert response.status_code in (201, 409)
     if response.status_code == 201:
         rol_id = response.json()["id"]
     else:
         # Buscar el rol por nombre - obtener más registros para evitar paginación
-        response = client.get("/api/roles?limit=100")
+        response = client.get("/api/v1/roles?limit=100")
         roles_data = response.json()
         if isinstance(roles_data, dict) and "items" in roles_data:
             roles = roles_data["items"]
@@ -288,7 +285,7 @@ def test_obtener_menu_usuario():
         "nombre": "Módulo Visible",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/modulos", json=modulo_visible)
+    response = client.post("/api/v1/modulos", json=modulo_visible)
     assert response.status_code == 201
     modulo_visible_id = response.json()["id"]
 
@@ -298,7 +295,7 @@ def test_obtener_menu_usuario():
         "nombre": "Módulo Oculto",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/modulos", json=modulo_oculto)
+    response = client.post("/api/v1/modulos", json=modulo_oculto)
     assert response.status_code == 201
     modulo_oculto_id = response.json()["id"]
 
@@ -309,7 +306,7 @@ def test_obtener_menu_usuario():
         "puede_leer": True,
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles-modulos-permisos", json=permiso_visible)
+    response = client.post("/api/v1/roles-modulos-permisos", json=permiso_visible)
     assert response.status_code == 201
     permiso_visible_id = response.json()["id"]
 
@@ -320,7 +317,7 @@ def test_obtener_menu_usuario():
         "puede_crear": True,  # Tiene otros permisos pero no lectura
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/roles-modulos-permisos", json=permiso_oculto)
+    response = client.post("/api/v1/roles-modulos-permisos", json=permiso_oculto)
     assert response.status_code == 201
     permiso_oculto_id = response.json()["id"]
 
@@ -334,7 +331,7 @@ def test_obtener_menu_usuario():
         "apellido": "Menu",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/personas", json=persona_data)
+    response = client.post("/api/v1/personas", json=persona_data)
     assert response.status_code == 201
     persona_id = response.json()["id"]
 
@@ -347,10 +344,10 @@ def test_obtener_menu_usuario():
         "password": "TestPassword123!",
         "usuario_auditoria": "smoke_test"
     }
-    response = client.post("/api/usuarios", json=usuario_data)
+    response = client.post("/api/v1/usuarios", json=usuario_data)
     if response.status_code == 409:
         # Usuario ya existe para esta persona, obtenerlo
-        response_usuarios = client.get("/api/usuarios")
+        response_usuarios = client.get("/api/v1/usuarios")
         usuarios_data = response_usuarios.json()
         usuarios_list = usuarios_data.get("items", usuarios_data) if isinstance(usuarios_data, dict) else usuarios_data
         usuario_existente = next((u for u in usuarios_list if u.get("persona_id") == persona_id), None)
@@ -363,7 +360,7 @@ def test_obtener_menu_usuario():
         usuario_id = response.json()["id"]
 
     # Obtener menú
-    response = client.get(f"/api/usuarios/{usuario_id}/menu")
+    response = client.get(f"/api/v1/usuarios/{usuario_id}/menu")
     assert response.status_code == 200
     menu = response.json()
 
@@ -373,12 +370,12 @@ def test_obtener_menu_usuario():
     assert modulo_oculto_codigo not in codigos_menu
 
     # Limpiar
-    client.delete(f"/api/usuarios/{usuario_id}")
-    client.delete(f"/api/personas/{persona_id}")
-    client.delete(f"/api/roles-modulos-permisos/{permiso_visible_id}")
-    client.delete(f"/api/roles-modulos-permisos/{permiso_oculto_id}")
-    client.delete(f"/api/modulos/{modulo_visible_id}")
-    client.delete(f"/api/modulos/{modulo_oculto_id}")
-    client.delete(f"/api/roles/{rol_id}")
+    client.delete(f"/api/v1/usuarios/{usuario_id}")
+    client.delete(f"/api/v1/personas/{persona_id}")
+    client.delete(f"/api/v1/roles-modulos-permisos/{permiso_visible_id}")
+    client.delete(f"/api/v1/roles-modulos-permisos/{permiso_oculto_id}")
+    client.delete(f"/api/v1/modulos/{modulo_visible_id}")
+    client.delete(f"/api/v1/modulos/{modulo_oculto_id}")
+    client.delete(f"/api/v1/roles/{rol_id}")
     if empresa_id:
-        client.delete(f"/api/empresa/{empresa_id}")
+        client.delete(f"/api/v1/empresas/{empresa_id}")

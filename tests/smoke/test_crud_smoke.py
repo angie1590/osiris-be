@@ -3,7 +3,7 @@ import socket
 import uuid
 import pytest
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8000/api/v1"
 TIMEOUT = 5.0
 
 
@@ -299,7 +299,7 @@ def test_users_employees_and_providers_flow(client):
         # Reintentar hasta 3 veces si el RUC generado no es válido
         empresa_id = None
         for attempt in range(3):
-            r = client.post(f"{BASE}/empresa", json=empresa_payload)
+            r = client.post(f"{BASE}/empresas", json=empresa_payload)
             if r.status_code == 201:
                 empresa_id = r.json().get("id")
                 break
@@ -369,5 +369,5 @@ def test_users_employees_and_providers_flow(client):
         client.delete(f"{BASE}/clientes/{cliente_id}")
         client.delete(f"{BASE}/proveedores-persona/{provp_id}")
         client.delete(f"{BASE}/proveedores-sociedad/{provs_id}")
-        client.delete(f"{BASE}/empresa/{empresa_id}")
+        client.delete(f"{BASE}/empresas/{empresa_id}")
         client.delete(f"{BASE}/roles/{role_id}")

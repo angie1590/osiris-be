@@ -1,13 +1,11 @@
 # src/osiris/modules/common/cliente/service.py
 from __future__ import annotations
 
-from fastapi import HTTPException
-from sqlmodel import select, Session
+from sqlmodel import Session
 from uuid import UUID
 from typing import Any
 
 from osiris.domain.service import BaseService
-from .entity import Cliente
 from .repository import ClienteRepository
 
 from osiris.modules.common.persona.entity import Persona

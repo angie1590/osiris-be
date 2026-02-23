@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
 from pydantic import BaseModel
 
 # Repositorio/Servicio reales (no tocan BD porque mockeamos Session / repo)
@@ -27,8 +26,9 @@ def test_casa_comercial_repository_create_desde_dict_instancia_modelo_y_persiste
     assert isinstance(created, CasaComercial)
     assert created.nombre == payload["nombre"]
     session.add.assert_called_once()            # se envía a la sesión
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(created)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_casa_comercial_repository_create_desde_pydantic_instancia_modelo():
@@ -45,8 +45,9 @@ def test_casa_comercial_repository_create_desde_pydantic_instancia_modelo():
     assert isinstance(created, CasaComercial)
     assert created.nombre == dto.nombre
     session.add.assert_called_once()
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_casa_comercial_repository_update_desde_dict_actualiza_campos():
@@ -60,8 +61,9 @@ def test_casa_comercial_repository_update_desde_dict_actualiza_campos():
 
     assert updated.nombre == "Nuevo"
     session.add.assert_called_once_with(db_obj)
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(db_obj)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()
 
 
 def test_casa_comercial_repository_update_desde_pydantic_exclude_unset():
@@ -74,7 +76,8 @@ def test_casa_comercial_repository_update_desde_pydantic_exclude_unset():
     updated = repo.update(session, db_obj, dto)
 
     assert updated.nombre == "Actualizado"
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
 
 
 def test_casa_comercial_repository_delete_logico_si_tiene_activo():
@@ -88,7 +91,8 @@ def test_casa_comercial_repository_delete_logico_si_tiene_activo():
     assert db_obj.activo is False                 # borrado lógico
     session.add.assert_called_once_with(db_obj)
     session.delete.assert_not_called()
-    session.commit.assert_called_once()
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
 
 
 # ---------------------------
@@ -163,5 +167,6 @@ def test_casa_comercial_repository_update_no_sobrescribe_campos_no_enviados():
 
     # Persistencia llamada
     session.add.assert_called_once_with(db_obj)
-    session.commit.assert_called_once()
-    session.refresh.assert_called_once_with(db_obj)
+    session.flush.assert_called_once()
+    session.commit.assert_not_called()
+    session.refresh.assert_not_called()

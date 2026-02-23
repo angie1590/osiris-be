@@ -25,7 +25,7 @@ test:
 	@echo "Limpiando datos de prueba..."
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development poetry run python scripts/cleanup_test_data.py"
 	@echo "Ejecutando suite de pruebas..."
-	docker compose --env-file $(ENV_FILE) exec osiris-backend poetry run pytest -v
+	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'cd /app && env -u FEEC_P12_PATH -u FEEC_P12_PASSWORD -u FEEC_XSD_PATH -u FEEC_AMBIENTE -u SRI_MODO_EMISION -u FEEC_TIPO_EMISION -u FEEC_REGIMEN -u DATABASE_URL -u DB_URL_ALEMBIC RUN_LIVE_SMOKE=true PYTHONPATH=/app:/app/src poetry run pytest -v'
 
 db-upgrade:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -lc 'DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'

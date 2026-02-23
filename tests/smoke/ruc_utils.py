@@ -1,6 +1,5 @@
 import random
 import re
-from datetime import date
 
 def generar_ruc_persona_natural():
     """Genera un RUC válido para persona natural.

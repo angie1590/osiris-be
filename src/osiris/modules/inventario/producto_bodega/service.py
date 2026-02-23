@@ -51,7 +51,7 @@ class ProductoBodegaService(BaseService):
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail=f"El producto ya está asignado a la bodega especificada."
+                detail="El producto ya está asignado a la bodega especificada."
             )
 
         # Regla de negocio: Productos de tipo SERVICIO no pueden tener stock (> 0) ni asignaciones a bodegas con cantidad positiva

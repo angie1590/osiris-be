@@ -13,15 +13,15 @@ from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
-from osiris.modules.facturacion.inventario.models import (
+from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     InventarioStock,
     MovimientoInventario,
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
-from osiris.modules.facturacion.inventario.schemas import MovimientoInventarioCreate
-from osiris.modules.facturacion.inventario.services.movimiento_inventario_service import MovimientoInventarioService
+from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
+from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
@@ -275,7 +275,7 @@ def test_concurrencia_stock_negativo(tmp_path):
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega_id,
             InventarioStock.producto_id == producto_id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock_final = session.exec(stmt).one()
         assert stock_final.cantidad_actual == Decimal("5.0000")
@@ -362,7 +362,7 @@ def test_calculo_promedio_ponderado():
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega.id,
             InventarioStock.producto_id == producto.id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock = session.exec(stmt).one()
         assert stock.cantidad_actual == Decimal("20.0000")
@@ -453,7 +453,7 @@ def test_egreso_congela_costo():
         stmt = select(InventarioStock).where(
             InventarioStock.bodega_id == bodega.id,
             InventarioStock.producto_id == producto.id,
-            InventarioStock.activo == True,
+            InventarioStock.activo.is_(True),
         )
         stock_actualizado = session.exec(stmt).one()
         assert detalle.costo_unitario == Decimal("7.3456")

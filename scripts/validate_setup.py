@@ -3,7 +3,6 @@
 Script de validación de configuración multiplataforma (Mac/Windows/Linux)
 Verifica que el entorno esté correctamente configurado antes de ejecutar la aplicación.
 """
-import os
 import sys
 from pathlib import Path
 import subprocess

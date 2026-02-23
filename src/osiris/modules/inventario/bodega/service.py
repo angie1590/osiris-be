@@ -19,7 +19,7 @@ class BodegaService:
         empresa_id: Optional[UUID] = None,
         sucursal_id: Optional[UUID] = None,
     ) -> list[Bodega]:
-        query = select(Bodega).where(Bodega.activo == True)
+        query = select(Bodega).where(Bodega.activo.is_(True))
         if empresa_id:
             query = query.where(Bodega.empresa_id == empresa_id)
         if sucursal_id:

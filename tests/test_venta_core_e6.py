@@ -11,9 +11,9 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
-from osiris.modules.facturacion.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta, VentaDetalle, VentaDetalleImpuesto
-from osiris.modules.facturacion.core_sri.all_schemas import ImpuestoAplicadoInput, VentaCompraDetalleCreate, VentaCreate, VentaUpdate
-from osiris.modules.facturacion.ventas.services.venta_service import VentaService
+from osiris.modules.sri.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta, VentaDetalle, VentaDetalleImpuesto
+from osiris.modules.sri.core_sri.all_schemas import ImpuestoAplicadoInput, VentaCompraDetalleCreate, VentaCreate, VentaUpdate
+from osiris.modules.ventas.services.venta_service import VentaService
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
