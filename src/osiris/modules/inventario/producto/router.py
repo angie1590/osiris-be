@@ -76,7 +76,6 @@ def delete_producto(producto_id: UUID, session: Session = Depends(get_session)):
         }
     },
 )
-@router.post("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
 def upsert_producto_atributos(
     producto_id: UUID,
     payload: list[ProductoAtributoValorUpsert],
