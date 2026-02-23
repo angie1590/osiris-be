@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import date
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
@@ -33,12 +34,16 @@ class ProveedorSociedadNested(BaseOSModel):
 
 
 class AtributoNested(BaseOSModel):
+    id: Optional[UUID] = None
     nombre: str
+    tipo_dato: Optional[str] = None
 
 
 class AtributoValorNested(BaseOSModel):
     atributo: AtributoNested
-    valor: Optional[str] = None
+    valor: Optional[str | int | Decimal | bool | date] = None
+    obligatorio: Optional[bool] = None
+    orden: Optional[int] = None
 
 class ImpuestoNested(BaseOSModel):
     nombre: str

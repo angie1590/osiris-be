@@ -1,0 +1,161 @@
+from __future__ import annotations
+
+from decimal import Decimal
+from uuid import uuid4
+
+import sqlalchemy as sa
+from fastapi.testclient import TestClient
+from sqlalchemy import Column, Table
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
+
+from osiris.core.db import get_session
+from osiris.main import app
+from osiris.modules.common.audit_log.entity import AuditLog
+from osiris.modules.inventario.atributo.entity import Atributo, TipoDato
+from osiris.modules.inventario.categoria.entity import Categoria
+from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
+from osiris.modules.inventario.casa_comercial.entity import CasaComercial
+from osiris.modules.inventario.producto.entity import (
+    Producto,
+    ProductoCategoria,
+    ProductoProveedorPersona,
+    ProductoProveedorSociedad,
+    TipoProducto,
+)
+from osiris.modules.inventario.producto.models_atributos import ProductoAtributoValor
+
+
+def _ensure_fk_stub_targets_in_metadata() -> None:
+    # Targets mínimos para crear tablas puente de proveedor usadas por get_producto_completo.
+    if "tbl_proveedor_persona" not in SQLModel.metadata.tables:
+        Table(
+            "tbl_proveedor_persona",
+            SQLModel.metadata,
+            Column("id", sa.Uuid(), primary_key=True),
+        )
+    if "tbl_proveedor_sociedad" not in SQLModel.metadata.tables:
+        Table(
+            "tbl_proveedor_sociedad",
+            SQLModel.metadata,
+            Column("id", sa.Uuid(), primary_key=True),
+        )
+
+
+def _build_test_engine():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    _ensure_fk_stub_targets_in_metadata()
+    SQLModel.metadata.create_all(
+        engine,
+        tables=[
+            AuditLog.__table__,
+            CasaComercial.__table__,
+            Categoria.__table__,
+            Atributo.__table__,
+            CategoriaAtributo.__table__,
+            Producto.__table__,
+            ProductoCategoria.__table__,
+            ProductoProveedorPersona.__table__,
+            ProductoProveedorSociedad.__table__,
+            ProductoAtributoValor.__table__,
+        ],
+    )
+    return engine
+
+
+def _seed_data_for_producto_completo(session: Session):
+    raiz = Categoria(nombre=f"Raiz-{uuid4().hex[:6]}", es_padre=True, usuario_auditoria="test")
+    hija = Categoria(nombre=f"Hija-{uuid4().hex[:6]}", es_padre=False, parent_id=raiz.id, usuario_auditoria="test")
+
+    garantia = Atributo(nombre=f"Garantia-{uuid4().hex[:6]}", tipo_dato=TipoDato.STRING, usuario_auditoria="test")
+    peso = Atributo(nombre=f"Peso-{uuid4().hex[:6]}", tipo_dato=TipoDato.DECIMAL, usuario_auditoria="test")
+
+    producto = Producto(
+        nombre=f"Producto-{uuid4().hex[:6]}",
+        tipo=TipoProducto.BIEN,
+        pvp=Decimal("99.99"),
+        usuario_auditoria="test",
+    )
+
+    session.add_all([raiz, hija, garantia, peso, producto])
+    session.flush()
+
+    session.add_all(
+        [
+            CategoriaAtributo(
+                categoria_id=raiz.id,
+                atributo_id=garantia.id,
+                obligatorio=False,
+                orden=1,
+                usuario_auditoria="test",
+            ),
+            CategoriaAtributo(
+                categoria_id=hija.id,
+                atributo_id=garantia.id,
+                obligatorio=True,
+                orden=2,
+                usuario_auditoria="test",
+            ),
+            CategoriaAtributo(
+                categoria_id=hija.id,
+                atributo_id=peso.id,
+                obligatorio=False,
+                orden=3,
+                usuario_auditoria="test",
+            ),
+            ProductoCategoria(producto_id=producto.id, categoria_id=hija.id),
+            ProductoAtributoValor(
+                producto_id=producto.id,
+                atributo_id=garantia.id,
+                valor_string="24 meses",
+                usuario_auditoria="test",
+            ),
+        ]
+    )
+    session.commit()
+
+    return producto.id, garantia.id, peso.id
+
+
+def test_get_producto_completo_incluye_atributos_heredados_y_valores_persistidos():
+    engine = _build_test_engine()
+
+    with Session(engine) as session:
+        producto_id, garantia_id, peso_id = _seed_data_for_producto_completo(session)
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/api/v1/productos/{producto_id}")
+            assert response.status_code == 200
+            body = response.json()
+
+            assert "atributos" in body
+            atributos = body["atributos"]
+            assert isinstance(atributos, list)
+            assert len(atributos) == 2
+
+            by_id = {item["atributo"]["id"]: item for item in atributos}
+            assert str(garantia_id) in by_id
+            assert str(peso_id) in by_id
+            assert len(by_id) == 2  # sin duplicados
+
+            garantia = by_id[str(garantia_id)]
+            assert garantia["atributo"]["tipo_dato"] == "string"
+            assert garantia["valor"] == "24 meses"
+            assert garantia["obligatorio"] is True  # gana la categoría más cercana
+
+            peso = by_id[str(peso_id)]
+            assert peso["atributo"]["tipo_dato"] == "decimal"
+            assert peso["valor"] is None
+            assert peso["obligatorio"] is False
+    finally:
+        app.dependency_overrides.pop(get_session, None)

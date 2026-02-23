@@ -12,7 +12,9 @@ from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.core.errors import NotFoundError
 from osiris.domain.service import BaseService
 from osiris.modules.inventario.categoria.entity import Categoria  # existente
+from osiris.modules.inventario.categoria.service import CategoriaService
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
+from osiris.modules.inventario.producto.models_atributos import ProductoAtributoValor
 from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
 from osiris.utils.pagination import build_pagination_meta
@@ -211,6 +213,44 @@ class ProductoService(BaseService):
 
         return " > ".join(ruta_parts)
 
+    @staticmethod
+    def _extract_non_null_valor(registro: ProductoAtributoValor):
+        if registro.valor_string is not None:
+            return registro.valor_string
+        if registro.valor_integer is not None:
+            return registro.valor_integer
+        if registro.valor_decimal is not None:
+            return registro.valor_decimal
+        if registro.valor_boolean is not None:
+            return registro.valor_boolean
+        if registro.valor_date is not None:
+            return registro.valor_date
+        return None
+
+    @staticmethod
+    def _merge_atributos_esqueleto_con_valores(
+        esqueleto: list[dict],
+        valores_por_atributo: dict[UUID, object],
+    ) -> list[dict]:
+        merged: list[dict] = []
+        for item in esqueleto:
+            atributo_id = item["atributo_id"]
+            tipo_dato = item.get("tipo_dato")
+            tipo_dato_val = tipo_dato.value if hasattr(tipo_dato, "value") else tipo_dato
+            merged.append(
+                {
+                    "atributo": {
+                        "id": atributo_id,
+                        "nombre": item["atributo_nombre"],
+                        "tipo_dato": tipo_dato_val,
+                    },
+                    "valor": valores_por_atributo.get(atributo_id),
+                    "obligatorio": item.get("obligatorio"),
+                    "orden": item.get("orden"),
+                }
+            )
+        return merged
+
     def get_producto_completo(self, session: Session, producto_id: UUID) -> dict:
         """Obtiene un producto con todas sus relaciones completas según contrato"""
         from osiris.modules.inventario.casa_comercial.entity import CasaComercial
@@ -218,8 +258,6 @@ class ProductoService(BaseService):
         from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
         from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
         from osiris.modules.common.persona.entity import Persona
-        from osiris.modules.inventario.atributo.entity import Atributo
-        from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
         from osiris.modules.inventario.producto_impuesto.service import ProductoImpuestoService
 
         producto = self.get(session, producto_id)
@@ -276,40 +314,38 @@ class ProductoService(BaseService):
                     "nombre_comercial": getattr(prov, "nombre_comercial", None)
                 })
 
-        # Atributos efectivos por categoría (herencia padre->hijo) + valores del producto (si existen)
+        # Atributos efectivos por categoría (esqueleto heredado) + valores persistidos del producto
         atributos = []
-        # 1) Recolectar categorías del producto y sus ancestros
-        categorias_ids = set(cat_ids)
-        to_visit = list(cat_ids)
-        while to_visit:
-            current = to_visit.pop()
-            cat = session.get(Categoria, current)
-            if cat and cat.parent_id and cat.parent_id not in categorias_ids:
-                categorias_ids.add(cat.parent_id)
-                to_visit.append(cat.parent_id)
+        try:
+            categoria_service = CategoriaService()
 
-        # 2) Mapear atributos definidos en categorías (incluyendo ancestros)
-        cat_attrs = session.exec(
-            select(CategoriaAtributo, Atributo)
-            .join(Atributo, Atributo.id == CategoriaAtributo.atributo_id)
-            .where(CategoriaAtributo.categoria_id.in_(list(categorias_ids)))
-        ).all()
+            # Esqueleto heredado por categoría directa; si se repite atributo, gana menor profundidad
+            esqueleto_por_atributo: dict[UUID, dict] = {}
+            for cat_id in cat_ids:
+                heredados = categoria_service.get_atributos_heredados_por_categoria(session, cat_id)
+                for item in heredados:
+                    atributo_id = item["atributo_id"]
+                    current = esqueleto_por_atributo.get(atributo_id)
+                    if current is None or item["profundidad"] < current["profundidad"]:
+                        esqueleto_por_atributo[atributo_id] = item
 
-        # 3) Valores por producto eliminados: ya no se consulta tbl_tipo_producto
-        valor_por_atributo: dict = {}
+            esqueleto = sorted(
+                esqueleto_por_atributo.values(),
+                key=lambda x: (x.get("orden") is None, x.get("orden") or 0, x["atributo_nombre"]),
+            )
 
-        # 4) Unificar por atributo (evitar duplicados si viene de múltiples categorías)
-        vistos = set()
-        for ca, atributo in cat_attrs:
-            if atributo.id in vistos:
-                continue
-            vistos.add(atributo.id)
-            valor = valor_por_atributo.get(atributo.id)
-            valor = str(valor) if valor is not None else None
-            atributos.append({
-                "atributo": {"nombre": atributo.nombre},
-                "valor": valor,
-            })
+            # Valores persistidos
+            valores_rows = session.exec(
+                select(ProductoAtributoValor).where(ProductoAtributoValor.producto_id == producto_id)
+            ).all()
+            valores_por_atributo = {
+                row.atributo_id: self._extract_non_null_valor(row)
+                for row in valores_rows
+            }
+
+            atributos = self._merge_atributos_esqueleto_con_valores(esqueleto, valores_por_atributo)
+        except Exception:
+            atributos = []
 
         # Impuestos (resiliente: si algo falla, lista vacía)
         impuestos = []
