@@ -8,11 +8,17 @@ from sqlmodel import Session
 from osiris.core.db import get_session
 from osiris.domain.schemas import PaginatedResponse
 from osiris.modules.inventario.producto.models import ProductoCompletoRead, ProductoCreate, ProductoUpdate
+from osiris.modules.inventario.producto.models_atributos import (
+    ProductoAtributoValorRead,
+    ProductoAtributoValorUpsert,
+)
 from osiris.modules.inventario.producto.service import ProductoService
+from osiris.modules.inventario.producto.service_atributos import ProductoAtributoValorService
 
 
 router = APIRouter(prefix="/api/v1/productos", tags=["Productos"])
 service = ProductoService()
+atributo_valor_service = ProductoAtributoValorService()
 
 
 @router.get("", response_model=PaginatedResponse[ProductoCompletoRead])
@@ -49,3 +55,13 @@ def update_producto(producto_id: UUID, payload: ProductoUpdate, session: Session
 def delete_producto(producto_id: UUID, session: Session = Depends(get_session)):
     service.delete(session, producto_id)
     return None
+
+
+@router.post("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
+def upsert_producto_atributos(
+    producto_id: UUID,
+    payload: list[ProductoAtributoValorUpsert],
+    session: Session = Depends(get_session),
+):
+    entities = atributo_valor_service.upsert_valores_producto(session, producto_id, payload)
+    return [ProductoAtributoValorRead.model_validate(item) for item in entities]

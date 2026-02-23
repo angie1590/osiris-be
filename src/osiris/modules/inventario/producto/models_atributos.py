@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime
 from datetime import date
 from decimal import Decimal
+from typing import Any, Optional
 from uuid import UUID
 
 from sqlalchemy import Boolean, CheckConstraint, Date, Integer, String, UniqueConstraint
+from pydantic import ConfigDict
 from sqlmodel import Column, Field, Numeric
 
-from osiris.domain.base_models import AuditMixin, BaseTable, SoftDeleteMixin
+from osiris.domain.base_models import AuditMixin, BaseOSModel, BaseTable, SoftDeleteMixin
 
 
 class ProductoAtributoValor(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
@@ -39,3 +42,25 @@ class ProductoAtributoValor(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     )
     valor_boolean: bool | None = Field(default=None, sa_column=Column(Boolean, nullable=True))
     valor_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
+
+
+class ProductoAtributoValorUpsert(BaseOSModel):
+    atributo_id: UUID
+    valor: Any
+
+
+class ProductoAtributoValorRead(BaseOSModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    producto_id: UUID
+    atributo_id: UUID
+    valor_string: Optional[str] = None
+    valor_integer: Optional[int] = None
+    valor_decimal: Optional[Decimal] = None
+    valor_boolean: Optional[bool] = None
+    valor_date: Optional[date] = None
+    activo: bool
+    creado_en: datetime
+    actualizado_en: datetime
+    usuario_auditoria: Optional[str] = None
