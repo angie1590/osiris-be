@@ -5,12 +5,6 @@ from unittest.mock import Mock
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session
-from sqlmodel import SQLModel
-
-
-# Clear SQLModel metadata to avoid Duplicate Table errors when tests import
-# modules that declare models. This is safe in unit tests where we mock sessions
-SQLModel.metadata.clear()
 
 from osiris.modules.inventario.categoria.service import CategoriaService  # noqa: E402
 

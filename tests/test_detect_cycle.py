@@ -3,11 +3,6 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from osiris.modules.inventario.categoria.service import CategoriaService
-from sqlmodel import SQLModel
-
-
-# Ensure SQLModel metadata cleared (safe for unit tests that mock DB)
-SQLModel.metadata.clear()
 
 
 class SeqExec:

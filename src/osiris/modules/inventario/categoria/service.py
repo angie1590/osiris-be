@@ -164,6 +164,10 @@ class CategoriaService(BaseService):
 
             # Detectar ciclos si se está cambiando el parent_id (cuando se proporciona uno nuevo)
             new_parent_id = data.get("parent_id")
+            parent_changed = (
+                new_parent_id is not None
+                and new_parent_id != getattr(db_obj, "parent_id", None)
+            )
             if new_parent_id and new_parent_id != getattr(db_obj, "parent_id", None):
                 if self._detect_cycle(session, item_id, new_parent_id):
                     # Obtener nombres para mejorar el detalle del error (si están disponibles)
@@ -187,6 +191,10 @@ class CategoriaService(BaseService):
             # Validar FKs si vienen en data
             if "parent_id" in data:
                 self._check_fk_active_and_exists(session, data)
+
+            # Regla B3 en update: antes de mover la categoría actual al nuevo padre
+            if parent_changed:
+                self._aplicar_regla_b3_migracion(session, new_parent_id)
 
             updated = self.repo.update(session, db_obj, data)
             session.commit()

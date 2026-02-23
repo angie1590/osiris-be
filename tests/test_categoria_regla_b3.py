@@ -149,3 +149,54 @@ def test_regla_b3_reutiliza_general_existente_en_siguiente_hija():
             select(ProductoCategoria).where(ProductoCategoria.categoria_id == categoria_a.id)
         ).all()
         assert len(rows_parent) == 0
+
+
+def test_regla_b3_update_mueve_categoria_bajo_hoja_con_productos_y_migra_a_general():
+    engine = _build_test_engine()
+    service = CategoriaService()
+
+    with Session(engine) as session:
+        categoria_x, producto_ids = _seed_categoria_hoja_con_dos_productos(session)
+        categoria_y = Categoria(
+            nombre=f"Y-{uuid4().hex[:6]}",
+            es_padre=False,
+            parent_id=None,
+            usuario_auditoria="test",
+            activo=True,
+        )
+        session.add(categoria_y)
+        session.commit()
+        session.refresh(categoria_y)
+
+        updated = service.update(
+            session,
+            categoria_y.id,
+            {
+                "parent_id": categoria_x.id,
+                "usuario_auditoria": "test",
+            },
+        )
+        assert updated is not None
+        assert updated.parent_id == categoria_x.id
+
+        categoria_x_db = session.get(Categoria, categoria_x.id)
+        assert categoria_x_db is not None
+        assert categoria_x_db.es_padre is True
+
+        general = session.exec(
+            select(Categoria)
+            .where(Categoria.parent_id == categoria_x.id)
+            .where(func.lower(Categoria.nombre) == "general")
+        ).first()
+        assert general is not None
+
+        rows_x = session.exec(
+            select(ProductoCategoria).where(ProductoCategoria.categoria_id == categoria_x.id)
+        ).all()
+        assert len(rows_x) == 0
+
+        rows_general = session.exec(
+            select(ProductoCategoria).where(ProductoCategoria.categoria_id == general.id)
+        ).all()
+        assert len(rows_general) == 2
+        assert {row.producto_id for row in rows_general} == set(producto_ids)
