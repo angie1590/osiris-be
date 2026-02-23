@@ -13,6 +13,7 @@ from osiris.modules.inventario.categoria_atributo.models import (
     CategoriaAtributoCreate,
     CategoriaAtributoUpdate,
 )
+from osiris.modules.inventario.atributo.entity import Atributo, TipoDato
 
 
 def test_categoria_atributo_service_create_ok():
@@ -49,6 +50,38 @@ def test_categoria_atributo_service_create_ok():
     service.create(session, dto, usuario_auditoria="test_user")
 
     session.add.assert_called_once()
+    session.commit.assert_called_once()
+    session.refresh.assert_called_once()
+
+
+def test_categoria_atributo_service_create_inyecta_default_seguro_integer_obligatorio():
+    session = MagicMock()
+    service = CategoriaAtributoService()
+
+    categoria_id = uuid4()
+    atributo_id = uuid4()
+    atributo_master = Atributo(
+        nombre="Edad mínima",
+        tipo_dato=TipoDato.INTEGER,
+        usuario_auditoria="test",
+        activo=True,
+    )
+    atributo_master.id = atributo_id
+    session.get.return_value = atributo_master
+
+    dto = CategoriaAtributoCreate(
+        categoria_id=categoria_id,
+        atributo_id=atributo_id,
+        obligatorio=True,
+        valor_default=None,
+    )
+
+    service.create(session, dto, usuario_auditoria="test_user")
+
+    session.add.assert_called_once()
+    created_entity = session.add.call_args[0][0]
+    assert isinstance(created_entity, CategoriaAtributo)
+    assert created_entity.valor_default == "0"
     session.commit.assert_called_once()
     session.refresh.assert_called_once()
 

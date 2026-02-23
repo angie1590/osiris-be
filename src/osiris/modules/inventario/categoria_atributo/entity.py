@@ -13,3 +13,4 @@ class CategoriaAtributo(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     atributo_id: UUID = Field(foreign_key="tbl_atributo.id", index=True, nullable=False)
     orden: int | None = Field(default=None)
     obligatorio: bool | None = Field(default=None)
+    valor_default: str | None = Field(default=None, nullable=True)

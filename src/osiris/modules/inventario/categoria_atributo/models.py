@@ -11,6 +11,7 @@ class CategoriaAtributoBase(BaseModel):
     atributo_id: UUID
     orden: Optional[int] = None
     obligatorio: Optional[bool] = None
+    valor_default: Optional[str] = None
     usuario_auditoria: Optional[str] = None
 
 class CategoriaAtributoCreate(CategoriaAtributoBase):
@@ -19,6 +20,7 @@ class CategoriaAtributoCreate(CategoriaAtributoBase):
 class CategoriaAtributoUpdate(BaseModel):
     orden: Optional[int] = None
     obligatorio: Optional[bool] = None
+    valor_default: Optional[str] = None
     usuario_auditoria: Optional[str] = None
 
 class AtributoRead(BaseModel):
