@@ -10,7 +10,9 @@ from sqlmodel import Session, select
 
 from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.modules.inventario.atributo.entity import Atributo, TipoDato
+from osiris.modules.inventario.categoria.service import CategoriaService
 from osiris.modules.inventario.producto.entity import Producto
+from osiris.modules.inventario.producto.entity import ProductoCategoria
 from osiris.modules.inventario.producto.models_atributos import (
     ProductoAtributoValor,
     ProductoAtributoValorUpsert,
@@ -19,6 +21,7 @@ from osiris.modules.inventario.producto.models_atributos import (
 
 class ProductoAtributoValorService:
     _TIPO_ERROR = "El valor enviado no coincide con el tipo de dato del atributo"
+    _APLICABILIDAD_ERROR = "El atributo enviado no aplica a las categorias del producto"
 
     @staticmethod
     def _parse_boolean(value: Any) -> bool:
@@ -145,3 +148,27 @@ class ProductoAtributoValorService:
         for entity in entities:
             session.refresh(entity)
         return entities
+
+    def upsert_valores_producto_validando_aplicabilidad(
+        self,
+        session: Session,
+        producto_id: UUID,
+        valores: list[ProductoAtributoValorUpsert],
+    ) -> list[ProductoAtributoValor]:
+        producto = session.get(Producto, producto_id)
+        if not producto or not producto.activo:
+            raise HTTPException(status_code=404, detail=f"Producto {producto_id} no encontrado")
+
+        categoria_ids = list(
+            session.exec(
+                select(ProductoCategoria.categoria_id).where(ProductoCategoria.producto_id == producto_id)
+            ).all()
+        )
+        atributos_aplicables = CategoriaService().get_atributos_heredados_por_categorias(session, categoria_ids)
+        atributo_ids_aplicables = {item["atributo_id"] for item in atributos_aplicables}
+
+        for item in valores:
+            if item.atributo_id not in atributo_ids_aplicables:
+                raise HTTPException(status_code=400, detail=self._APLICABILIDAD_ERROR)
+
+        return self.upsert_valores_producto(session, producto_id, valores)

@@ -62,11 +62,12 @@ def delete_producto(producto_id: UUID, session: Session = Depends(get_session)):
     return None
 
 
+@router.put("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
 @router.post("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
 def upsert_producto_atributos(
     producto_id: UUID,
     payload: list[ProductoAtributoValorUpsert],
     session: Session = Depends(get_session),
 ):
-    entities = atributo_valor_service.upsert_valores_producto(session, producto_id, payload)
+    entities = atributo_valor_service.upsert_valores_producto_validando_aplicabilidad(session, producto_id, payload)
     return [ProductoAtributoValorRead.model_validate(item) for item in entities]
