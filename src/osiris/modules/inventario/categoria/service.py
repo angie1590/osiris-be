@@ -4,9 +4,13 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import func, literal
+from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
 from osiris.domain.service import BaseService
+from osiris.modules.inventario.atributo.entity import Atributo
+from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
 from .entity import Categoria
 from .repository import CategoriaRepository
 
@@ -116,3 +120,77 @@ class CategoriaService(BaseService):
             return updated
         except Exception as exc:
             self._handle_transaction_error(session, exc)
+
+    def get_atributos_heredados_por_categoria(self, session: Session, categoria_id: UUID) -> list[dict[str, Any]]:
+        """
+        Obtiene atributos aplicables de una categoría y todos sus ancestros usando CTE recursivo.
+        Resolución de conflicto: si un atributo existe en varios niveles, gana el más cercano
+        (menor profundidad respecto a la categoría consultada).
+        """
+        ancestros_cte = (
+            select(
+                Categoria.id.label("categoria_id"),
+                Categoria.parent_id.label("parent_id"),
+                literal(0).label("profundidad"),
+            )
+            .where(Categoria.id == categoria_id)
+            .cte(name="categoria_ancestros", recursive=True)
+        )
+
+        categoria_padre = aliased(Categoria)
+        ancestros_cte = ancestros_cte.union_all(
+            select(
+                categoria_padre.id.label("categoria_id"),
+                categoria_padre.parent_id.label("parent_id"),
+                (ancestros_cte.c.profundidad + 1).label("profundidad"),
+            ).join(ancestros_cte, categoria_padre.id == ancestros_cte.c.parent_id)
+        )
+
+        ranked_cte = (
+            select(
+                CategoriaAtributo.atributo_id.label("atributo_id"),
+                Atributo.nombre.label("atributo_nombre"),
+                Atributo.tipo_dato.label("tipo_dato"),
+                CategoriaAtributo.orden.label("orden"),
+                CategoriaAtributo.obligatorio.label("obligatorio"),
+                ancestros_cte.c.categoria_id.label("categoria_origen_id"),
+                ancestros_cte.c.profundidad.label("profundidad"),
+                func.row_number()
+                .over(
+                    partition_by=CategoriaAtributo.atributo_id,
+                    order_by=ancestros_cte.c.profundidad.asc(),
+                )
+                .label("rn"),
+            )
+            .join(ancestros_cte, CategoriaAtributo.categoria_id == ancestros_cte.c.categoria_id)
+            .join(Atributo, Atributo.id == CategoriaAtributo.atributo_id)
+            .cte(name="atributos_ranked")
+        )
+
+        stmt = (
+            select(
+                ranked_cte.c.atributo_id,
+                ranked_cte.c.atributo_nombre,
+                ranked_cte.c.tipo_dato,
+                ranked_cte.c.orden,
+                ranked_cte.c.obligatorio,
+                ranked_cte.c.categoria_origen_id,
+                ranked_cte.c.profundidad,
+            )
+            .where(ranked_cte.c.rn == 1)
+            .order_by(ranked_cte.c.atributo_nombre.asc())
+        )
+
+        rows = session.exec(stmt).all()
+        return [
+            {
+                "atributo_id": row.atributo_id,
+                "atributo_nombre": row.atributo_nombre,
+                "tipo_dato": row.tipo_dato,
+                "orden": row.orden,
+                "obligatorio": row.obligatorio,
+                "categoria_origen_id": row.categoria_origen_id,
+                "profundidad": row.profundidad,
+            }
+            for row in rows
+        ]
