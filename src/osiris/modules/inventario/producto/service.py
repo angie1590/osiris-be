@@ -317,21 +317,7 @@ class ProductoService(BaseService):
         atributos = []
         try:
             categoria_service = CategoriaService()
-
-            # Esqueleto heredado por categoría directa; si se repite atributo, gana menor profundidad
-            esqueleto_por_atributo: dict[UUID, dict] = {}
-            for cat_id in cat_ids:
-                heredados = categoria_service.get_atributos_heredados_por_categoria(session, cat_id)
-                for item in heredados:
-                    atributo_id = item["atributo_id"]
-                    current = esqueleto_por_atributo.get(atributo_id)
-                    if current is None or item["profundidad"] < current["profundidad"]:
-                        esqueleto_por_atributo[atributo_id] = item
-
-            esqueleto = sorted(
-                esqueleto_por_atributo.values(),
-                key=lambda x: (x.get("orden") is None, x.get("orden") or 0, x["atributo_nombre"]),
-            )
+            esqueleto = categoria_service.get_atributos_heredados_por_categorias(session, list(cat_ids))
 
             # Valores persistidos
             valores_rows = session.exec(

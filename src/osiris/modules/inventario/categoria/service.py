@@ -121,19 +121,26 @@ class CategoriaService(BaseService):
         except Exception as exc:
             self._handle_transaction_error(session, exc)
 
-    def get_atributos_heredados_por_categoria(self, session: Session, categoria_id: UUID) -> list[dict[str, Any]]:
+    def get_atributos_heredados_por_categorias(
+        self,
+        session: Session,
+        categoria_ids: list[UUID],
+    ) -> list[dict[str, Any]]:
         """
-        Obtiene atributos aplicables de una categoría y todos sus ancestros usando CTE recursivo.
-        Resolución de conflicto: si un atributo existe en varios niveles, gana el más cercano
-        (menor profundidad respecto a la categoría consultada).
+        Obtiene atributos aplicables desde una o varias categorías y sus ancestros
+        usando CTE recursivo + row_number para deduplicar por atributo.
+        Regla: gana la categoría más específica (menor profundidad).
         """
+        if not categoria_ids:
+            return []
+
         ancestros_cte = (
             select(
                 Categoria.id.label("categoria_id"),
                 Categoria.parent_id.label("parent_id"),
                 literal(0).label("profundidad"),
             )
-            .where(Categoria.id == categoria_id)
+            .where(Categoria.id.in_(categoria_ids))
             .cte(name="categoria_ancestros", recursive=True)
         )
 
@@ -157,7 +164,7 @@ class CategoriaService(BaseService):
                 ancestros_cte.c.profundidad.label("profundidad"),
                 func.row_number()
                 .over(
-                    partition_by=CategoriaAtributo.atributo_id,
+                    partition_by=Atributo.id,
                     order_by=ancestros_cte.c.profundidad.asc(),
                 )
                 .label("rn"),
@@ -194,3 +201,9 @@ class CategoriaService(BaseService):
             }
             for row in rows
         ]
+
+    def get_atributos_heredados_por_categoria(self, session: Session, categoria_id: UUID) -> list[dict[str, Any]]:
+        """
+        Obtiene atributos aplicables de una categoría y sus ancestros mediante CTE recursivo.
+        """
+        return self.get_atributos_heredados_por_categorias(session, [categoria_id])
