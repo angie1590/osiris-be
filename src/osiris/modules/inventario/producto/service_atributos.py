@@ -20,9 +20,6 @@ from osiris.modules.inventario.producto.models_atributos import (
 
 
 class ProductoAtributoValorService:
-    _TIPO_ERROR = "El valor enviado no coincide con el tipo de dato del atributo"
-    _APLICABILIDAD_ERROR = "El atributo enviado no aplica a las categorias del producto"
-
     @staticmethod
     def _parse_boolean(value: Any) -> bool:
         if isinstance(value, bool):
@@ -125,7 +122,11 @@ class ProductoAtributoValorService:
             try:
                 field_name, cast_value = self._cast_by_tipo(atributo.tipo_dato, item.valor)
             except Exception:
-                raise HTTPException(status_code=400, detail=self._TIPO_ERROR)
+                tipo_dato = atributo.tipo_dato.value if hasattr(atributo.tipo_dato, "value") else str(atributo.tipo_dato)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Valor incompatible para el atributo {atributo.nombre}. Se esperaba un tipo {tipo_dato}.",
+                )
 
             stmt = (
                 select(ProductoAtributoValor)
@@ -169,6 +170,18 @@ class ProductoAtributoValorService:
 
         for item in valores:
             if item.atributo_id not in atributo_ids_aplicables:
-                raise HTTPException(status_code=400, detail=self._APLICABILIDAD_ERROR)
+                atributo = session.exec(
+                    select(Atributo)
+                    .where(Atributo.id == item.atributo_id)
+                    .execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+                ).first()
+                atributo_nombre = atributo.nombre if atributo else "Desconocido"
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"El atributo {atributo_nombre} ({item.atributo_id}) "
+                        "no aplica a las categorias actuales del producto."
+                    ),
+                )
 
         return self.upsert_valores_producto(session, producto_id, valores)

@@ -62,7 +62,20 @@ def delete_producto(producto_id: UUID, session: Session = Depends(get_session)):
     return None
 
 
-@router.put("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
+@router.put(
+    "/{producto_id}/atributos",
+    response_model=list[ProductoAtributoValorRead],
+    status_code=200,
+    responses={
+        400: {
+            "description": (
+                "Error de validacion de aplicabilidad o tipo de dato. "
+                "Ejemplos: atributo no aplicable a la categoria actual, "
+                "o valor incompatible con el tipo esperado."
+            )
+        }
+    },
+)
 @router.post("/{producto_id}/atributos", response_model=list[ProductoAtributoValorRead], status_code=200)
 def upsert_producto_atributos(
     producto_id: UUID,

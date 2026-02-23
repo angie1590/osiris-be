@@ -83,7 +83,10 @@ def test_upsert_valores_producto_rechaza_tipo_invalido_integer():
             )
 
         assert exc.value.status_code == 400
-        assert exc.value.detail == "El valor enviado no coincide con el tipo de dato del atributo"
+        assert exc.value.detail == (
+            f"Valor incompatible para el atributo {atributo_integer.nombre}. "
+            "Se esperaba un tipo integer."
+        )
 
 
 def test_upsert_valores_producto_asigna_columna_sql_correcta():
@@ -252,4 +255,7 @@ def test_upsert_valores_producto_rechaza_atributo_no_aplicable():
             )
 
         assert exc.value.status_code == 400
-        assert exc.value.detail == "El atributo enviado no aplica a las categorias del producto"
+        assert exc.value.detail == (
+            f"El atributo {atributo_cilindrada.nombre} ({atributo_cilindrada.id}) "
+            "no aplica a las categorias actuales del producto."
+        )
