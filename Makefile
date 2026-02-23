@@ -110,3 +110,16 @@ cleanup-test-data:
 
 validate:
 	poetry run python scripts/validate_setup.py
+
+bootstrap-zero:
+	@echo ">> Reiniciando entorno desde cero (containers + volumenes)..."
+	docker compose --env-file $(ENV_FILE) down --remove-orphans --volumes
+	@echo ">> Levantando contenedores..."
+	docker compose --env-file $(ENV_FILE) up --build -d
+	@echo ">> Esperando a PostgreSQL..."
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost; do echo "Esperando DB..."; sleep 2; done'
+	@echo ">> Aplicando migraciones..."
+	docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
+	@echo ">> Ejecutando seed..."
+	docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development PYTHONPATH=/app:/app/src poetry run python scripts/seed_complete_data.py'
+	@echo ">> Entorno listo."
