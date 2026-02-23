@@ -368,7 +368,6 @@ class ProductoService(BaseService):
             impuestos = []
 
         # Bodegas (relación producto-bodega)
-        from osiris.modules.inventario.producto.entity import ProductoBodega
         from osiris.modules.inventario.bodega.entity import Bodega
 
         bodegas = []

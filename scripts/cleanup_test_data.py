@@ -120,6 +120,24 @@ def cleanup_test_data():
         # 5. Eliminar proveedores de test
         print("\n🗑️  Eliminando proveedores de test...")
         result = conn.execute(text(f"""
+            DELETE FROM tbl_producto_proveedor_persona
+            WHERE proveedor_persona_id IN (
+                SELECT id FROM tbl_proveedor_persona
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_producto_proveedor_persona (por proveedor): {result.rowcount} registros")
+
+        result = conn.execute(text(f"""
+            DELETE FROM tbl_producto_proveedor_sociedad
+            WHERE proveedor_sociedad_id IN (
+                SELECT id FROM tbl_proveedor_sociedad
+                WHERE usuario_auditoria IN {test_users}
+            )
+        """))
+        print(f"   - tbl_producto_proveedor_sociedad (por proveedor): {result.rowcount} registros")
+
+        result = conn.execute(text(f"""
             DELETE FROM tbl_proveedor_persona
             WHERE usuario_auditoria IN {test_users}
         """))

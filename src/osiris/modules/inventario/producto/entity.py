@@ -7,6 +7,7 @@ from decimal import Decimal
 from sqlmodel import Field, Column, Numeric, Relationship
 from sqlalchemy.orm import relationship
 from osiris.domain.base_models import BaseTable, AuditMixin, SoftDeleteMixin
+from osiris.modules.inventario.categoria.entity import Categoria  # noqa: F401
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo  # noqa: F401
 
 

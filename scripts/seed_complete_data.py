@@ -8,11 +8,18 @@ Uso:
 """
 
 import sys
-import yaml
+import json
+import subprocess
 from pathlib import Path
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 from sqlmodel import Session, select
+
+try:
+    import yaml
+except ModuleNotFoundError:
+    yaml = None
 
 # Añadir src al path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -24,13 +31,15 @@ from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.categoria.entity import Categoria
-from osiris.modules.inventario.atributo.entity import Atributo
+from osiris.modules.inventario.atributo.entity import Atributo, TipoDato
 from osiris.modules.inventario.categoria_atributo.entity import CategoriaAtributo
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
 from osiris.modules.common.proveedor_persona.entity import ProveedorPersona
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.inventario.producto.entity import Producto, ProductoCategoria, ProductoProveedorPersona, ProductoProveedorSociedad, ProductoImpuesto, ProductoBodega
+from osiris.modules.inventario.producto.models_atributos import ProductoAtributoValor
 from osiris.modules.sri.impuesto_catalogo.entity import ImpuestoCatalogo
+from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente  # noqa: F401
 from osiris.modules.common.usuario.entity import Usuario
 from osiris.modules.common.rol.entity import Rol
 from osiris.modules.common.empleado.entity import Empleado
@@ -45,8 +54,79 @@ AUDIT_USER = "seed_script"
 def load_yaml_structure():
     """Carga la estructura de datos desde el archivo YAML."""
     yaml_path = Path(__file__).parent / "seed_data_structure.yaml"
-    with open(yaml_path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+    if yaml is not None:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+
+    # Fallback sin dependencia PyYAML: parsea YAML usando Ruby stdlib (Psych)
+    # y lo convierte a JSON para consumirlo en Python.
+    cmd = [
+        "ruby",
+        "-ryaml",
+        "-rjson",
+        "-e",
+        "puts JSON.generate(YAML.safe_load(File.read(ARGV[0]), aliases: true))",
+        str(yaml_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            "No se pudo cargar seed_data_structure.yaml "
+            "ni con PyYAML ni con fallback Ruby.\n"
+            f"stderr: {result.stderr}"
+        )
+    return json.loads(result.stdout)
+
+
+def _safe_default_by_tipo(tipo_dato: TipoDato | str | None) -> str | None:
+    tipo = tipo_dato.value if hasattr(tipo_dato, "value") else str(tipo_dato).lower() if tipo_dato else None
+    if tipo == TipoDato.STRING.value:
+        return "N/A"
+    if tipo == TipoDato.INTEGER.value:
+        return "0"
+    if tipo == TipoDato.DECIMAL.value:
+        return "0.00"
+    if tipo == TipoDato.BOOLEAN.value:
+        return "false"
+    if tipo == TipoDato.DATE.value:
+        return date.today().isoformat()
+    return None
+
+
+def _parse_bool(value) -> bool:
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "t", "yes", "y", "si", "s"}:
+        return True
+    if normalized in {"false", "0", "f", "no", "n"}:
+        return False
+    raise ValueError(f"Valor booleano invalido: {value}")
+
+
+def _build_eav_value_columns(tipo_dato: TipoDato | str, raw_value) -> dict:
+    tipo = tipo_dato.value if hasattr(tipo_dato, "value") else str(tipo_dato).lower()
+    values = {
+        "valor_string": None,
+        "valor_integer": None,
+        "valor_decimal": None,
+        "valor_boolean": None,
+        "valor_date": None,
+    }
+    if tipo == TipoDato.STRING.value:
+        values["valor_string"] = str(raw_value)
+    elif tipo == TipoDato.INTEGER.value:
+        values["valor_integer"] = int(raw_value)
+    elif tipo == TipoDato.DECIMAL.value:
+        values["valor_decimal"] = Decimal(str(raw_value))
+    elif tipo == TipoDato.BOOLEAN.value:
+        values["valor_boolean"] = _parse_bool(raw_value)
+    elif tipo == TipoDato.DATE.value:
+        if isinstance(raw_value, date):
+            values["valor_date"] = raw_value
+        else:
+            values["valor_date"] = date.fromisoformat(str(raw_value))
+    else:
+        raise ValueError(f"Tipo de dato no soportado: {tipo_dato}")
+    return values
 
 
 def crear_persona(session: Session, data: dict) -> Persona:
@@ -112,11 +192,15 @@ def crear_sucursales(session: Session, sucursales_data: list, empresa_id: UUID) 
         sucursal = session.exec(stmt).first()
 
         if not sucursal:
+            es_matriz = bool(suc_data.get("es_matriz", False))
+            if "es_matriz" not in suc_data:
+                es_matriz = suc_data["codigo"] == "001"
             sucursal = Sucursal(
                 codigo=suc_data["codigo"],
                 nombre=suc_data["nombre"],
                 direccion=suc_data["direccion"],
                 telefono=suc_data.get("telefono"),
+                es_matriz=es_matriz,
                 empresa_id=empresa_id,
                 usuario_auditoria=AUDIT_USER
             )
@@ -233,7 +317,7 @@ def crear_atributos(session: Session, atributos_data: list, categorias_map: dict
     """Crea atributos y sus relaciones con categorías."""
     atributos_map = {}
 
-    for atr_data in atributos_data:
+    for idx, atr_data in enumerate(atributos_data, start=1):
         # Crear atributo
         stmt = select(Atributo).where(Atributo.nombre == atr_data["nombre"])
         atributo = session.exec(stmt).first()
@@ -257,19 +341,44 @@ def crear_atributos(session: Session, atributos_data: list, categorias_map: dict
         if "nivel_asignacion" in atr_data:
             categoria_id = categorias_map.get(atr_data["nivel_asignacion"])
             if categoria_id:
+                obligatorio = bool(atr_data.get("obligatorio", False))
+                valor_default = atr_data.get("valor_default")
+                if obligatorio and (valor_default is None or str(valor_default).strip() == ""):
+                    valor_default = _safe_default_by_tipo(atributo.tipo_dato)
+
                 stmt = select(CategoriaAtributo).where(
                     CategoriaAtributo.categoria_id == categoria_id,
                     CategoriaAtributo.atributo_id == atributo.id
                 )
-                if not session.exec(stmt).first():
+                cat_atr = session.exec(stmt).first()
+                if not cat_atr:
                     cat_atr = CategoriaAtributo(
                         categoria_id=categoria_id,
                         atributo_id=atributo.id,
+                        orden=int(atr_data.get("orden", idx)),
+                        obligatorio=obligatorio,
+                        valor_default=valor_default,
                         usuario_auditoria=AUDIT_USER
                     )
                     session.add(cat_atr)
                     session.commit()
                     print(f"    → Atributo asignado a categoría: {atr_data['nivel_asignacion']}")
+                else:
+                    updated = False
+                    if cat_atr.orden is None:
+                        cat_atr.orden = int(atr_data.get("orden", idx))
+                        updated = True
+                    if cat_atr.obligatorio is None and obligatorio:
+                        cat_atr.obligatorio = True
+                        updated = True
+                    if (cat_atr.valor_default is None or str(cat_atr.valor_default).strip() == "") and valor_default:
+                        cat_atr.valor_default = valor_default
+                        updated = True
+                    if updated:
+                        cat_atr.usuario_auditoria = AUDIT_USER
+                        session.add(cat_atr)
+                        session.commit()
+                        print(f"    → Atributo actualizado en categoría: {atr_data['nivel_asignacion']}")
 
     return atributos_map
 
@@ -458,10 +567,51 @@ def crear_productos(session: Session, productos_data: list, categorias_map: dict
                     session.add(prod_prov)
                     print(f"    → Proveedor persona: {prov_ref}")
 
-        # Nota: Los atributos se asignan a categorías, no directamente a productos
-        # Los atributos en el YAML son informativos para demostración
+        # Persistir atributos tipados del producto en tabla EAV.
         if "atributos" in prod_data:
-            print(f"    ℹ  Atributos (informativos): {len(prod_data['atributos'])} definidos")
+            creados = 0
+            for atributo_nombre, atributo_valor in prod_data["atributos"].items():
+                atributo_id = atributos_map.get(atributo_nombre)
+                if not atributo_id:
+                    print(f"    ⚠ Atributo no definido en catalogo: {atributo_nombre}")
+                    continue
+
+                atributo_master = session.get(Atributo, atributo_id)
+                if not atributo_master:
+                    print(f"    ⚠ Atributo no encontrado en DB: {atributo_nombre}")
+                    continue
+
+                try:
+                    typed_values = _build_eav_value_columns(atributo_master.tipo_dato, atributo_valor)
+                except Exception as exc:
+                    print(f"    ⚠ No se pudo convertir atributo '{atributo_nombre}' ({atributo_valor}): {exc}")
+                    continue
+
+                existing = session.exec(
+                    select(ProductoAtributoValor).where(
+                        ProductoAtributoValor.producto_id == producto.id,
+                        ProductoAtributoValor.atributo_id == atributo_id,
+                    )
+                ).first()
+                if existing:
+                    existing.valor_string = typed_values["valor_string"]
+                    existing.valor_integer = typed_values["valor_integer"]
+                    existing.valor_decimal = typed_values["valor_decimal"]
+                    existing.valor_boolean = typed_values["valor_boolean"]
+                    existing.valor_date = typed_values["valor_date"]
+                    existing.usuario_auditoria = AUDIT_USER
+                    session.add(existing)
+                else:
+                    session.add(
+                        ProductoAtributoValor(
+                            producto_id=producto.id,
+                            atributo_id=atributo_id,
+                            usuario_auditoria=AUDIT_USER,
+                            **typed_values,
+                        )
+                    )
+                creados += 1
+            print(f"    → Atributos EAV persistidos: {creados}")
 
         # Asignar a bodegas con cantidades
         if "bodegas" in prod_data:

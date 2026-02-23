@@ -8,7 +8,7 @@ stop:
 
 lint:
 	poetry run ruff check .
-	poetry run mypy src
+	poetry run mypy -p osiris
 
 logs:
 	docker compose logs -f
