@@ -1,19 +1,25 @@
 # tests/unit/test_sucursal_unit.py
 from __future__ import annotations
 
+from decimal import Decimal
 from uuid import uuid4
 from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine
 
+from osiris.core.db import get_session
+from osiris.main import app
+from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.models import SucursalCreate, SucursalUpdate
 from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.sucursal.service import SucursalService
 from osiris.modules.common.sucursal.repository import SucursalRepository
+from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
 
 # =======================
@@ -230,3 +236,161 @@ def test_sucursal_matriz_solo_puede_ser_001():
         )
         with pytest.raises(IntegrityError):
             session.commit()
+
+
+@pytest.fixture
+def sucursal_api_client():
+    engine = _engine_sqlite()
+    SQLModel.metadata.create_all(
+        engine,
+        tables=[
+            TipoContribuyente.__table__,
+            Empresa.__table__,
+            Sucursal.__table__,
+        ],
+    )
+
+    with Session(engine) as session:
+        session.add(TipoContribuyente(codigo="01", nombre="Sociedad", activo=True))
+        session.flush()
+
+        empresa = Empresa(
+            razon_social="Empresa Sucursal API",
+            nombre_comercial="Empresa Sucursal API",
+            ruc="1790012345001",
+            direccion_matriz="Av. Matriz 100",
+            telefono="022000000",
+            obligado_contabilidad=False,
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.commit()
+        session.refresh(empresa)
+        empresa_id = empresa.id
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            yield client, empresa_id
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+
+def test_sucursal_api_create_con_lat_long_ok(sucursal_api_client):
+    client, empresa_id = sucursal_api_client
+    payload = {
+        "codigo": "001",
+        "nombre": "Sucursal Matriz",
+        "direccion": "Quito",
+        "telefono": "022345678",
+        "latitud": "-0.229850",
+        "longitud": "-78.524948",
+        "es_matriz": True,
+        "empresa_id": str(empresa_id),
+        "usuario_auditoria": "tester",
+    }
+
+    response = client.post("/api/v1/sucursales", json=payload)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert Decimal(str(body["latitud"])) == Decimal("-0.229850")
+    assert Decimal(str(body["longitud"])) == Decimal("-78.524948")
+
+
+def test_sucursal_api_update_con_lat_long_ok(sucursal_api_client):
+    client, empresa_id = sucursal_api_client
+    create_response = client.post(
+        "/api/v1/sucursales",
+        json={
+            "codigo": "001",
+            "nombre": "Sucursal Matriz",
+            "direccion": "Quito",
+            "es_matriz": True,
+            "empresa_id": str(empresa_id),
+            "usuario_auditoria": "tester",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    sucursal_id = create_response.json()["id"]
+
+    update_response = client.put(
+        f"/api/v1/sucursales/{sucursal_id}",
+        json={
+            "latitud": "-1.250000",
+            "longitud": "-79.900000",
+            "usuario_auditoria": "tester",
+        },
+    )
+    assert update_response.status_code == 200, update_response.text
+    body = update_response.json()
+    assert Decimal(str(body["latitud"])) == Decimal("-1.250000")
+    assert Decimal(str(body["longitud"])) == Decimal("-79.900000")
+
+
+def test_sucursal_api_get_incluye_lat_long(sucursal_api_client):
+    client, empresa_id = sucursal_api_client
+    create_response = client.post(
+        "/api/v1/sucursales",
+        json={
+            "codigo": "001",
+            "nombre": "Sucursal Matriz",
+            "direccion": "Quito",
+            "latitud": "-2.100000",
+            "longitud": "-80.700000",
+            "es_matriz": True,
+            "empresa_id": str(empresa_id),
+            "usuario_auditoria": "tester",
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+    sucursal_id = create_response.json()["id"]
+
+    get_response = client.get(f"/api/v1/sucursales/{sucursal_id}")
+    assert get_response.status_code == 200, get_response.text
+    body = get_response.json()
+    assert "latitud" in body
+    assert "longitud" in body
+    assert Decimal(str(body["latitud"])) == Decimal("-2.100000")
+    assert Decimal(str(body["longitud"])) == Decimal("-80.700000")
+
+
+def test_sucursal_api_latitud_fuera_de_rango_devuelve_400(sucursal_api_client):
+    client, empresa_id = sucursal_api_client
+    response = client.post(
+        "/api/v1/sucursales",
+        json={
+            "codigo": "001",
+            "nombre": "Sucursal Matriz",
+            "direccion": "Quito",
+            "latitud": "91",
+            "es_matriz": True,
+            "empresa_id": str(empresa_id),
+            "usuario_auditoria": "tester",
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "latitud" in response.json()["detail"].lower()
+
+
+def test_sucursal_api_longitud_fuera_de_rango_devuelve_400(sucursal_api_client):
+    client, empresa_id = sucursal_api_client
+    response = client.post(
+        "/api/v1/sucursales",
+        json={
+            "codigo": "001",
+            "nombre": "Sucursal Matriz",
+            "direccion": "Quito",
+            "longitud": "181",
+            "es_matriz": True,
+            "empresa_id": str(empresa_id),
+            "usuario_auditoria": "tester",
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert "longitud" in response.json()["detail"].lower()
