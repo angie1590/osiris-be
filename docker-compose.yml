@@ -19,9 +19,11 @@ services:
     working_dir: /app
     volumes:
       - ./docs:/app
+      - docs_node_modules:/app/node_modules
+      - docs_docusaurus:/app/.docusaurus
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npm start -- --host 0.0.0.0"
+    command: sh -c "npm install && rm -rf build node_modules/.cache && if [ -d .docusaurus ]; then find .docusaurus -mindepth 1 -exec rm -rf {} +; fi && npm start -- --host 0.0.0.0"
 
   postgres:
     image: postgres:15
@@ -36,3 +38,5 @@ services:
 
 volumes:
   osiris-be_postgres_data:
+  docs_node_modules:
+  docs_docusaurus:

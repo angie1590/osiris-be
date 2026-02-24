@@ -130,4 +130,4 @@ bootstrap-zero:
 
 documentacion:
 	@echo ">> Levantando entorno de documentacion..."
-	docker compose --env-file $(ENV_FILE) up -d docs
+	docker compose --env-file $(ENV_FILE) up -d --force-recreate docs
