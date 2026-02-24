@@ -5,9 +5,12 @@ from decimal import Decimal
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from osiris.core.db import get_session
+from osiris.main import app
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.sucursal.entity import Sucursal
@@ -17,10 +20,12 @@ from osiris.modules.sri.core_sri.models import (
     CompraDetalle,
     CompraDetalleImpuesto,
     CuentaPorPagar,
+    EstadoCompra,
     EstadoCuentaPorPagar,
     TipoImpuestoMVP,
 )
 from osiris.modules.sri.core_sri.all_schemas import (
+    CompraAnularRequest,
     CompraCreate,
     CompraUpdate,
     ImpuestoAplicadoInput,
@@ -331,3 +336,223 @@ def test_registro_compra_inicializa_cxp():
         assert cxp.pagos_acumulados == Decimal("0.00")
         assert cxp.saldo_pendiente == Decimal("100.00")
         assert cxp.estado == EstadoCuentaPorPagar.PENDIENTE
+
+
+def test_anular_compra_revierte_cantidad_inventario():
+    engine = _build_test_engine()
+    service = CompraService()
+
+    with Session(engine) as session:
+        tipo = TipoContribuyente(codigo="01", nombre="Sociedad", activo=True)
+        session.add(tipo)
+        empresa = Empresa(
+            razon_social="Empresa Compra Anulacion",
+            nombre_comercial="Empresa Compra Anulacion",
+            ruc="1790012345001",
+            direccion_matriz="Av. Central",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+        bodega = Bodega(
+            codigo_bodega="BOD-ANU-001",
+            nombre_bodega="Bodega Compra Anulacion",
+            empresa_id=empresa.id,
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(bodega)
+        producto = Producto(
+            nombre="Producto Compra Anulacion",
+            tipo=TipoProducto.BIEN,
+            pvp=Decimal("10.00"),
+            cantidad=0,
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(producto)
+        session.flush()
+
+        stock_inicial = InventarioStock(
+            bodega_id=bodega.id,
+            producto_id=producto.id,
+            cantidad_actual=Decimal("0.0000"),
+            costo_promedio_vigente=Decimal("0.0000"),
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(stock_inicial)
+        session.commit()
+
+        compra = service.registrar_compra(
+            session,
+            CompraCreate(
+                proveedor_id=empresa.id,
+                secuencial_factura="001-001-333333333",
+                autorizacion_sri="5" * 49,
+                fecha_emision=date.today(),
+                bodega_id=bodega.id,
+                sustento_tributario="01",
+                tipo_identificacion_proveedor="RUC",
+                identificacion_proveedor="1790099988001",
+                forma_pago="EFECTIVO",
+                usuario_auditoria="compras.user",
+                detalles=[
+                    VentaCompraDetalleCreate(
+                        producto_id=producto.id,
+                        descripcion="Compra para anular",
+                        cantidad=Decimal("10.0000"),
+                        precio_unitario=Decimal("10.0000"),
+                        descuento=Decimal("0.00"),
+                        impuestos=[],
+                    )
+                ],
+            ),
+        )
+
+        stock_post_compra = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_post_compra.cantidad_actual == Decimal("10.0000")
+
+        compra_anulada = service.anular_compra(
+            session,
+            compra.id,
+            payload=CompraAnularRequest(usuario_auditoria="compras.user"),
+        )
+
+        assert compra_anulada.estado == EstadoCompra.ANULADA
+
+        stock_post_anulacion = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_post_anulacion.cantidad_actual == Decimal("0.0000")
+
+        movimiento_egreso = session.exec(
+            select(MovimientoInventario).where(
+                MovimientoInventario.referencia_documento == f"ANULACION_COMPRA:{compra.id}",
+                MovimientoInventario.tipo_movimiento == TipoMovimientoInventario.EGRESO,
+            )
+        ).first()
+        assert movimiento_egreso is not None
+        assert movimiento_egreso.estado == EstadoMovimientoInventario.CONFIRMADO
+
+
+def test_endpoint_anular_compra_revierte_inventario():
+    engine = _build_test_engine()
+    service = CompraService()
+
+    with Session(engine) as session:
+        tipo = TipoContribuyente(codigo="01", nombre="Sociedad", activo=True)
+        session.add(tipo)
+        empresa = Empresa(
+            razon_social="Empresa Compra API",
+            nombre_comercial="Empresa Compra API",
+            ruc="1790012345001",
+            direccion_matriz="Av. Central",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+        bodega = Bodega(
+            codigo_bodega="BOD-ANU-API",
+            nombre_bodega="Bodega Compra API",
+            empresa_id=empresa.id,
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(bodega)
+        producto = Producto(
+            nombre="Producto Compra API",
+            tipo=TipoProducto.BIEN,
+            pvp=Decimal("10.00"),
+            cantidad=0,
+            usuario_auditoria="seed",
+            activo=True,
+        )
+        session.add(producto)
+        session.flush()
+
+        session.add(
+            InventarioStock(
+                bodega_id=bodega.id,
+                producto_id=producto.id,
+                cantidad_actual=Decimal("0.0000"),
+                costo_promedio_vigente=Decimal("0.0000"),
+                usuario_auditoria="seed",
+                activo=True,
+            )
+        )
+        session.commit()
+
+        compra = service.registrar_compra(
+            session,
+            CompraCreate(
+                proveedor_id=empresa.id,
+                secuencial_factura="001-001-444444444",
+                autorizacion_sri="6" * 49,
+                fecha_emision=date.today(),
+                bodega_id=bodega.id,
+                sustento_tributario="01",
+                tipo_identificacion_proveedor="RUC",
+                identificacion_proveedor="1790099988001",
+                forma_pago="EFECTIVO",
+                usuario_auditoria="compras.user",
+                detalles=[
+                    VentaCompraDetalleCreate(
+                        producto_id=producto.id,
+                        descripcion="Compra endpoint anular",
+                        cantidad=Decimal("10.0000"),
+                        precio_unitario=Decimal("10.0000"),
+                        descuento=Decimal("0.00"),
+                        impuestos=[],
+                    )
+                ],
+            ),
+        )
+        compra_id = compra.id
+        bodega_id = bodega.id
+        producto_id = producto.id
+
+    def override_get_session():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                f"/api/v1/compras/{compra_id}/anular",
+                json={"usuario_auditoria": "api.user"},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["estado"] == "ANULADA"
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+
+    with Session(engine) as session:
+        stock_final = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega_id,
+                InventarioStock.producto_id == producto_id,
+            )
+        ).one()
+        assert stock_final.cantidad_actual == Decimal("0.0000")

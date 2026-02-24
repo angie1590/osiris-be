@@ -25,7 +25,11 @@ from osiris.modules.sri.core_sri.all_schemas import (
     q2,
 )
 from osiris.modules.inventario.bodega.entity import Bodega
-from osiris.modules.inventario.movimientos.models import TipoMovimientoInventario
+from osiris.modules.inventario.movimientos.models import (
+    EstadoMovimientoInventario,
+    MovimientoInventario,
+    TipoMovimientoInventario,
+)
 from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
 from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto
@@ -146,6 +150,67 @@ class CompraService(TemplateMethodService[CompraCreate, Compra]):
                     "costo_unitario": detalle.precio_unitario,
                 }
                 for detalle in payload.detalles
+            ],
+        )
+        movimiento = self.movimiento_service.crear_movimiento_borrador(
+            session,
+            movimiento_payload,
+            commit=False,
+        )
+        self.movimiento_service.confirmar_movimiento(
+            session,
+            movimiento.id,
+            commit=False,
+            rollback_on_error=False,
+        )
+
+    def _orquestar_reversion_inventario_compra(
+        self,
+        session: Session,
+        compra: Compra,
+        *,
+        usuario_auditoria: str,
+    ) -> None:
+        if not self._es_session_real(session):
+            return
+
+        movimiento_compra = session.exec(
+            select(MovimientoInventario).where(
+                MovimientoInventario.referencia_documento == f"COMPRA:{compra.id}",
+                MovimientoInventario.tipo_movimiento == TipoMovimientoInventario.INGRESO,
+                MovimientoInventario.estado == EstadoMovimientoInventario.CONFIRMADO,
+                MovimientoInventario.activo.is_(True),
+            )
+        ).first()
+        if movimiento_compra is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No existe movimiento de ingreso confirmado para revertir esta compra.",
+            )
+
+        detalles = list(
+            session.exec(
+                select(CompraDetalle).where(
+                    CompraDetalle.compra_id == compra.id,
+                    CompraDetalle.activo.is_(True),
+                )
+            ).all()
+        )
+        if not detalles:
+            raise HTTPException(status_code=400, detail="La compra no tiene detalles para revertir inventario.")
+
+        movimiento_payload = MovimientoInventarioCreate(
+            bodega_id=movimiento_compra.bodega_id,
+            tipo_movimiento=TipoMovimientoInventario.EGRESO,
+            referencia_documento=f"ANULACION_COMPRA:{compra.id}",
+            usuario_auditoria=usuario_auditoria,
+            detalles=[
+                {
+                    "producto_id": detalle.producto_id,
+                    "cantidad": detalle.cantidad,
+                    "costo_unitario": detalle.precio_unitario,
+                }
+                for detalle in detalles
             ],
         )
         movimiento = self.movimiento_service.crear_movimiento_borrador(
@@ -281,6 +346,14 @@ class CompraService(TemplateMethodService[CompraCreate, Compra]):
 
     def anular_compra(self, session: Session, compra_id, payload: CompraAnularRequest) -> Compra:
         compra = self.obtener_compra(session, compra_id)
+        if compra.estado == EstadoCompra.ANULADA:
+            return compra
+
+        self._orquestar_reversion_inventario_compra(
+            session,
+            compra,
+            usuario_auditoria=payload.usuario_auditoria,
+        )
         compra.estado = EstadoCompra.ANULADA
         compra.usuario_auditoria = payload.usuario_auditoria
         session.add(compra)
