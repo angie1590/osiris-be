@@ -13,6 +13,16 @@ services:
     depends_on:
       - postgres
 
+  docs:
+    image: node:20-alpine
+    container_name: osiris_docs
+    working_dir: /app
+    volumes:
+      - ./docs:/app
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm start -- --host 0.0.0.0"
+
   postgres:
     image: postgres:15
     container_name: osiris-be_postgres

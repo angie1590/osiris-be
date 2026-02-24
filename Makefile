@@ -1,5 +1,7 @@
 ENV_FILE ?= .env.development
 
+.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion
+
 run:
 	docker compose --env-file $(ENV_FILE) up --build -d
 
@@ -123,3 +125,9 @@ bootstrap-zero:
 	@echo ">> Ejecutando seed..."
 	docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development PYTHONPATH=/app:/app/src poetry run python scripts/seed_complete_data.py'
 	@echo ">> Entorno listo."
+	$(MAKE) documentacion
+	@echo ">> API y Docs estan corriendo."
+
+documentacion:
+	@echo ">> Levantando entorno de documentacion..."
+	docker compose --env-file $(ENV_FILE) up -d docs
