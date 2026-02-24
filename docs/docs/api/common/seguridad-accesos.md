@@ -9,6 +9,22 @@ import TabItem from '@theme/TabItem';
 
 # Common - Seguridad y Accesos
 
+## Esquema de Autenticación Recomendado
+
+Según la arquitectura actual (`main.py` + `audit_context.py`):
+
+- El backend soporta dos cabeceras para resolver identidad:
+  - `Authorization: Bearer <token>`
+  - `X-User-Id: <uuid>`
+- **Recomendación para frontend productivo**: usar `Authorization: Bearer <JWT>` como mecanismo principal.
+- `X-User-Id` debe quedar para pruebas técnicas, smoke tests o integraciones internas controladas.
+- En endpoints sensibles, si no existe identidad o permisos suficientes, el sistema retorna `403` y registra evento `UNAUTHORIZED_ACCESS`.
+
+## Política de Registros Activos (Frontend)
+
+- El frontend debe consultar por defecto con `only_active=true` para mostrar cuentas y catálogos vigentes.
+- `only_active=false` retorna registros inactivos (borrado lógico) para módulos administrativos.
+
 ## GET /api/v1/usuarios
 Lista usuarios de forma paginada para administración de accesos y gobierno de cuentas.
 
@@ -1310,3 +1326,107 @@ Diccionario de Datos
 | Campo | Tipo | Obligatorio | Descripción y Restricciones |
 |---|---|---|---|
 | item_id | UUID | Sí | Identificador de la asignación a desactivar. |
+
+---
+
+## GET /api/v1/audit-logs
+Consulta la bitácora transversal de auditoría para trazabilidad de cambios y eventos de seguridad.
+
+<Tabs>
+<TabItem value="request" label="Request">
+
+```json
+{
+  "query": {
+    "usuario_id": "admin",
+    "fecha_desde": "2026-02-20T00:00:00Z",
+    "fecha_hasta": "2026-02-24T23:59:59Z",
+    "limit": 100,
+    "offset": 0
+  }
+}
+```
+
+</TabItem>
+<TabItem value="response" label="Response 200">
+
+```json
+[
+  {
+    "id": "4f2a1f08-8e11-4c84-9219-3d0f6aa4e91e",
+    "tabla_afectada": "tbl_empresa",
+    "registro_id": "3f4bbf20-0192-4cda-a9b9-f2f1615c9d90",
+    "accion": "UPDATE_REGIMEN_MODO",
+    "estado_anterior": {
+      "regimen": "GENERAL",
+      "modo_emision": "ELECTRONICO"
+    },
+    "estado_nuevo": {
+      "regimen": "RIMPE_NEGOCIO_POPULAR",
+      "modo_emision": "NOTA_VENTA_FISICA"
+    },
+    "usuario_id": "admin",
+    "fecha": "2026-02-24T10:11:12Z"
+  }
+]
+```
+
+</TabItem>
+<TabItem value="error" label="Error 400">
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["query", "limit"],
+      "msg": "Input should be less than or equal to 1000",
+      "type": "less_than_equal"
+    }
+  ]
+}
+```
+
+</TabItem>
+</Tabs>
+
+Diccionario de Datos
+
+| Campo | Tipo | Obligatorio | Descripción y Restricciones |
+|---|---|---|---|
+| usuario_id | string | No | Filtra por usuario responsable (`usuario_id`, `created_by`, `updated_by` o `usuario_auditoria`). |
+| fecha_desde | datetime | No | Límite inferior del rango de auditoría (ISO 8601). |
+| fecha_hasta | datetime | No | Límite superior del rango de auditoría (ISO 8601). |
+| limit | int | No | Tamaño de página lógica. Default `100`, mínimo `1`, máximo `1000`. |
+| offset | int | No | Desplazamiento de resultados. Default `0`, mínimo `0`. |
+
+---
+
+## Matriz de Errores por Endpoint
+
+| Endpoint | Códigos esperados |
+|---|---|
+| `GET /api/v1/usuarios` | `200`, `422` |
+| `GET /api/v1/usuarios/{item_id}` | `200`, `404` |
+| `POST /api/v1/usuarios` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/usuarios/{item_id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/usuarios/{item_id}` | `204`, `404` |
+| `GET /api/v1/usuarios/{usuario_id}/permisos` | `200`, `404`, `422` |
+| `GET /api/v1/usuarios/{usuario_id}/menu` | `200`, `404`, `422` |
+| `POST /api/v1/usuarios/{usuario_id}/reset-password` | `200`, `404`, `409`, `422` |
+| `POST /api/v1/usuarios/{usuario_id}/verify-password` | `200`, `404`, `409`, `422` |
+| `GET /api/v1/roles` | `200`, `422` |
+| `GET /api/v1/roles/{item_id}` | `200`, `404` |
+| `POST /api/v1/roles` | `201`, `409`, `422` |
+| `PUT /api/v1/roles/{item_id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/roles/{item_id}` | `204`, `404` |
+| `GET /api/v1/modulos` | `200`, `422` |
+| `GET /api/v1/modulos/{item_id}` | `200`, `404` |
+| `POST /api/v1/modulos` | `201`, `409`, `422` |
+| `PUT /api/v1/modulos/{item_id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/modulos/{item_id}` | `204`, `404` |
+| `GET /api/v1/roles-modulos-permisos` | `200`, `422` |
+| `GET /api/v1/roles-modulos-permisos/{item_id}` | `200`, `404` |
+| `POST /api/v1/roles-modulos-permisos` | `201`, `404`, `409`, `422` |
+| `PUT /api/v1/roles-modulos-permisos/{item_id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/roles-modulos-permisos/{item_id}` | `204`, `404` |
+| `GET /api/v1/audit-logs` | `200`, `422` |

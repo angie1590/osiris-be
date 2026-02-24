@@ -11,6 +11,12 @@ import TabItem from "@theme/TabItem";
 
 El módulo **Directorio** gestiona el registro centralizado de personas naturales, sus asociaciones comerciales como clientes y proveedores, así como la vinculación de empleados a la empresa. Este módulo es fundamental para mantener la base de datos de actores en el sistema (personas, clientes, proveedores y empleados).
 
+## Política de Registros Activos (Frontend)
+
+- El frontend debe usar por defecto `only_active=true` para mostrar registros vigentes.
+- Los registros inactivos corresponden a **borrado lógico** y deben verse solo en vistas administrativas.
+- `only_active=false` retorna registros inactivos.
+
 ## Estructura General
 
 El Directorio está compuesto por 6 entidades principales:
@@ -592,6 +598,12 @@ Realiza un borrado lógico del cliente.
 
 Registro de proveedores que son personas naturales. Debe estar vinculado a una Persona y contiene información comercial específica del proveedor.
 
+Reglas de negocio backend (importantes para frontend):
+- `persona_id` debe apuntar a una Persona con `tipo_identificacion = RUC`.
+- El RUC de la persona debe ser de persona natural válido (no sociedad).
+- `tipo_contribuyente_id` no puede corresponder a categorías de sociedad o gran contribuyente.
+- En `PUT`, `persona_id` es inmutable y cualquier valor enviado se ignora.
+
 ### Endpoints
 
 <Tabs>
@@ -747,6 +759,13 @@ Realiza un borrado lógico del proveedor persona.
 
 Registro de proveedores que son empresas (sociedades). Contiene información detallada de la empresa y requiere un RUC válido de 13 dígitos.
 
+Reglas de negocio backend (importantes para frontend):
+- El `ruc` debe ser válido y no puede ser RUC de persona natural.
+- `tipo_contribuyente_id` no admite códigos `01` ni `03`.
+- `telefono`, si se envía, debe tener exactamente 10 dígitos numéricos.
+- `email` debe cumplir formato válido.
+- En `PUT`, `persona_contacto_id` es inmutable y cualquier valor enviado se ignora.
+
 ### Endpoints
 
 <Tabs>
@@ -771,7 +790,7 @@ Obtiene una lista paginada de proveedores sociedad.
       "razon_social": "Distribuidora Nacional S.A.",
       "nombre_comercial": "DistNac",
       "direccion": "Avenida Colón 501, Quito",
-      "telefono": "+593 2 2222222",
+      "telefono": "0222222222",
       "email": "ventas@distnac.com",
       "tipo_contribuyente_id": "02",
       "persona_contacto_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -805,7 +824,7 @@ Obtiene los detalles de un proveedor sociedad específico.
   "razon_social": "Distribuidora Nacional S.A.",
   "nombre_comercial": "DistNac",
   "direccion": "Avenida Colón 501, Quito",
-  "telefono": "+593 2 2222222",
+  "telefono": "0222222222",
   "email": "ventas@distnac.com",
   "tipo_contribuyente_id": "02",
   "persona_contacto_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -831,7 +850,7 @@ Crea un nuevo proveedor sociedad. El RUC debe ser exactamente 13 dígitos.
   "razon_social": "Distribuidora Nacional S.A.",
   "nombre_comercial": "DistNac",
   "direccion": "Avenida Colón 501, Quito",
-  "telefono": "+593 2 2222222",
+  "telefono": "0222222222",
   "email": "ventas@distnac.com",
   "tipo_contribuyente_id": "02",
   "persona_contacto_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -847,7 +866,7 @@ Crea un nuevo proveedor sociedad. El RUC debe ser exactamente 13 dígitos.
   "razon_social": "Distribuidora Nacional S.A.",
   "nombre_comercial": "DistNac",
   "direccion": "Avenida Colón 501, Quito",
-  "telefono": "+593 2 2222222",
+  "telefono": "0222222222",
   "email": "ventas@distnac.com",
   "tipo_contribuyente_id": "02",
   "persona_contacto_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -930,9 +949,9 @@ Realiza un borrado lógico del proveedor sociedad.
 | `razon_social` | String(255) | Not Null | Nombre legal de la empresa registrado en SRI |
 | `nombre_comercial` | String(255) | Optional | Nombre comercial bajo el que opera |
 | `direccion` | String(255) | Not Null | Domicilio principal de la empresa |
-| `telefono` | String(30) | Optional | Número de contacto |
+| `telefono` | String | Optional | Si se envía, debe tener exactamente 10 dígitos numéricos. |
 | `email` | Email | Not Null | Correo electrónico principal (formato válido) |
-| `tipo_contribuyente_id` | String(2) | FK (aux_tipo_contribuyente.codigo), Not Null | Clasificación SRI (típicamente "02" para empresas) |
+| `tipo_contribuyente_id` | String(2) | FK (aux_tipo_contribuyente.codigo), Not Null | Clasificación SRI. Restricción de negocio: no se permite `01` ni `03` para proveedor sociedad. |
 | `persona_contacto_id` | UUID | FK (tbl_persona.id), Not Null | Referencia a una Persona como contacto. **Restricción**: No se puede cambiar en actualización. |
 | `activo` | Boolean | Default: true | Indicador de estado |
 | `creado_en` | DateTime | Auto | Timestamp de creación |
@@ -946,6 +965,12 @@ Realiza un borrado lógico del proveedor sociedad.
 ### Descripción
 
 Vinculación de una Persona como Empleado de una Empresa. Incluye información laboral (salario, fechas) y puede crear automáticamente un Usuario asociado al empleado.
+
+Reglas de negocio backend (importantes para frontend):
+- `POST /empleados` exige el bloque `usuario` para crear la cuenta en la misma transacción.
+- `fecha_ingreso` no puede ser futura.
+- `fecha_salida`, cuando existe, debe ser posterior a `fecha_ingreso`.
+- `fecha_nacimiento`, cuando existe, debe respetar edad mínima (`EMP_MIN_AGE`, default `16`).
 
 ### Endpoints
 
@@ -1220,3 +1245,39 @@ Todas las entidades registran:
 - `proveedor_sociedad.ruc` debe ser único
 - `persona.identificacion` debe ser único
 
+---
+
+## Matriz de Errores por Endpoint
+
+| Endpoint | Códigos esperados |
+|---|---|
+| `GET /api/v1/personas` | `200`, `422` |
+| `GET /api/v1/personas/{id}` | `200`, `404` |
+| `POST /api/v1/personas` | `201`, `400`, `409`, `422` |
+| `PUT /api/v1/personas/{id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/personas/{id}` | `204`, `404` |
+| `GET /api/v1/tipos-cliente` | `200`, `422` |
+| `GET /api/v1/tipos-cliente/{id}` | `200`, `404` |
+| `POST /api/v1/tipos-cliente` | `201`, `409`, `422` |
+| `PUT /api/v1/tipos-cliente/{id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/tipos-cliente/{id}` | `204`, `404` |
+| `GET /api/v1/clientes` | `200`, `422` |
+| `GET /api/v1/clientes/{id}` | `200`, `404` |
+| `POST /api/v1/clientes` | `201`, `404`, `409`, `422` |
+| `PUT /api/v1/clientes/{id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/clientes/{id}` | `204`, `404` |
+| `GET /api/v1/proveedores-persona` | `200`, `422` |
+| `GET /api/v1/proveedores-persona/{id}` | `200`, `404` |
+| `POST /api/v1/proveedores-persona` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/proveedores-persona/{id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/proveedores-persona/{id}` | `204`, `404` |
+| `GET /api/v1/proveedores-sociedad` | `200`, `422` |
+| `GET /api/v1/proveedores-sociedad/{id}` | `200`, `404` |
+| `POST /api/v1/proveedores-sociedad` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/proveedores-sociedad/{id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/proveedores-sociedad/{id}` | `204`, `404` |
+| `GET /api/v1/empleados` | `200`, `422` |
+| `GET /api/v1/empleados/{id}` | `200`, `404` |
+| `POST /api/v1/empleados` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/empleados/{id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/empleados/{id}` | `204`, `404` |

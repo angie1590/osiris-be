@@ -25,6 +25,14 @@ const sidebars = {
             'api/inventario/producto-crud-base'
           ]
         }
+        ,
+        {
+          type: 'category',
+          label: 'Transacciones',
+          items: [
+            'api/transacciones/compras'
+          ]
+        }
       ]
     }
   ]

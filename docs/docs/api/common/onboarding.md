@@ -9,6 +9,55 @@ import TabItem from '@theme/TabItem';
 
 # Onboarding API Common
 
+## Reglas Transversales para Frontend
+
+Antes de integrar los endpoints de onboarding, considera estas reglas de contrato que aplica el backend:
+
+1. Soft delete y filtro `only_active`:
+   - `only_active=true`: retorna solo registros activos.
+   - `only_active=false`: retorna solo registros inactivos.
+2. Códigos HTTP esperados:
+   - `400`: error de validación de payload/formato.
+   - `404`: recurso no encontrado.
+   - `409`: conflicto de integridad (duplicados, FK inválida/inactiva).
+3. Efecto colateral al crear empresa:
+   - Al crear una `Empresa`, el sistema crea automáticamente una `Sucursal` matriz (`codigo = "001"`, `es_matriz = true`) si no existe.
+4. Secuenciales SRI:
+   - El endpoint de siguiente secuencial devuelve siempre el número en formato de 9 dígitos (`zfill(9)`), por ejemplo `000000123`.
+
+## Política de Registros Activos (Frontend)
+
+- El frontend debe consultar por defecto con `only_active=true` para mostrar únicamente registros activos.
+- Los registros inactivos representan **borrado lógico** y no deben mostrarse en flujos operativos normales.
+- Para pantallas administrativas de auditoría o recuperación, usar `only_active=false` para consultar inactivos.
+
+## Catálogos y Enums Operativos
+
+### `regimen` (Empresa)
+
+| Valor | Descripción |
+|---|---|
+| `GENERAL` | Régimen general de contribuyente. |
+| `RIMPE_EMPRENDEDOR` | Régimen RIMPE emprendedor. |
+| `RIMPE_NEGOCIO_POPULAR` | Régimen RIMPE negocio popular. |
+
+### `modo_emision` (Empresa)
+
+| Valor | Descripción | Regla |
+|---|---|---|
+| `ELECTRONICO` | Emisión electrónica. | Permitido para todos los regímenes. |
+| `NOTA_VENTA_FISICA` | Emisión física (nota de venta). | Solo permitido con `regimen = RIMPE_NEGOCIO_POPULAR`. |
+
+### `tipo_documento` (Secuenciales de Punto de Emisión)
+
+| Valor | Descripción |
+|---|---|
+| `FACTURA` | Secuencial para facturas. |
+| `RETENCION` | Secuencial para retenciones. |
+| `NOTA_CREDITO` | Secuencial para notas de crédito. |
+| `NOTA_DEBITO` | Secuencial para notas de débito. |
+| `GUIA_REMISION` | Secuencial para guías de remisión. |
+
 ## GET /api/v1/empresas
 Devuelve empresas en forma paginada para inicializar catálogos y configuración de cabecera empresarial en el frontend.
 
@@ -1026,3 +1075,29 @@ Diccionario de Datos
 | usuario_id | UUID | Sí | Usuario que ejecuta el ajuste; debe estar activo, tener rol `ADMIN/ADMINISTRADOR` y permiso de módulo `PUNTOS_EMISION` para `actualizar`. |
 | justificacion | string | Sí | Texto obligatorio entre 5 y 500 caracteres, se registra en auditoría. |
 | nuevo_secuencial | int | Sí | Nuevo valor del secuencial, mínimo `1`. |
+
+---
+
+## Matriz de Errores por Endpoint
+
+> Códigos operativos para manejo de UX y mensajes en frontend.
+
+| Endpoint | Códigos esperados |
+|---|---|
+| `GET /api/v1/empresas` | `200`, `422` |
+| `GET /api/v1/empresas/{item_id}` | `200`, `404` |
+| `POST /api/v1/empresas` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/empresas/{item_id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/empresas/{item_id}` | `204`, `404` |
+| `GET /api/v1/sucursales` | `200`, `422` |
+| `GET /api/v1/sucursales/{item_id}` | `200`, `404` |
+| `POST /api/v1/sucursales` | `201`, `400`, `404`, `409`, `422` |
+| `PUT /api/v1/sucursales/{item_id}` | `200`, `400`, `404`, `409`, `422` |
+| `DELETE /api/v1/sucursales/{item_id}` | `204`, `404` |
+| `GET /api/v1/puntos-emision` | `200`, `422` |
+| `GET /api/v1/puntos-emision/{item_id}` | `200`, `404` |
+| `POST /api/v1/puntos-emision` | `201`, `404`, `409`, `422` |
+| `PUT /api/v1/puntos-emision/{item_id}` | `200`, `404`, `409`, `422` |
+| `DELETE /api/v1/puntos-emision/{item_id}` | `204`, `404` |
+| `POST /api/v1/puntos-emision/{punto_emision_id}/secuenciales/{tipo_documento}/siguiente` | `200`, `404`, `422` |
+| `POST /api/v1/puntos-emision/{punto_emision_id}/secuenciales/{tipo_documento}/ajuste-manual` | `200`, `400`, `403`, `404`, `422` |
