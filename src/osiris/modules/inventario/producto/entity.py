@@ -27,8 +27,13 @@ class Producto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
         sa_column=Column(Numeric(10, 2), nullable=False),
         default=Decimal("0.00")
     )
-    # Nueva columna: cantidad en inventario. Se inicializa a 0 y no la ingresa el usuario en la creación
-    cantidad: int = Field(default=0, nullable=False)
+    # Cantidad agregada de inventario (sumatoria de stock materializado por bodegas)
+    cantidad: Decimal = Field(
+        sa_column=Column(Numeric(14, 4), nullable=False),
+        default=Decimal("0.0000"),
+    )
+    # Define si el producto puede manejar unidades fraccionarias (kg, litros, etc.).
+    permite_fracciones: bool = Field(default=False, nullable=False)
     casa_comercial_id: UUID | None = Field(default=None, foreign_key="tbl_casa_comercial.id")
 
     # Relaciones de lectura para evitar N+1 en listados completos.
@@ -89,12 +94,15 @@ class ProductoImpuesto(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
 
 
 # Puente: Producto-Bodega
-class ProductoBodega(BaseTable, table=True):
+class ProductoBodega(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     __tablename__ = "tbl_producto_bodega"
 
     producto_id: UUID = Field(foreign_key="tbl_producto.id", index=True, nullable=False)
     bodega_id: UUID = Field(foreign_key="tbl_bodega.id", index=True, nullable=False)
-    cantidad: int = Field(default=0, nullable=False)  # Cantidad del producto en esta bodega específica
+    cantidad: Decimal = Field(
+        sa_column=Column(Numeric(14, 4), nullable=False),
+        default=Decimal("0.0000"),
+    )  # Cantidad referencial del producto en esta bodega
 
     # Restricción única: un producto solo puede estar una vez en una bodega
     # Se implementará en la migración como UNIQUE(producto_id, bodega_id)

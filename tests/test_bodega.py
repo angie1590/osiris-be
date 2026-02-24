@@ -6,6 +6,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import pytest
+from fastapi import HTTPException
 
 from osiris.modules.inventario.bodega.service import BodegaService
 from osiris.modules.inventario.bodega.entity import Bodega
@@ -166,6 +168,14 @@ def test_bodega_service_delete_soft_ok():
 
     session.get.return_value = existing
 
+    # Query 1: productos asignados -> None
+    # Query 2: saldo stock -> 0
+    first_result = MagicMock()
+    first_result.first.return_value = None
+    second_result = MagicMock()
+    second_result.one.return_value = 0
+    session.exec.side_effect = [first_result, second_result]
+
     result = service.delete(session, entity_id, usuario_auditoria="test_user")
 
     assert result is True
@@ -188,6 +198,34 @@ def test_bodega_service_delete_not_found():
     assert result is False
     session.add.assert_not_called()
     session.commit.assert_not_called()
+
+
+def test_bodega_service_delete_con_productos_asignados_falla():
+    session = MagicMock()
+    service = BodegaService()
+
+    entity_id = uuid4()
+    existing = Bodega(
+        codigo_bodega="BOD001",
+        nombre_bodega="Bodega ocupada",
+        descripcion=None,
+        empresa_id=uuid4(),
+        sucursal_id=None,
+        usuario_auditoria="original",
+        activo=True,
+    )
+    existing.id = entity_id
+    session.get.return_value = existing
+
+    first_result = MagicMock()
+    first_result.first.return_value = uuid4()
+    session.exec.return_value = first_result
+
+    with pytest.raises(HTTPException) as exc:
+        service.delete(session, entity_id, usuario_auditoria="test_user")
+
+    assert exc.value.status_code == 400
+    assert "tiene productos asignados" in exc.value.detail.lower()
 
 
 def test_bodega_service_get_ok():

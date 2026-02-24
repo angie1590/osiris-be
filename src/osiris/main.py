@@ -42,6 +42,7 @@ from osiris.modules.inventario.categoria.router import router as categoria_route
 from osiris.modules.inventario.categoria_atributo.router import router as categoria_atributo_router
 from osiris.modules.inventario.movimientos.router import router as movimientos_router
 from osiris.modules.inventario.producto.router import router as producto_router
+from osiris.modules.inventario.producto_bodega.router import router as producto_bodega_router
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
 from osiris.modules.reportes.router import router as reportes_router
 from osiris.modules.sri.facturacion_electronica.router import router as facturacion_electronica_router
@@ -218,6 +219,7 @@ app.include_router(casa_comercial_router)
 app.include_router(categoria_atributo_router)
 app.include_router(bodega_router)
 app.include_router(producto_router)
+app.include_router(producto_bodega_router)
 app.include_router(producto_impuesto_router)
 app.include_router(movimientos_router)
 

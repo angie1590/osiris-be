@@ -3,10 +3,15 @@ from __future__ import annotations
 
 from typing import Optional
 from uuid import UUID
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlmodel import select
+from sqlalchemy import func
+from fastapi import HTTPException
 
 from osiris.modules.inventario.bodega.entity import Bodega
+from osiris.modules.inventario.movimientos.models import InventarioStock
+from osiris.modules.inventario.producto.entity import ProductoBodega
 from .models import BodegaCreate, BodegaUpdate
 
 
@@ -83,6 +88,33 @@ class BodegaService:
         entity = session.get(Bodega, id)
         if not entity:
             return False
+
+        # Regla: una bodega no se puede eliminar lógicamente si mantiene productos asignados
+        # o stock materializado con saldo mayor a cero.
+        relacion_activa = session.exec(
+            select(ProductoBodega.id).where(
+                ProductoBodega.bodega_id == id,
+                ProductoBodega.activo.is_(True),
+            )
+        ).first()
+        if relacion_activa is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede eliminar la bodega porque tiene productos asignados.",
+            )
+
+        saldo = session.exec(
+            select(func.coalesce(func.sum(InventarioStock.cantidad_actual), 0)).where(
+                InventarioStock.bodega_id == id,
+                InventarioStock.activo.is_(True),
+            )
+        ).one()
+        if Decimal(str(saldo or 0)) > Decimal("0"):
+            raise HTTPException(
+                status_code=400,
+                detail="No se puede eliminar la bodega porque tiene stock disponible.",
+            )
+
         entity.activo = False
         entity.usuario_auditoria = usuario_auditoria or entity.usuario_auditoria
         session.add(entity)

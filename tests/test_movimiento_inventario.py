@@ -20,7 +20,7 @@ from osiris.modules.inventario.movimientos.models import (
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
-from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
+from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate, TransferenciaInventarioCreate
 from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
@@ -459,3 +459,184 @@ def test_egreso_congela_costo():
         assert detalle.costo_unitario == Decimal("7.3456")
         assert stock_actualizado.costo_promedio_vigente == Decimal("7.3456")
         assert stock_actualizado.cantidad_actual == Decimal("25.0000")
+
+
+def test_transferencia_entre_bodegas_actualiza_stock_origen_destino():
+    engine = _build_test_engine()
+    service = MovimientoInventarioService()
+
+    with Session(engine) as session:
+        tipo_contribuyente = TipoContribuyente(codigo="01", nombre="SOCIEDAD", activo=True)
+        session.add(tipo_contribuyente)
+
+        empresa = Empresa(
+            razon_social="Empresa Transferencia",
+            nombre_comercial="Empresa Transferencia",
+            ruc="1790012345001",
+            direccion_matriz="Av. Quito",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+
+        bodega_origen = Bodega(
+            codigo_bodega="BOD-ORIGEN",
+            nombre_bodega="Bodega Origen",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        bodega_destino = Bodega(
+            codigo_bodega="BOD-DESTINO",
+            nombre_bodega="Bodega Destino",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(bodega_origen)
+        session.add(bodega_destino)
+
+        producto = Producto(
+            nombre="Producto Transferencia",
+            tipo="BIEN",
+            pvp=Decimal("10.00"),
+            cantidad=Decimal("30.0000"),
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(producto)
+        session.flush()
+
+        stock_origen = InventarioStock(
+            bodega_id=bodega_origen.id,
+            producto_id=producto.id,
+            cantidad_actual=Decimal("30.0000"),
+            costo_promedio_vigente=Decimal("4.5000"),
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(stock_origen)
+        session.commit()
+
+        result = service.transferir_entre_bodegas(
+            session,
+            payload=TransferenciaInventarioCreate(
+                bodega_origen_id=bodega_origen.id,
+                bodega_destino_id=bodega_destino.id,
+                referencia_documento="TRF-001",
+                usuario_auditoria="tester",
+                detalles=[
+                    {
+                        "producto_id": producto.id,
+                        "cantidad": Decimal("10.0000"),
+                    }
+                ],
+            ),
+        )
+        assert result.bodega_origen_id == bodega_origen.id
+        assert result.bodega_destino_id == bodega_destino.id
+
+        stock_origen_post = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega_origen.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        stock_destino_post = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega_destino.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_origen_post.cantidad_actual == Decimal("20.0000")
+        assert stock_destino_post.cantidad_actual == Decimal("10.0000")
+
+
+def test_anular_movimiento_confirmado_reversa_stock():
+    engine = _build_test_engine()
+    service = MovimientoInventarioService()
+
+    with Session(engine) as session:
+        tipo_contribuyente = TipoContribuyente(codigo="01", nombre="SOCIEDAD", activo=True)
+        session.add(tipo_contribuyente)
+        empresa = Empresa(
+            razon_social="Empresa Anulacion Mov",
+            nombre_comercial="Empresa Anulacion Mov",
+            ruc="1790012345001",
+            direccion_matriz="Av. Quito",
+            telefono="022345678",
+            obligado_contabilidad=True,
+            regimen="GENERAL",
+            modo_emision="ELECTRONICO",
+            tipo_contribuyente_id="01",
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(empresa)
+        session.flush()
+        bodega = Bodega(
+            codigo_bodega="BOD-ANUL-1",
+            nombre_bodega="Bodega Anulacion",
+            empresa_id=empresa.id,
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(bodega)
+        producto = Producto(
+            nombre="Producto Anulacion Mov",
+            tipo="BIEN",
+            pvp=Decimal("10.00"),
+            cantidad=Decimal("0.0000"),
+            usuario_auditoria="tester",
+            activo=True,
+        )
+        session.add(producto)
+        session.commit()
+
+        movimiento = service.crear_movimiento_borrador(
+            session,
+            MovimientoInventarioCreate(
+                bodega_id=bodega.id,
+                tipo_movimiento=TipoMovimientoInventario.INGRESO,
+                referencia_documento="ING-ANUL-1",
+                usuario_auditoria="tester",
+                detalles=[
+                    {
+                        "producto_id": producto.id,
+                        "cantidad": Decimal("8.0000"),
+                        "costo_unitario": Decimal("3.0000"),
+                    }
+                ],
+            ),
+        )
+        service.confirmar_movimiento(session, movimiento.id)
+
+        stock_post_ingreso = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_post_ingreso.cantidad_actual == Decimal("8.0000")
+
+        anulado = service.anular_movimiento(
+            session,
+            movimiento.id,
+            motivo="Error de digitación",
+            usuario_autorizador="tester",
+        )
+        assert anulado.estado == EstadoMovimientoInventario.ANULADO
+
+        stock_post_anulacion = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega.id,
+                InventarioStock.producto_id == producto.id,
+            )
+        ).one()
+        assert stock_post_anulacion.cantidad_actual == Decimal("0.0000")

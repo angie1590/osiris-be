@@ -9,9 +9,12 @@ from sqlmodel import Session
 from osiris.core.db import get_session
 from osiris.modules.inventario.movimientos.schemas import (
     KardexResponse,
+    MovimientoInventarioAnularRequest,
     MovimientoInventarioConfirmRequest,
     MovimientoInventarioCreate,
     MovimientoInventarioRead,
+    TransferenciaInventarioCreate,
+    TransferenciaInventarioRead,
     ValoracionResponse,
 )
 from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
@@ -58,6 +61,42 @@ def confirmar_movimiento(
         usuario_autorizador=payload.usuario_auditoria,
     )
     return service.obtener_movimiento_read(session, movimiento.id)
+
+
+@router.post(
+    "/movimientos/{movimiento_id}/anular",
+    response_model=MovimientoInventarioRead,
+    summary="Anular movimiento de inventario",
+    responses=COMMON_RESPONSES,
+)
+def anular_movimiento(
+    movimiento_id: UUID,
+    payload: MovimientoInventarioAnularRequest,
+    session: Session = Depends(get_session),
+):
+    """Anula movimiento con reverso automático de stock cuando el original está confirmado."""
+    movimiento = service.anular_movimiento(
+        session,
+        movimiento_id,
+        motivo=payload.motivo,
+        usuario_autorizador=payload.usuario_auditoria,
+    )
+    return service.obtener_movimiento_read(session, movimiento.id)
+
+
+@router.post(
+    "/transferencias",
+    response_model=TransferenciaInventarioRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Transferir inventario entre bodegas",
+    responses=COMMON_RESPONSES,
+)
+def transferir_entre_bodegas(
+    payload: TransferenciaInventarioCreate,
+    session: Session = Depends(get_session),
+):
+    """Ejecuta una transferencia atómica: egreso en origen + ingreso en destino."""
+    return service.transferir_entre_bodegas(session, payload)
 
 
 @router.get("/kardex", response_model=KardexResponse, summary="Consultar kardex operativo", responses=COMMON_RESPONSES)

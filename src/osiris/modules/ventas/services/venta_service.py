@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import BackgroundTasks
@@ -328,7 +328,11 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
             if not producto:
                 continue
             cantidad_decimal = q4(total_stock)
-            producto.cantidad = int(cantidad_decimal.to_integral_value(rounding=ROUND_HALF_UP))
+            if not producto.permite_fracciones and cantidad_decimal != cantidad_decimal.to_integral_value():
+                raise ValueError(
+                    f"Inconsistencia de fracciones para el producto {producto_id}: no permite fracciones y tiene stock {cantidad_decimal}."
+                )
+            producto.cantidad = cantidad_decimal
             session.add(producto)
 
         session.flush()

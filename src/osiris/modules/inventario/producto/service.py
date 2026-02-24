@@ -392,6 +392,7 @@ class ProductoService(BaseService):
             "tipo": producto.tipo,
             "pvp": producto.pvp,
             "cantidad": producto.cantidad,
+            "permite_fracciones": producto.permite_fracciones,
             "casa_comercial": casa_comercial,
             "categorias": categorias,
             "proveedores_persona": proveedores_persona,

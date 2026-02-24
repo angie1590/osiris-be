@@ -1,6 +1,7 @@
 # tests/test_producto_bodega.py
 from __future__ import annotations
 
+from decimal import Decimal
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -58,7 +59,7 @@ def test_producto_bodega_service_create_ok():
     created_obj = ProductoBodega(
         producto_id=producto_id,
         bodega_id=bodega_id,
-        cantidad=10
+        cantidad=Decimal("10.0000")
     )
     created_obj.id = uuid4()
     repo.create.return_value = created_obj
@@ -121,7 +122,7 @@ def test_producto_bodega_service_create_duplicado_falla():
     existing_relation = ProductoBodega(
         producto_id=producto_id,
         bodega_id=bodega_id,
-        cantidad=5
+        cantidad=Decimal("5.0000")
     )
 
     # El duplicate check es lo primero que se ejecuta
@@ -261,9 +262,9 @@ def test_producto_bodega_get_bodegas_by_producto():
 
     assert len(result) == 2
     assert result[0]["codigo_bodega"] == "BOD001"
-    assert result[0]["cantidad"] == 10
+    assert result[0]["cantidad"] == Decimal("10.0000")
     assert result[1]["codigo_bodega"] == "BOD002"
-    assert result[1]["cantidad"] == 5
+    assert result[1]["cantidad"] == Decimal("5.0000")
 
 
 def test_producto_bodega_get_productos_by_bodega():
@@ -282,10 +283,10 @@ def test_producto_bodega_get_productos_by_bodega():
     prod2 = Producto(nombre="Producto B")
     prod2.id = uuid4()
 
-    rel1 = ProductoBodega(producto_id=prod1.id, bodega_id=bodega_id, cantidad=50)
+    rel1 = ProductoBodega(producto_id=prod1.id, bodega_id=bodega_id, cantidad=Decimal("50.0000"))
     rel1.id = uuid4()
 
-    rel2 = ProductoBodega(producto_id=prod2.id, bodega_id=bodega_id, cantidad=30)
+    rel2 = ProductoBodega(producto_id=prod2.id, bodega_id=bodega_id, cantidad=Decimal("30.0000"))
     rel2.id = uuid4()
 
     exec_mock = MagicMock()
@@ -296,6 +297,41 @@ def test_producto_bodega_get_productos_by_bodega():
 
     assert len(result) == 2
     assert result[0]["nombre"] == "Producto A"
-    assert result[0]["cantidad"] == 50
+    assert result[0]["cantidad"] == Decimal("50.0000")
     assert result[1]["nombre"] == "Producto B"
-    assert result[1]["cantidad"] == 30
+    assert result[1]["cantidad"] == Decimal("30.0000")
+
+
+def test_producto_bodega_create_bodega_inactiva_falla():
+    session = MagicMock()
+    service = ProductoBodegaService()
+
+    producto_id = uuid4()
+    bodega_id = uuid4()
+    prod = Producto(nombre="Prod", tipo=TipoProducto.BIEN)
+    prod.id = producto_id
+    prod.activo = True
+    prod.permite_fracciones = True
+
+    bod = MagicMock()
+    bod.id = bodega_id
+    bod.activo = False
+
+    def get_side_effect(model, _id):
+        if model is Producto:
+            return prod
+        return bod
+
+    session.get.side_effect = get_side_effect
+    exec_mock = MagicMock()
+    exec_mock.first.return_value = None
+    session.exec.return_value = exec_mock
+
+    with pytest.raises(HTTPException) as exc:
+        service.create(
+            session,
+            {"producto_id": producto_id, "bodega_id": bodega_id, "cantidad": Decimal("1.0000")},
+        )
+
+    assert exc.value.status_code == 409
+    assert "bodega inactiva" in exc.value.detail.lower()

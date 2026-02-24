@@ -60,6 +60,33 @@ class MovimientoInventarioConfirmRequest(BaseModel):
     usuario_auditoria: str | None = None
 
 
+class MovimientoInventarioAnularRequest(BaseModel):
+    motivo: str = Field(..., min_length=3, max_length=255)
+    usuario_auditoria: str | None = None
+
+
+class TransferenciaInventarioDetalleCreate(BaseModel):
+    producto_id: UUID
+    cantidad: Decimal = Field(..., gt=Decimal("0"))
+
+
+class TransferenciaInventarioCreate(BaseModel):
+    fecha: date = Field(default_factory=date.today)
+    bodega_origen_id: UUID
+    bodega_destino_id: UUID
+    referencia_documento: str | None = Field(default=None, max_length=120)
+    usuario_auditoria: str | None = None
+    detalles: list[TransferenciaInventarioDetalleCreate] = Field(..., min_length=1)
+
+
+class TransferenciaInventarioRead(BaseModel):
+    movimiento_egreso_id: UUID
+    movimiento_ingreso_id: UUID
+    bodega_origen_id: UUID
+    bodega_destino_id: UUID
+    referencia_documento: str
+
+
 class KardexMovimientoRead(BaseModel):
     fecha: date
     movimiento_id: UUID

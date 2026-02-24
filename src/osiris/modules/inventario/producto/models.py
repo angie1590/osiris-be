@@ -62,6 +62,7 @@ class ProductoCreate(BaseOSModel):
     codigo_barras: Optional[str] = None
     tipo: TipoProductoEnum = TipoProductoEnum.BIEN
     pvp: Decimal
+    permite_fracciones: bool = False
     casa_comercial_id: Optional[UUID] = None
     categoria_ids: Optional[List[UUID]] = None
     impuesto_catalogo_ids: List[UUID]  # OBLIGATORIO: al menos un impuesto IVA
@@ -82,6 +83,7 @@ class ProductoUpdate(BaseOSModel):
     codigo_barras: Optional[str] = None
     tipo: Optional[TipoProductoEnum] = None
     pvp: Optional[Decimal] = None
+    permite_fracciones: Optional[bool] = None
     casa_comercial_id: Optional[UUID] = None
     categoria_ids: Optional[List[UUID]] = None
     usuario_auditoria: Optional[str] = None
@@ -102,7 +104,8 @@ class ProductoRead(BaseOSModel):
     codigo_barras: Optional[str] = None
     tipo: TipoProductoEnum
     pvp: Decimal
-    cantidad: int
+    cantidad: Decimal
+    permite_fracciones: bool
     casa_comercial_id: Optional[UUID] = None
     activo: bool
     creado_en: datetime
@@ -115,7 +118,7 @@ class ProductoListadoRead(BaseOSModel):
     nombre: str
     tipo: TipoProductoEnum
     pvp: Decimal
-    cantidad: int
+    cantidad: Decimal
 
 
 class ProductoCompletoRead(BaseOSModel):
@@ -124,7 +127,8 @@ class ProductoCompletoRead(BaseOSModel):
     nombre: str
     tipo: TipoProductoEnum
     pvp: Decimal
-    cantidad: int
+    cantidad: Decimal
+    permite_fracciones: bool
     casa_comercial: Optional[CasaComercialNested] = None
     categorias: List[CategoriaNested] = []
     proveedores_persona: List[ProveedorPersonaNested] = []
