@@ -208,6 +208,8 @@ def test_emitir_venta_flujo_exitoso():
             )
         ).one()
         assert stock.cantidad_actual == Decimal("10.0000")
+        session.refresh(producto)
+        assert producto.cantidad == 10
 
         kardex = kardex_service.obtener_kardex(
             session,
@@ -215,6 +217,7 @@ def test_emitir_venta_flujo_exitoso():
             bodega_id=bodega.id,
         )
         assert kardex["movimientos"][-1]["cantidad_salida"] == Decimal("5.0000")
+        assert kardex["movimientos"][-1]["saldo_cantidad"] == Decimal("-5.0000")
 
         cxc = session.exec(
             select(CuentaPorCobrar).where(CuentaPorCobrar.venta_id == venta.id)
@@ -222,6 +225,44 @@ def test_emitir_venta_flujo_exitoso():
         assert cxc is not None
         assert cxc.estado == EstadoCuentaPorCobrar.PENDIENTE
         assert cxc.saldo_pendiente == Decimal("50.00")
+
+
+def test_emitir_venta_bloquea_stock_agregado_por_producto():
+    engine = _build_test_engine()
+    service = VentaService()
+
+    with Session(engine) as session:
+        venta, _, producto = _seed_data(
+            session,
+            stock_inicial=Decimal("5.0000"),
+            cantidad_venta=Decimal("3.0000"),
+        )
+
+        session.add(
+            VentaDetalle(
+                venta_id=venta.id,
+                producto_id=producto.id,
+                descripcion="Detalle duplicado",
+                cantidad=Decimal("3.0000"),
+                precio_unitario=Decimal("10.0000"),
+                descuento=Decimal("0.00"),
+                subtotal_sin_impuesto=Decimal("30.00"),
+                usuario_auditoria="seed",
+                activo=True,
+            )
+        )
+        session.commit()
+
+        with pytest.raises(ValueError) as exc:
+            service.emitir_venta(
+                session,
+                venta.id,
+                usuario_auditoria="tester",
+            )
+
+        assert "Stock insuficiente para el producto" in str(exc.value)
+        session.refresh(venta)
+        assert venta.estado == EstadoVenta.BORRADOR
 
 
 def test_anulacion_fe_exige_confirmacion():
@@ -302,6 +343,8 @@ def test_anulacion_reversa_inventario():
             )
         ).one()
         assert stock_final.cantidad_actual == Decimal("15.0000")
+        session.refresh(producto)
+        assert producto.cantidad == 15
 
         kardex = kardex_service.obtener_kardex(
             session,
@@ -309,6 +352,7 @@ def test_anulacion_reversa_inventario():
             bodega_id=bodega.id,
         )
         assert kardex["movimientos"][-1]["cantidad_entrada"] == Decimal("5.0000")
+        assert kardex["movimientos"][-1]["saldo_cantidad"] == Decimal("0.0000")
 
         cxc = session.exec(
             select(CuentaPorCobrar).where(CuentaPorCobrar.venta_id == venta.id)

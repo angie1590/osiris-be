@@ -40,6 +40,7 @@ from osiris.modules.inventario.movimientos.models import (
     MovimientoInventarioDetalle,
     TipoMovimientoInventario,
 )
+from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto, TipoProducto
 from osiris.modules.sri.tipo_contribuyente.entity import TipoContribuyente
 
@@ -177,6 +178,8 @@ def test_compra_genera_ingreso_inventario():
         ).one()
         assert stock_actual.cantidad_actual == Decimal("20.0000")
         assert stock_actual.costo_promedio_vigente == Decimal("15.0000")
+        session.refresh(producto)
+        assert producto.cantidad == 20
 
 
 def test_compra_registrada_no_permite_edicion():
@@ -341,6 +344,7 @@ def test_registro_compra_inicializa_cxp():
 def test_anular_compra_revierte_cantidad_inventario():
     engine = _build_test_engine()
     service = CompraService()
+    kardex_service = MovimientoInventarioService()
 
     with Session(engine) as session:
         tipo = TipoContribuyente(codigo="01", nombre="Sociedad", activo=True)
@@ -439,6 +443,8 @@ def test_anular_compra_revierte_cantidad_inventario():
             )
         ).one()
         assert stock_post_anulacion.cantidad_actual == Decimal("0.0000")
+        session.refresh(producto)
+        assert producto.cantidad == 0
 
         movimiento_egreso = session.exec(
             select(MovimientoInventario).where(
@@ -448,6 +454,14 @@ def test_anular_compra_revierte_cantidad_inventario():
         ).first()
         assert movimiento_egreso is not None
         assert movimiento_egreso.estado == EstadoMovimientoInventario.CONFIRMADO
+
+        kardex = kardex_service.obtener_kardex(
+            session,
+            producto_id=producto.id,
+            bodega_id=bodega.id,
+        )
+        assert kardex["movimientos"][-1]["saldo_cantidad"] == stock_post_anulacion.cantidad_actual
+        assert kardex["movimientos"][-1]["saldo_cantidad"] == Decimal(producto.cantidad).quantize(Decimal("0.0000"))
 
 
 def test_endpoint_anular_compra_revierte_inventario():
@@ -556,3 +570,6 @@ def test_endpoint_anular_compra_revierte_inventario():
             )
         ).one()
         assert stock_final.cantidad_actual == Decimal("0.0000")
+        producto_final = session.get(Producto, producto_id)
+        assert producto_final is not None
+        assert producto_final.cantidad == 0

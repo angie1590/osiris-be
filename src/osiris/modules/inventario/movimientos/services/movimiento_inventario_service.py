@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.orm.exc import NoResultFound
 from sqlmodel import Session, select
 
@@ -23,6 +23,7 @@ from osiris.modules.inventario.movimientos.schemas import (
     MovimientoInventarioDetalleRead,
     MovimientoInventarioRead,
 )
+from osiris.modules.inventario.producto.entity import Producto
 from osiris.modules.common.audit_log.entity import AuditLog
 
 
@@ -131,11 +132,43 @@ class MovimientoInventarioService(TemplateMethodService[MovimientoInventarioCrea
 
         estado_anterior = movimiento.estado.value
         try:
+            producto_ids = {detalle.producto_id for detalle in detalles}
+            stock_before = {
+                producto_id: self._obtener_stock_producto_bodega(
+                    session,
+                    bodega_id=movimiento.bodega_id,
+                    producto_id=producto_id,
+                )
+                for producto_id in producto_ids
+            }
+            kardex_before = {
+                producto_id: self._obtener_saldo_kardex_producto_bodega(
+                    session,
+                    bodega_id=movimiento.bodega_id,
+                    producto_id=producto_id,
+                )
+                for producto_id in producto_ids
+            }
+
             for detalle in detalles:
                 if movimiento.tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}:
                     self._aplicar_egreso_con_lock(session, movimiento, detalle)
                 else:
                     self._aplicar_ingreso(session, movimiento, detalle)
+
+            self._validar_integridad_operacion_kardex_stock(
+                session,
+                movimiento=movimiento,
+                detalles=detalles,
+                stock_before=stock_before,
+                kardex_before=kardex_before,
+            )
+
+            self._sincronizar_cantidad_producto_desde_stock(
+                session,
+                producto_ids=producto_ids,
+            )
+            self._validar_producto_vs_stock(session, producto_ids=producto_ids)
 
             movimiento.estado = EstadoMovimientoInventario.CONFIRMADO
             session.add(movimiento)
@@ -155,6 +188,31 @@ class MovimientoInventarioService(TemplateMethodService[MovimientoInventarioCrea
             if rollback_on_error:
                 session.rollback()
             raise
+
+    def _sincronizar_cantidad_producto_desde_stock(
+        self,
+        session: Session,
+        *,
+        producto_ids: set[UUID],
+    ) -> None:
+        if not producto_ids:
+            return
+
+        for producto_id in producto_ids:
+            total_stock = session.exec(
+                select(func.coalesce(func.sum(InventarioStock.cantidad_actual), Decimal("0.0000"))).where(
+                    InventarioStock.producto_id == producto_id,
+                    InventarioStock.activo.is_(True),
+                )
+            ).one()
+
+            producto = session.get(Producto, producto_id)
+            if producto is None:
+                continue
+
+            cantidad_decimal = q4(total_stock)
+            producto.cantidad = int(cantidad_decimal.to_integral_value(rounding=ROUND_HALF_UP))
+            session.add(producto)
 
     def _registrar_auditoria_ajuste(
         self,
@@ -448,3 +506,116 @@ class MovimientoInventarioService(TemplateMethodService[MovimientoInventarioCrea
             motivo_ajuste=movimiento.motivo_ajuste,
             detalles=detalles_read,
         )
+    @staticmethod
+    def _es_movimiento_egreso(tipo_movimiento: TipoMovimientoInventario) -> bool:
+        return tipo_movimiento in {TipoMovimientoInventario.EGRESO, TipoMovimientoInventario.TRANSFERENCIA}
+
+    @staticmethod
+    def _obtener_stock_producto_bodega(session: Session, *, bodega_id: UUID, producto_id: UUID) -> Decimal:
+        stock = session.exec(
+            select(InventarioStock).where(
+                InventarioStock.bodega_id == bodega_id,
+                InventarioStock.producto_id == producto_id,
+                InventarioStock.activo.is_(True),
+            )
+        ).one_or_none()
+        if stock is None:
+            return Decimal("0.0000")
+        return q4(stock.cantidad_actual)
+
+    def _obtener_saldo_kardex_producto_bodega(
+        self,
+        session: Session,
+        *,
+        bodega_id: UUID,
+        producto_id: UUID,
+    ) -> Decimal:
+        filas = session.exec(
+            select(
+                MovimientoInventario.tipo_movimiento,
+                MovimientoInventarioDetalle.cantidad,
+            )
+            .join(
+                MovimientoInventarioDetalle,
+                MovimientoInventarioDetalle.movimiento_inventario_id == MovimientoInventario.id,
+            )
+            .where(
+                MovimientoInventario.bodega_id == bodega_id,
+                MovimientoInventario.estado == EstadoMovimientoInventario.CONFIRMADO,
+                MovimientoInventario.activo.is_(True),
+                MovimientoInventarioDetalle.producto_id == producto_id,
+                MovimientoInventarioDetalle.activo.is_(True),
+            )
+            .order_by(
+                MovimientoInventario.fecha.asc(),
+                MovimientoInventario.creado_en.asc(),
+                MovimientoInventarioDetalle.id.asc(),
+            )
+        ).all()
+
+        saldo = Decimal("0.0000")
+        for tipo_movimiento, cantidad in filas:
+            cantidad_q = q4(cantidad)
+            if self._es_movimiento_egreso(tipo_movimiento):
+                saldo = q4(saldo - cantidad_q)
+            else:
+                saldo = q4(saldo + cantidad_q)
+        return saldo
+
+    def _validar_integridad_operacion_kardex_stock(
+        self,
+        session: Session,
+        *,
+        movimiento: MovimientoInventario,
+        detalles: list[MovimientoInventarioDetalle],
+        stock_before: dict[UUID, Decimal],
+        kardex_before: dict[UUID, Decimal],
+    ) -> None:
+        factor = Decimal("-1.0000") if self._es_movimiento_egreso(movimiento.tipo_movimiento) else Decimal("1.0000")
+        esperado_delta_por_producto: dict[UUID, Decimal] = {}
+        for detalle in detalles:
+            esperado_delta_por_producto.setdefault(detalle.producto_id, Decimal("0.0000"))
+            esperado_delta_por_producto[detalle.producto_id] = q4(
+                esperado_delta_por_producto[detalle.producto_id] + (q4(detalle.cantidad) * factor)
+            )
+
+        for producto_id, esperado_delta in esperado_delta_por_producto.items():
+            stock_before_producto = stock_before.get(producto_id, Decimal("0.0000"))
+            kardex_before_producto = kardex_before.get(producto_id, Decimal("0.0000"))
+            stock_after = self._obtener_stock_producto_bodega(
+                session,
+                bodega_id=movimiento.bodega_id,
+                producto_id=producto_id,
+            )
+            delta_stock = q4(stock_after - stock_before_producto)
+            kardex_proyectado = q4(kardex_before_producto + esperado_delta)
+            desfase_before = q4(stock_before_producto - kardex_before_producto)
+            desfase_after = q4(stock_after - kardex_proyectado)
+
+            if delta_stock != esperado_delta:
+                raise ValueError(
+                    f"Inconsistencia de inventario: delta de stock {delta_stock} no coincide con lo esperado {esperado_delta} para producto {producto_id}."
+                )
+            if desfase_after != desfase_before:
+                raise ValueError(
+                    f"Inconsistencia de kardex: desfase antes={desfase_before} y despues={desfase_after} para producto {producto_id}."
+                )
+
+    def _validar_producto_vs_stock(self, session: Session, *, producto_ids: set[UUID]) -> None:
+        for producto_id in producto_ids:
+            total_stock = session.exec(
+                select(func.coalesce(func.sum(InventarioStock.cantidad_actual), Decimal("0.0000"))).where(
+                    InventarioStock.producto_id == producto_id,
+                    InventarioStock.activo.is_(True),
+                )
+            ).one()
+
+            producto = session.get(Producto, producto_id)
+            if producto is None:
+                continue
+
+            esperado = int(q4(total_stock).to_integral_value(rounding=ROUND_HALF_UP))
+            if producto.cantidad != esperado:
+                raise ValueError(
+                    f"Inconsistencia de producto: cantidad={producto.cantidad} difiere de stock agregado={esperado} para producto {producto_id}."
+                )

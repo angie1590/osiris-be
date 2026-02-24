@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
 from fastapi import BackgroundTasks
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from osiris.modules.sri.core_sri.services.template_method import TemplateMethodService
@@ -267,7 +268,9 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         if not detalles:
             raise ValueError("No se puede emitir una venta sin detalles.")
 
+        requerido_por_producto = self._agrupar_cantidad_por_producto(detalles)
         producto_referencia = detalles[0].producto_id
+
         stocks_referencia = list(
             session.exec(
                 select(InventarioStock).where(
@@ -278,19 +281,57 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         )
         if not stocks_referencia:
             raise ValueError(f"Stock insuficiente para el producto {producto_referencia}")
-        bodega_id = stocks_referencia[0].bodega_id
 
+        for stock_referencia in stocks_referencia:
+            bodega_id = stock_referencia.bodega_id
+            cumple_bodega = True
+            for producto_id, cantidad_requerida in requerido_por_producto.items():
+                stock_detalle = session.exec(
+                    select(InventarioStock).where(
+                        InventarioStock.bodega_id == bodega_id,
+                        InventarioStock.producto_id == producto_id,
+                        InventarioStock.activo.is_(True),
+                    )
+                ).one_or_none()
+                if stock_detalle is None or q4(stock_detalle.cantidad_actual) - cantidad_requerida < Decimal("0.0000"):
+                    cumple_bodega = False
+                    break
+
+            if cumple_bodega:
+                return bodega_id
+
+        raise ValueError(f"Stock insuficiente para el producto {producto_referencia}")
+
+    @staticmethod
+    def _agrupar_cantidad_por_producto(detalles: list[VentaDetalle]) -> dict[UUID, Decimal]:
+        requerido_por_producto: dict[UUID, Decimal] = {}
         for detalle in detalles:
-            stock_detalle = session.exec(
-                select(InventarioStock).where(
-                    InventarioStock.bodega_id == bodega_id,
-                    InventarioStock.producto_id == detalle.producto_id,
+            requerido_por_producto.setdefault(detalle.producto_id, Decimal("0.0000"))
+            requerido_por_producto[detalle.producto_id] = q4(
+                requerido_por_producto[detalle.producto_id] + q4(detalle.cantidad)
+            )
+        return requerido_por_producto
+
+    @staticmethod
+    def _sincronizar_productos_desde_stock(session: Session, *, producto_ids: set[UUID]) -> None:
+        if not producto_ids:
+            return
+
+        for producto_id in producto_ids:
+            total_stock = session.exec(
+                select(func.coalesce(func.sum(InventarioStock.cantidad_actual), Decimal("0.0000"))).where(
+                    InventarioStock.producto_id == producto_id,
                     InventarioStock.activo.is_(True),
                 )
-            ).one_or_none()
-            if stock_detalle is None:
-                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
-        return bodega_id
+            ).one()
+            producto = session.get(Producto, producto_id)
+            if not producto:
+                continue
+            cantidad_decimal = q4(total_stock)
+            producto.cantidad = int(cantidad_decimal.to_integral_value(rounding=ROUND_HALF_UP))
+            session.add(producto)
+
+        session.flush()
 
     def _validar_stock_para_emision(
         self,
@@ -299,21 +340,31 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
         bodega_id: UUID,
         detalles: list[VentaDetalle],
     ) -> None:
-        for detalle in detalles:
+        requerido_por_producto = self._agrupar_cantidad_por_producto(detalles)
+        self._sincronizar_productos_desde_stock(session, producto_ids=set(requerido_por_producto.keys()))
+
+        for producto_id, cantidad_requerida in requerido_por_producto.items():
+            producto = session.get(Producto, producto_id)
+            if not producto or not producto.activo:
+                raise ValueError(f"Stock insuficiente para el producto {producto_id}")
+
+            if q4(producto.cantidad) - cantidad_requerida < Decimal("0.0000"):
+                raise ValueError(f"Stock insuficiente para el producto {producto_id}")
+
             stock = session.exec(
                 select(InventarioStock)
                 .where(
                     InventarioStock.bodega_id == bodega_id,
-                    InventarioStock.producto_id == detalle.producto_id,
+                    InventarioStock.producto_id == producto_id,
                     InventarioStock.activo.is_(True),
                 )
                 .with_for_update()
             ).one_or_none()
             if stock is None:
-                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
+                raise ValueError(f"Stock insuficiente para el producto {producto_id}")
 
-            if q4(stock.cantidad_actual) - q4(detalle.cantidad) < Decimal("0.0000"):
-                raise ValueError(f"Stock insuficiente para el producto {detalle.producto_id}")
+            if q4(stock.cantidad_actual) - cantidad_requerida < Decimal("0.0000"):
+                raise ValueError(f"Stock insuficiente para el producto {producto_id}")
 
     @staticmethod
     def _obtener_egreso_inventario_venta(session: Session, venta_id: UUID) -> tuple[MovimientoInventario | None, dict[UUID, Decimal]]:

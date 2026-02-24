@@ -166,6 +166,8 @@ def test_venta_genera_egreso_automatico():
             )
         ).one()
         assert stock_actual.cantidad_actual == Decimal("17.0000")
+        session.refresh(producto)
+        assert producto.cantidad == 17
 
 
 def test_rollback_venta_sin_stock():
