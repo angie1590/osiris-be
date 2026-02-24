@@ -18,6 +18,9 @@ Según la arquitectura actual (`main.py` + `audit_context.py`):
   - `X-User-Id: <uuid>`
 - **Recomendación para frontend productivo**: usar `Authorization: Bearer <JWT>` como mecanismo principal.
 - `X-User-Id` debe quedar para pruebas técnicas, smoke tests o integraciones internas controladas.
+- Comportamiento por entorno (`ENVIRONMENT`):
+  - `development|dev|test|testing|local|ci`: se permite `X-User-Id`.
+  - `production`: `X-User-Id` se ignora; se exige `Authorization`.
 - En endpoints sensibles, si no existe identidad o permisos suficientes, el sistema retorna `403` y registra evento `UNAUTHORIZED_ACCESS`.
 
 ## Política de Registros Activos (Frontend)
