@@ -4,8 +4,28 @@ const sidebars = {
     'intro',
     {
       type: 'category',
-      label: 'Inventario',
-      items: ['inventario/catalogo_atributos']
+      label: 'API',
+      items: [
+        {
+          type: 'category',
+          label: 'Common',
+          items: [
+            'api/common/onboarding',
+            'api/common/seguridad-accesos',
+            'api/common/directorio'
+          ]
+        },
+        {
+          type: 'category',
+          label: 'Inventario',
+          items: [
+            'api/inventario/bloques-construccion',
+            'api/inventario/casa-comercial-bodega',
+            'inventario/producto-atributos-impuestos-bodegas',
+            'api/inventario/producto-crud-base'
+          ]
+        }
+      ]
     }
   ]
 };

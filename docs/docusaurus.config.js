@@ -13,7 +13,11 @@ const config = {
   projectName: 'osiris-be',
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn'
+    }
+  },
 
   i18n: {
     defaultLocale: 'es',
@@ -27,7 +31,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          routeBasePath: '/',
+          routeBasePath: 'docs',
           editUrl: undefined
         },
         blog: false,
@@ -49,8 +53,9 @@ const config = {
       navbar: {
         title: 'Osiris ERP Docs',
         items: [
-          { to: '/', label: 'Inicio', position: 'left' },
-          { to: '/inventario/catalogo_atributos', label: 'Inventario EAV', position: 'left' }
+          { to: '/docs/intro', label: 'Inicio', position: 'left' },
+          { to: '/docs/api/common/onboarding', label: 'API Onboarding', position: 'left' },
+          { to: '/docs/api/common/seguridad-accesos', label: 'Seguridad y Accesos', position: 'left' }
         ]
       }
     })
