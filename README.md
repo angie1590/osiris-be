@@ -98,6 +98,7 @@ EMP_MIN_AGE=16
 # Desarrollo
 make build              # Construye imagen Docker
 make run                # Levanta los contenedores (build + up -d)
+make bootstrap-zero     # Flujo completo desde cero (rebuild + deps + migraciones + seed + docs)
 make stop               # Detiene los servicios
 make shell              # Acceso al contenedor backend
 make logs               # Ver logs en tiempo real
@@ -114,6 +115,7 @@ make smoke-ci           # Ejecuta smoke tests seguros para CI (solo listados)
 
 # Utilidades
 make lint               # Ejecuta linters (ruff + mypy)
+make docs-audit         # Valida que docs/docs/api cubra todos los endpoints del backend
 make seed               # Carga datos completos de prueba (empresa, productos, bodegas, etc.)
 make seed-sample        # Carga solo un producto de ejemplo (seed antiguo)
 make verify-seed        # Verifica datos cargados por el seed
@@ -131,6 +133,7 @@ make validate
 make build
 make run
 make db-upgrade
+make docs-audit
 make test
 make stop
 ```
@@ -222,6 +225,13 @@ python scripts\validate_setup.py
 ## 🐳 Levantar el Proyecto desde Cero
 
 ```bash
+# Opcion 1 (recomendada): flujo automatizado completo
+make bootstrap-zero
+
+# Si el equipo es lento o red inestable, puedes ampliar reintentos:
+make bootstrap-zero BOOTSTRAP_RETRIES=60 BOOTSTRAP_RETRY_SLEEP=3
+
+# Opcion 2: paso a paso manual
 # 0. (Recomendado) Validar configuración
 make validate
 

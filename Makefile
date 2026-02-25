@@ -1,6 +1,8 @@
 ENV_FILE ?= .env.development
+BOOTSTRAP_RETRIES ?= 30
+BOOTSTRAP_RETRY_SLEEP ?= 2
 
-.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion
+.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit
 
 run:
 	docker compose --env-file $(ENV_FILE) up --build -d
@@ -118,16 +120,69 @@ bootstrap-zero:
 	docker compose --env-file $(ENV_FILE) down --remove-orphans --volumes
 	@echo ">> Levantando contenedores..."
 	docker compose --env-file $(ENV_FILE) up --build -d
+	@echo ">> Esperando a backend (poetry)..."
+	@attempt=1; \
+	until docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'poetry --version >/dev/null 2>&1'; do \
+		if [ $$attempt -ge $(BOOTSTRAP_RETRIES) ]; then \
+			echo "ERROR: osiris-backend no estuvo listo tras $(BOOTSTRAP_RETRIES) intentos."; \
+			exit 1; \
+		fi; \
+		echo "Intento $$attempt/$(BOOTSTRAP_RETRIES): backend no listo, reintentando en $(BOOTSTRAP_RETRY_SLEEP)s..."; \
+		attempt=$$((attempt + 1)); \
+		sleep $(BOOTSTRAP_RETRY_SLEEP); \
+	done
+	@echo ">> Sincronizando dependencias Python (poetry install --no-root)..."
+	@attempt=1; \
+	until docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'poetry config virtualenvs.create false && poetry install --no-root'; do \
+		if [ $$attempt -ge $(BOOTSTRAP_RETRIES) ]; then \
+			echo "ERROR: no se pudieron instalar dependencias tras $(BOOTSTRAP_RETRIES) intentos."; \
+			exit 1; \
+		fi; \
+		echo "Intento $$attempt/$(BOOTSTRAP_RETRIES): fallo poetry install, reintentando en $(BOOTSTRAP_RETRY_SLEEP)s..."; \
+		attempt=$$((attempt + 1)); \
+		sleep $(BOOTSTRAP_RETRY_SLEEP); \
+	done
 	@echo ">> Esperando a PostgreSQL..."
-	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'until pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost; do echo "Esperando DB..."; sleep 2; done'
+	@attempt=1; \
+	until docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -h localhost >/dev/null 2>&1'; do \
+		if [ $$attempt -ge $(BOOTSTRAP_RETRIES) ]; then \
+			echo "ERROR: PostgreSQL no estuvo listo tras $(BOOTSTRAP_RETRIES) intentos."; \
+			exit 1; \
+		fi; \
+		echo "Intento $$attempt/$(BOOTSTRAP_RETRIES): PostgreSQL no listo, reintentando en $(BOOTSTRAP_RETRY_SLEEP)s..."; \
+		attempt=$$((attempt + 1)); \
+		sleep $(BOOTSTRAP_RETRY_SLEEP); \
+	done
 	@echo ">> Aplicando migraciones..."
-	docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'
+	@attempt=1; \
+	until docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development DB_URL_ALEMBIC="$$DATABASE_URL" poetry run alembic upgrade head'; do \
+		if [ $$attempt -ge $(BOOTSTRAP_RETRIES) ]; then \
+			echo "ERROR: migraciones fallaron tras $(BOOTSTRAP_RETRIES) intentos."; \
+			exit 1; \
+		fi; \
+		echo "Intento $$attempt/$(BOOTSTRAP_RETRIES): migracion fallida, reintentando en $(BOOTSTRAP_RETRY_SLEEP)s..."; \
+		attempt=$$((attempt + 1)); \
+		sleep $(BOOTSTRAP_RETRY_SLEEP); \
+	done
 	@echo ">> Ejecutando seed..."
-	docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development PYTHONPATH=/app:/app/src poetry run python scripts/seed_complete_data.py'
+	@attempt=1; \
+	until docker compose --env-file $(ENV_FILE) exec -T osiris-backend bash -lc 'ENVIRONMENT=development PYTHONPATH=/app:/app/src poetry run python scripts/seed_complete_data.py'; do \
+		if [ $$attempt -ge $(BOOTSTRAP_RETRIES) ]; then \
+			echo "ERROR: seed fallo tras $(BOOTSTRAP_RETRIES) intentos."; \
+			exit 1; \
+		fi; \
+		echo "Intento $$attempt/$(BOOTSTRAP_RETRIES): seed fallido, reintentando en $(BOOTSTRAP_RETRY_SLEEP)s..."; \
+		attempt=$$((attempt + 1)); \
+		sleep $(BOOTSTRAP_RETRY_SLEEP); \
+	done
 	@echo ">> Entorno listo."
-	$(MAKE) documentacion
+	@$(MAKE) documentacion
 	@echo ">> API y Docs estan corriendo."
 
 documentacion:
 	@echo ">> Levantando entorno de documentacion..."
 	docker compose --env-file $(ENV_FILE) up -d --force-recreate docs
+
+docs-audit:
+	@echo ">> Auditando cobertura docs/docs/api contra src/osiris/modules..."
+	poetry run python scripts/audit_docs_api_coverage.py
