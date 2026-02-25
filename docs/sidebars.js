@@ -6,6 +6,7 @@ const sidebars = {
       type: 'category',
       label: 'API',
       items: [
+        'api/cobertura-total-endpoints',
         {
           type: 'category',
           label: 'Common',
