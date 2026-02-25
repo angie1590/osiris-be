@@ -19,9 +19,10 @@ const sidebars = {
           type: 'category',
           label: 'Inventario',
           items: [
+            'api/inventario/checklist-integracion-frontend',
             'api/inventario/bloques-construccion',
             'api/inventario/casa-comercial-bodega',
-            'inventario/producto-atributos-impuestos-bodegas',
+            'api/inventario/producto-atributos-impuestos-bodegas',
             'api/inventario/producto-crud-base'
           ]
         }

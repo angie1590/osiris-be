@@ -11,6 +11,12 @@ import TabItem from "@theme/TabItem";
 
 El módulo **Bloques de Construcción** del Inventario define la estructura taxonomía de productos mediante jerarquías de categorías y asignación flexible de atributos. Este módulo es fundamental para clasificar y caracterizar productos de forma dinámica.
 
+## Política de Registros Activos (Frontend)
+
+- En listados, usar `only_active=true` como valor por defecto.
+- Los registros inactivos son borrado lógico y deben usarse solo en mantenimiento/auditoría.
+- Para formularios de creación/edición de producto, cargar únicamente categorías y atributos activos.
+
 ## Estructura General
 
 Los Bloques de Construcción están compuestos por 3 entidades principales:
@@ -78,12 +84,12 @@ Obtiene una lista paginada de categorías activas (por defecto) o todas.
 
   <TabItem value="get-detail" label="Obtener Categoría">
 
-**GET** `/api/v1/categorias/{id}`
+**GET** `/api/v1/categorias/{item_id}`
 
 Obtiene los detalles de una categoría específica.
 
 **Parámetros de Path:**
-- `id` (UUID) - ID de la categoría
+- `item_id` (UUID) - ID de la categoría
 
 **Response 200:**
 ```json
@@ -149,12 +155,12 @@ Crea una nueva categoría. Puede ser una categoría raíz (`parent_id=null`) o s
 
   <TabItem value="put" label="Actualizar Categoría">
 
-**PUT** `/api/v1/categorias/{id}`
+**PUT** `/api/v1/categorias/{item_id}`
 
 Actualiza parcialmente una categoría. Permite cambiar nombre, es_padre, o parent_id.
 
 **Parámetros de Path:**
-- `id` (UUID) - ID de la categoría
+- `item_id` (UUID) - ID de la categoría
 
 **Request Body:**
 ```json
@@ -190,7 +196,7 @@ Actualiza parcialmente una categoría. Permite cambiar nombre, es_padre, o paren
 
   <TabItem value="delete" label="Eliminar Categoría">
 
-**DELETE** `/api/v1/categorias/{id}`
+**DELETE** `/api/v1/categorias/{item_id}`
 
 Realiza un borrado lógico (soft delete) marcando la categoría como inactiva.
 
@@ -286,7 +292,7 @@ Obtiene una lista paginada de atributos activos.
 
   <TabItem value="get-detail" label="Obtener Atributo">
 
-**GET** `/api/v1/atributos/{id}`
+**GET** `/api/v1/atributos/{item_id}`
 
 Obtiene los detalles de un atributo específico.
 
@@ -344,7 +350,7 @@ Crea un nuevo atributo reutilizable. El nombre debe ser único.
 
   <TabItem value="put" label="Actualizar Atributo">
 
-**PUT** `/api/v1/atributos/{id}`
+**PUT** `/api/v1/atributos/{item_id}`
 
 Actualiza un atributo. Se puede cambiar nombre y tipo_dato.
 
@@ -373,7 +379,7 @@ Actualiza un atributo. Se puede cambiar nombre y tipo_dato.
 
   <TabItem value="delete" label="Eliminar Atributo">
 
-**DELETE** `/api/v1/atributos/{id}`
+**DELETE** `/api/v1/atributos/{item_id}`
 
 Realiza un borrado lógico del atributo. Las asignaciones en `categoria_atributo` permanecen inactivas.
 
@@ -733,4 +739,3 @@ Todas las entidades registran:
 - Un `Atributo` puede asignarse a múltiples `Categoría`s
 - Una `Categoría` puede ser padre de múltiples subcategorías
 - `CategoriaAtributo` no tiene restricción de unicidad en (categoria_id, atributo_id), permitiendo re-asignaciones
-

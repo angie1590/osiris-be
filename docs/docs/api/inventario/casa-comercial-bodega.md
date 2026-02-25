@@ -9,6 +9,12 @@ import TabItem from '@theme/TabItem';
 
 # Casa Comercial y Bodega
 
+## Política de Registros Activos (Frontend)
+
+- En listados, usar por defecto filtros de activos cuando existan (`only_active=true`).
+- Registros inactivos representan borrado lógico y no deben mostrarse en flujos operativos normales.
+- Para administración/auditoría, el frontend puede consultar inactivos explícitamente.
+
 ## Casa Comercial
 
 ### GET `/api/v1/casas-comerciales`
@@ -510,6 +516,21 @@ null
 ```
 
   </TabItem>
+  <TabItem value="response400" label="Response 400">
+
+```json
+{
+  "detail": "No se puede eliminar la bodega porque tiene productos asignados."
+}
+```
+
+```json
+{
+  "detail": "No se puede eliminar la bodega porque tiene stock disponible."
+}
+```
+
+  </TabItem>
 </Tabs>
 
 #### Diccionario de Datos - DELETE `/api/v1/bodegas/{id}`
@@ -518,4 +539,326 @@ null
 |---|---|---|---|
 | `id` | UUID | Sí | path param |
 | `status_code` | int | Sí | 204 sin cuerpo |
-| `activo` | bool | Sí | pasa a false (soft delete) |
+| `activo` | bool | Sí | pasa a false (soft delete) si no tiene productos/stock |
+
+---
+
+## Movimientos de Inventario (Kárdex Operativo)
+
+Los movimientos de inventario son el origen del kárdex y de la tabla materializada de stock.  
+Flujo recomendado para frontend:
+
+1. Crear movimiento en `BORRADOR`.
+2. Confirmar movimiento.
+3. Consultar kárdex y valoración.
+
+### POST `/api/v1/inventarios/movimientos`
+
+Crea un movimiento en estado `BORRADOR`.  
+No altera stock ni costo promedio hasta confirmar.
+
+<Tabs>
+  <TabItem value="request" label="Request" default>
+
+```json
+{
+  "fecha": "2026-02-24",
+  "bodega_id": "cc723ad4-3f2f-4c25-8229-79a2755ab6f6",
+  "tipo_movimiento": "INGRESO",
+  "referencia_documento": "COMPRA-0001",
+  "motivo_ajuste": null,
+  "usuario_auditoria": "api",
+  "detalles": [
+    {
+      "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+      "cantidad": "10.0000",
+      "costo_unitario": "25.0000"
+    }
+  ]
+}
+```
+
+  </TabItem>
+  <TabItem value="response201" label="Response 201">
+
+```json
+{
+  "id": "f1bb4a07-f9e8-4ef1-93bb-c5b398013df1",
+  "fecha": "2026-02-24",
+  "bodega_id": "cc723ad4-3f2f-4c25-8229-79a2755ab6f6",
+  "tipo_movimiento": "INGRESO",
+  "estado": "BORRADOR",
+  "referencia_documento": "COMPRA-0001",
+  "motivo_ajuste": null,
+  "detalles": [
+    {
+      "id": "3f1f5ed1-705f-4d5e-a576-01a4ab9a8001",
+      "movimiento_inventario_id": "f1bb4a07-f9e8-4ef1-93bb-c5b398013df1",
+      "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+      "cantidad": "10.0000",
+      "costo_unitario": "25.0000"
+    }
+  ]
+}
+```
+
+  </TabItem>
+  <TabItem value="response400" label="Response 400">
+
+```json
+{
+  "detail": [
+    {
+      "type": "greater_than",
+      "loc": ["body", "detalles", 0, "cantidad"],
+      "msg": "Input should be greater than 0"
+    }
+  ]
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Diccionario de Datos - POST `/api/v1/inventarios/movimientos`
+
+| Campo | Tipo | Requerido | Restricción |
+|---|---|---|---|
+| `fecha` | date | No | default hoy |
+| `bodega_id` | UUID | Sí | FK tbl_bodega |
+| `tipo_movimiento` | enum | Sí | `INGRESO`, `EGRESO`, `TRANSFERENCIA`, `AJUSTE` |
+| `referencia_documento` | string/null | No | max 120 |
+| `motivo_ajuste` | string/null | No | obligatorio al confirmar si tipo es `AJUSTE` |
+| `detalles` | list | Sí | mínimo 1 |
+| `detalles[].producto_id` | UUID | Sí | FK tbl_producto |
+| `detalles[].cantidad` | decimal | Sí | `> 0` |
+| `detalles[].costo_unitario` | decimal | Sí | `>= 0` |
+
+### POST `/api/v1/inventarios/movimientos/{movimiento_id}/confirmar`
+
+Confirma un movimiento `BORRADOR` y aplica reglas NIIF/SRI:
+
+- Lock pesimista en stock.
+- Regla anti-negativos para egresos/transferencias.
+- Recalculo de costo promedio ponderado para ingresos.
+- Congelamiento de costo en egresos.
+- Validaciones de integridad entre stock, kárdex y cantidad agregada del producto.
+
+<Tabs>
+  <TabItem value="request" label="Request" default>
+
+```json
+{
+  "motivo_ajuste": "Toma física inicial",
+  "usuario_auditoria": "api"
+}
+```
+
+  </TabItem>
+  <TabItem value="response200" label="Response 200">
+
+```json
+{
+  "id": "f1bb4a07-f9e8-4ef1-93bb-c5b398013df1",
+  "estado": "CONFIRMADO",
+  "tipo_movimiento": "INGRESO",
+  "detalles": [
+    {
+      "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+      "cantidad": "10.0000",
+      "costo_unitario": "25.0000"
+    }
+  ]
+}
+```
+
+  </TabItem>
+  <TabItem value="response400" label="Response 400">
+
+```json
+{
+  "detail": "Solo se puede confirmar movimientos en BORRADOR"
+}
+```
+
+```json
+{
+  "detail": "motivo_ajuste es obligatorio para confirmar movimientos de tipo AJUSTE."
+}
+```
+
+```json
+{
+  "detail": "Inventario insuficiente: no se permite stock negativo."
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Diccionario de Datos - POST `/api/v1/inventarios/movimientos/{movimiento_id}/confirmar`
+
+| Campo | Tipo | Requerido | Restricción |
+|---|---|---|---|
+| `movimiento_id` | UUID | Sí | path param |
+| `motivo_ajuste` | string/null | No | obligatorio para `AJUSTE` |
+| `usuario_auditoria` | string/null | No | usuario autorizador |
+| `estado` | enum | Sí | pasa de `BORRADOR` a `CONFIRMADO` |
+
+### GET `/api/v1/inventarios/kardex`
+
+Consulta cronológica del kárdex operativo por producto + bodega.
+
+<Tabs>
+  <TabItem value="request" label="Request" default>
+
+```json
+{
+  "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+  "bodega_id": "cc723ad4-3f2f-4c25-8229-79a2755ab6f6",
+  "fecha_inicio": "2026-02-01",
+  "fecha_fin": "2026-02-29"
+}
+```
+
+  </TabItem>
+  <TabItem value="response200" label="Response 200">
+
+```json
+{
+  "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+  "bodega_id": "cc723ad4-3f2f-4c25-8229-79a2755ab6f6",
+  "fecha_inicio": "2026-02-01",
+  "fecha_fin": "2026-02-29",
+  "saldo_inicial": "0.0000",
+  "movimientos": [
+    {
+      "fecha": "2026-02-24",
+      "movimiento_id": "f1bb4a07-f9e8-4ef1-93bb-c5b398013df1",
+      "tipo_movimiento": "INGRESO",
+      "referencia_documento": "COMPRA-0001",
+      "cantidad_entrada": "10.0000",
+      "cantidad_salida": "0.0000",
+      "saldo_cantidad": "10.0000",
+      "costo_unitario_aplicado": "25.0000",
+      "valor_movimiento": "250.0000"
+    }
+  ]
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Diccionario de Datos - GET `/api/v1/inventarios/kardex`
+
+| Campo | Tipo | Requerido | Restricción |
+|---|---|---|---|
+| `producto_id` | UUID | Sí | query param |
+| `bodega_id` | UUID | Sí | query param |
+| `fecha_inicio` | date/null | No | filtro opcional |
+| `fecha_fin` | date/null | No | filtro opcional |
+| `saldo_inicial` | decimal | Sí | saldo previo al rango |
+| `movimientos[]` | list | Sí | solo movimientos `CONFIRMADO` |
+
+### GET `/api/v1/inventarios/valoracion`
+
+Devuelve valoración del inventario por bodega y total global.
+
+<Tabs>
+  <TabItem value="response200" label="Response 200" default>
+
+```json
+{
+  "bodegas": [
+    {
+      "bodega_id": "cc723ad4-3f2f-4c25-8229-79a2755ab6f6",
+      "total_bodega": "250.0000",
+      "productos": [
+        {
+          "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+          "cantidad_actual": "10.0000",
+          "costo_promedio_vigente": "25.0000",
+          "valor_total": "250.0000"
+        }
+      ]
+    }
+  ],
+  "total_global": "250.0000"
+}
+```
+
+  </TabItem>
+</Tabs>
+
+#### Diccionario de Datos - GET `/api/v1/inventarios/valoracion`
+
+| Campo | Tipo | Requerido | Restricción |
+|---|---|---|---|
+| `bodegas` | list | Sí | agrupado por bodega |
+| `bodegas[].productos` | list | Sí | stock materializado por producto |
+| `total_global` | decimal | Sí | suma de todas las bodegas |
+
+### Notas funcionales para frontend
+
+- Una compra registrada crea ingresos en inventario (kárdex + stock).
+- Una venta emitida crea egresos en inventario.
+- El stock vigente debe leerse desde entidad de producto/stock materializado; el kárdex es trazabilidad histórica.
+
+---
+
+## Operaciones Avanzadas de Bodega
+
+### POST `/api/v1/inventarios/transferencias`
+
+Realiza una transferencia atómica entre bodegas:
+
+1. Egreso en bodega origen.
+2. Ingreso en bodega destino.
+3. Si cualquier paso falla, la transacción completa se revierte.
+
+```json
+{
+  "fecha": "2026-02-24",
+  "bodega_origen_id": "3e044677-f970-48f4-830d-3d325111ab01",
+  "bodega_destino_id": "3c697f69-a2dc-46c2-a5fd-74e7862f0fd1",
+  "referencia_documento": "TRF-001",
+  "usuario_auditoria": "api",
+  "detalles": [
+    {
+      "producto_id": "9c4a9ec6-4e3f-4f7a-8f1a-bf6f7ad0f1aa",
+      "cantidad": "10.0000"
+    }
+  ]
+}
+```
+
+Errores comunes:
+
+- `400`: bodega origen y destino iguales.
+- `409`: alguna bodega está inactiva.
+- `400`: stock insuficiente al egreso.
+
+### POST `/api/v1/inventarios/movimientos/{movimiento_id}/anular`
+
+Anula un movimiento de inventario:
+
+- Si está en `BORRADOR`, pasa a `ANULADO`.
+- Si está en `CONFIRMADO`, el sistema ejecuta reverso automático de stock y luego marca `ANULADO`.
+
+```json
+{
+  "motivo": "Error de digitación",
+  "usuario_auditoria": "api"
+}
+```
+
+Errores comunes:
+
+- `400`: estado no anulable.
+- `404`: movimiento inexistente.
+
+### Criterio MVP para anulaciones (sin módulo contable)
+
+- En este MVP, la anulación prioriza integridad operativa de inventario (cantidad y trazabilidad).
+- El reverso contable formal (asientos y política de recosteo histórico) queda para siguiente etapa.
