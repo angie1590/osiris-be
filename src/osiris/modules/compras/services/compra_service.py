@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from decimal import Decimal
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.sri.core_sri.services.template_method import TemplateMethodService
 from osiris.modules.compras.strategies.validacion_impuestos_sri_strategy import ValidacionImpuestosSRIStrategy
 from osiris.modules.sri.core_sri.models import (
@@ -33,6 +34,7 @@ from osiris.modules.inventario.movimientos.models import (
 from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
 from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto
+from osiris.modules.common.sucursal.entity import Sucursal
 
 
 class CompraService(TemplateMethodService[CompraCreate, Compra]):
@@ -120,12 +122,19 @@ class CompraService(TemplateMethodService[CompraCreate, Compra]):
         )
 
     def _resolver_bodega_para_compra(self, session: Session, payload: CompraCreate):
+        empresa_scope = resolve_company_scope()
         if payload.bodega_id is not None:
+            bodega = session.get(Bodega, payload.bodega_id)
+            if not bodega or not bodega.activo:
+                raise HTTPException(status_code=404, detail="Bodega no encontrada o inactiva.")
+            if empresa_scope is not None and bodega.empresa_id != empresa_scope:
+                raise HTTPException(status_code=403, detail="La bodega no pertenece a la empresa seleccionada.")
             return payload.bodega_id
 
-        bodegas = list(
-            session.exec(select(Bodega.id).where(Bodega.activo.is_(True))).all()
-        )
+        stmt_bodegas = select(Bodega.id).where(Bodega.activo.is_(True))
+        if empresa_scope is not None:
+            stmt_bodegas = stmt_bodegas.where(Bodega.empresa_id == empresa_scope)
+        bodegas = list(session.exec(stmt_bodegas).all())
         if len(bodegas) == 1:
             return bodegas[0]
         raise HTTPException(
@@ -238,11 +247,14 @@ class CompraService(TemplateMethodService[CompraCreate, Compra]):
     ) -> Compra:
         _ = (context, kwargs)
         try:
+            bodega_id = self._resolver_bodega_para_compra(session, payload)
+            bodega = session.get(Bodega, bodega_id)
             compra = Compra(
                 proveedor_id=payload.proveedor_id,
                 secuencial_factura=payload.secuencial_factura,
                 autorizacion_sri=payload.autorizacion_sri,
                 fecha_emision=payload.fecha_emision,
+                sucursal_id=bodega.sucursal_id if bodega is not None else None,
                 sustento_tributario=payload.sustento_tributario,
                 tipo_identificacion_proveedor=payload.tipo_identificacion_proveedor,
                 identificacion_proveedor=payload.identificacion_proveedor,
@@ -321,6 +333,13 @@ class CompraService(TemplateMethodService[CompraCreate, Compra]):
         compra = session.get(Compra, compra_id)
         if not compra or not compra.activo:
             raise HTTPException(status_code=404, detail="Compra no encontrada")
+        empresa_scope = resolve_company_scope()
+        if empresa_scope is not None:
+            if compra.sucursal_id is None:
+                raise HTTPException(status_code=403, detail="No autorizado para acceder a compras de otra empresa.")
+            sucursal = session.get(Sucursal, compra.sucursal_id)
+            if not sucursal or not sucursal.activo or sucursal.empresa_id != empresa_scope:
+                raise HTTPException(status_code=403, detail="No autorizado para acceder a compras de otra empresa.")
         return compra
 
     def actualizar_compra(self, session: Session, compra_id, payload: CompraUpdate) -> Compra:

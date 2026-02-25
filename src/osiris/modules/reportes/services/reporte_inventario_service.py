@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     InventarioStock,
@@ -39,12 +40,17 @@ def q2(value: Decimal | int | str) -> Decimal:
 
 class ReporteInventarioService:
     @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
+    @staticmethod
     def _d(value: object, default: str = "0") -> Decimal:
         if value is None:
             return Decimal(default)
         return Decimal(str(value))
 
     def obtener_valoracion_inventario(self, session: Session) -> ReporteInventarioValoracionRead:
+        empresa_scope = self._empresa_scope()
         cantidad_expr = func.coalesce(func.sum(InventarioStock.cantidad_actual), 0)
         valor_expr = func.coalesce(
             func.sum(InventarioStock.cantidad_actual * InventarioStock.costo_promedio_vigente),
@@ -68,6 +74,14 @@ class ReporteInventarioService:
             .group_by(Producto.id, Producto.nombre)
             .order_by(Producto.nombre.asc())
         )
+        if empresa_scope is not None:
+            stmt = (
+                stmt.join(Bodega, Bodega.id == InventarioStock.bodega_id)
+                .where(
+                    Bodega.activo.is_(True),
+                    Bodega.empresa_id == empresa_scope,
+                )
+            )
 
         rows = session.exec(stmt).all()
 
@@ -103,6 +117,7 @@ class ReporteInventarioService:
         fecha_fin: date | None = None,
         sucursal_id: UUID | None = None,
     ) -> ReporteInventarioKardexRead:
+        empresa_scope = self._empresa_scope()
         hoy = date.today()
         inicio = fecha_inicio or (hoy - timedelta(days=365))
         fin = fecha_fin or hoy
@@ -133,11 +148,12 @@ class ReporteInventarioService:
                 MovimientoInventarioDetalle.id.asc(),
             )
         )
-        if sucursal_id is not None:
-            stmt = stmt.join(Bodega, Bodega.id == MovimientoInventario.bodega_id).where(
-                Bodega.activo.is_(True),
-                Bodega.sucursal_id == sucursal_id,
-            )
+        if sucursal_id is not None or empresa_scope is not None:
+            stmt = stmt.join(Bodega, Bodega.id == MovimientoInventario.bodega_id).where(Bodega.activo.is_(True))
+            if empresa_scope is not None:
+                stmt = stmt.where(Bodega.empresa_id == empresa_scope)
+            if sucursal_id is not None:
+                stmt = stmt.where(Bodega.sucursal_id == sucursal_id)
 
         rows = session.exec(stmt).all()
         saldo = Decimal("0.0000")

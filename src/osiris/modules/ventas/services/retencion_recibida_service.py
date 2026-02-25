@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import ensure_entity_belongs_to_selected_company, resolve_company_scope
 from osiris.modules.sri.core_sri.models import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
@@ -36,7 +37,12 @@ class RetencionRecibidaService:
         venta = session.get(Venta, venta_id)
         if not venta or not venta.activo:
             raise HTTPException(status_code=404, detail="Venta no encontrada para registrar retencion recibida.")
+        ensure_entity_belongs_to_selected_company(venta.empresa_id)
         return venta
+
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
 
     def _validar_unicidad(self, session: Session, cliente_id: UUID, numero_retencion: str) -> None:
         existente = session.exec(
@@ -106,6 +112,7 @@ class RetencionRecibidaService:
             ).one_or_none()
             if not retencion:
                 raise HTTPException(status_code=404, detail="Retencion recibida no encontrada")
+            self._validar_venta(session, retencion.venta_id)
             if retencion.estado != EstadoRetencionRecibida.BORRADOR:
                 raise HTTPException(
                     status_code=400,
@@ -160,6 +167,7 @@ class RetencionRecibidaService:
             ).one_or_none()
             if not retencion:
                 raise HTTPException(status_code=404, detail="Retencion recibida no encontrada")
+            self._validar_venta(session, retencion.venta_id)
             if retencion.estado != EstadoRetencionRecibida.APLICADA:
                 raise HTTPException(
                     status_code=400,
@@ -210,6 +218,7 @@ class RetencionRecibidaService:
         retencion = session.get(RetencionRecibida, retencion_recibida_id)
         if not retencion or not retencion.activo:
             raise HTTPException(status_code=404, detail="Retencion recibida no encontrada")
+        self._validar_venta(session, retencion.venta_id)
 
         detalles = list(
             session.exec(
@@ -247,6 +256,12 @@ class RetencionRecibidaService:
         estado: EstadoRetencionRecibida | None = None,
     ):
         stmt = select(RetencionRecibida)
+        empresa_scope = self._empresa_scope()
+        if empresa_scope is not None:
+            stmt = stmt.join(Venta, Venta.id == RetencionRecibida.venta_id).where(
+                Venta.activo.is_(True),
+                Venta.empresa_id == empresa_scope,
+            )
         if only_active:
             stmt = stmt.where(RetencionRecibida.activo.is_(True))
         else:

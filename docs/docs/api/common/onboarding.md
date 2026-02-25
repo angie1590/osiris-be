@@ -24,6 +24,8 @@ Antes de integrar los endpoints de onboarding, considera estas reglas de contrat
    - Al crear una `Empresa`, el sistema crea automáticamente una `Sucursal` matriz (`codigo = "001"`, `es_matriz = true`) si no existe.
 4. Secuenciales SRI:
    - El endpoint de siguiente secuencial devuelve siempre el número en formato de 9 dígitos (`zfill(9)`), por ejemplo `000000123`.
+5. Multiempresa por sesión:
+   - El aislamiento por empresa se aplica por contexto de sesión/JWT. Ver detalle en [Empresa Seleccionada por Sesión](./empresa-seleccionada-sesion).
 
 ## Política de Registros Activos (Frontend)
 

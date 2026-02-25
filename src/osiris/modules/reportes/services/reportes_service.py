@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import String, cast, func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.sri.core_sri.models import EstadoVenta, Venta, VentaDetalle
 from osiris.modules.sri.core_sri.schemas import q2
 from osiris.modules.inventario.movimientos.models import (
@@ -31,6 +32,10 @@ from osiris.modules.inventario.producto.entity import Producto
 
 
 class ReportesVentasService:
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
     @staticmethod
     def _d(value: object, default: str = "0.00") -> Decimal:
         if value is None:
@@ -119,12 +124,15 @@ class ReportesVentasService:
         punto_emision_id: UUID | None = None,
         sucursal_id: UUID | None = None,
     ) -> ReporteVentasResumenRead:
+        empresa_scope = self._empresa_scope()
         filtros = [
             Venta.activo.is_(True),
             Venta.estado != EstadoVenta.ANULADA,
             Venta.fecha_emision >= fecha_inicio,
             Venta.fecha_emision <= fecha_fin,
         ]
+        if empresa_scope is not None:
+            filtros.append(Venta.empresa_id == empresa_scope)
         if punto_emision_id is not None:
             filtros.append(Venta.punto_emision_id == punto_emision_id)
         if sucursal_id is not None:
@@ -163,6 +171,7 @@ class ReportesVentasService:
         punto_emision_id: UUID | None = None,
         limite: int = 10,
     ) -> list[ReporteTopProductoRead]:
+        empresa_scope = self._empresa_scope()
         limite_efectivo = max(1, min(limite, 100))
         filtros = [
             Venta.activo.is_(True),
@@ -170,6 +179,8 @@ class ReportesVentasService:
             Producto.activo.is_(True),
             Venta.estado != EstadoVenta.ANULADA,
         ]
+        if empresa_scope is not None:
+            filtros.append(Venta.empresa_id == empresa_scope)
         if fecha_inicio is not None:
             filtros.append(Venta.fecha_emision >= fecha_inicio)
         if fecha_fin is not None:
@@ -241,6 +252,7 @@ class ReportesVentasService:
         fecha_fin: date,
         agrupacion: AgrupacionTendencia,
     ) -> list[ReporteVentasTendenciaRead]:
+        empresa_scope = self._empresa_scope()
         bucket = self._bucket_expr(session, agrupacion)
         stmt = (
             select(
@@ -257,6 +269,8 @@ class ReportesVentasService:
             .group_by(bucket)
             .order_by(bucket.asc())
         )
+        if empresa_scope is not None:
+            stmt = stmt.where(Venta.empresa_id == empresa_scope)
         rows = session.exec(stmt).all()
         return [
             ReporteVentasTendenciaRead(
@@ -274,10 +288,13 @@ class ReportesVentasService:
         fecha_inicio: date | None = None,
         fecha_fin: date | None = None,
     ) -> list[ReporteVentasPorVendedorRead]:
+        empresa_scope = self._empresa_scope()
         filtros = [
             Venta.activo.is_(True),
             Venta.estado != EstadoVenta.ANULADA,
         ]
+        if empresa_scope is not None:
+            filtros.append(Venta.empresa_id == empresa_scope)
         if fecha_inicio is not None:
             filtros.append(Venta.fecha_emision >= fecha_inicio)
         if fecha_fin is not None:
@@ -317,6 +334,7 @@ class ReportesVentasService:
         fecha_inicio: date,
         fecha_fin: date,
     ) -> list[ReporteRentabilidadClienteRead]:
+        empresa_scope = self._empresa_scope()
         ventas = list(
             session.exec(
                 select(Venta.id, Venta.cliente_id, Venta.subtotal_sin_impuestos)
@@ -325,6 +343,7 @@ class ReportesVentasService:
                     Venta.estado != EstadoVenta.ANULADA,
                     Venta.fecha_emision >= fecha_inicio,
                     Venta.fecha_emision <= fecha_fin,
+                    *( [Venta.empresa_id == empresa_scope] if empresa_scope is not None else [] ),
                 )
             ).all()
         )
@@ -373,6 +392,7 @@ class ReportesVentasService:
         fecha_inicio: date,
         fecha_fin: date,
     ) -> list[ReporteRentabilidadTransaccionRead]:
+        empresa_scope = self._empresa_scope()
         ventas = list(
             session.exec(
                 select(Venta.id, Venta.cliente_id, Venta.fecha_emision, Venta.subtotal_sin_impuestos)
@@ -381,6 +401,7 @@ class ReportesVentasService:
                     Venta.estado != EstadoVenta.ANULADA,
                     Venta.fecha_emision >= fecha_inicio,
                     Venta.fecha_emision <= fecha_fin,
+                    *( [Venta.empresa_id == empresa_scope] if empresa_scope is not None else [] ),
                 )
                 .order_by(Venta.fecha_emision.asc(), Venta.creado_en.asc())
             ).all()

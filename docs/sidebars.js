@@ -13,6 +13,7 @@ const sidebars = {
           items: [
             'api/common/onboarding',
             'api/common/seguridad-accesos',
+            'api/common/empresa-seleccionada-sesion',
             'api/common/directorio'
           ]
         },

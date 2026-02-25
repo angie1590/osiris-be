@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import BackgroundTasks, HTTPException
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
+from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.sri.core_sri.models import (
     Compra,
     CuentaPorPagar,
@@ -43,10 +45,25 @@ class RetencionService:
         self.validacion_impuestos_strategy = ValidacionImpuestosSRIStrategy()
         self.orquestador_fe_service = OrquestadorFEService(retencion_sri_service=self.sri_async_service)
 
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
+    def _validar_compra_scope(self, session: Session, compra: Compra) -> None:
+        empresa_scope = self._empresa_scope()
+        if empresa_scope is None:
+            return
+        if compra.sucursal_id is None:
+            raise HTTPException(status_code=403, detail="No autorizado para operar compras de otra empresa.")
+        sucursal = session.get(Sucursal, compra.sucursal_id)
+        if not sucursal or not sucursal.activo or sucursal.empresa_id != empresa_scope:
+            raise HTTPException(status_code=403, detail="No autorizado para operar compras de otra empresa.")
+
     def _obtener_compra(self, session: Session, compra_id: UUID) -> Compra:
         compra = session.get(Compra, compra_id)
         if not compra or not compra.activo:
             raise HTTPException(status_code=404, detail="Compra no encontrada")
+        self._validar_compra_scope(session, compra)
         return compra
 
     def _obtener_plantilla_para_proveedor(
@@ -95,6 +112,7 @@ class RetencionService:
         retencion = session.get(Retencion, retencion_id)
         if not retencion or not retencion.activo:
             raise HTTPException(status_code=404, detail="Retencion no encontrada")
+        self._obtener_compra(session, retencion.compra_id)
         return retencion
 
     def _obtener_detalles_retencion(self, session: Session, retencion_id: UUID) -> list[RetencionDetalle]:
@@ -109,6 +127,7 @@ class RetencionService:
         return list(session.exec(stmt).all())
 
     def _obtener_cxp_bloqueada_por_compra(self, session: Session, compra_id: UUID) -> CuentaPorPagar:
+        self._obtener_compra(session, compra_id)
         cxp = session.exec(
             select(CuentaPorPagar)
             .where(

@@ -24,7 +24,7 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 
 | Modulo backend | Endpoints | Documentacion frontend (fuente canonica) |
 |---|---:|---|
-| `common` | 72 | [Onboarding](./common/onboarding), [Seguridad y Accesos](./common/seguridad-accesos), [Directorio](./common/directorio) |
+| `common` | 72 | [Onboarding](./common/onboarding), [Seguridad y Accesos](./common/seguridad-accesos), [Empresa seleccionada por sesión](./common/empresa-seleccionada-sesion), [Directorio](./common/directorio) |
 | `inventario` | 45 | [Checklist](./inventario/checklist-integracion-frontend), [Bloques](./inventario/bloques-construccion), [Casa comercial y bodega](./inventario/casa-comercial-bodega), [Producto + atributos/impuestos/bodegas](./inventario/producto-atributos-impuestos-bodegas), [Producto CRUD](./inventario/producto-crud-base) |
 | `compras` | 9 | [Compras](./transacciones/compras) |
 | `ventas` | 17 | [Checklist](./transacciones/ventas/checklist-integracion-frontend), [Ciclo comercial](./transacciones/ventas/ventas-ciclo-comercial), [FE y documentos](./transacciones/ventas/facturacion-electronica-y-documentos) |
@@ -84,6 +84,7 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 3. Montos y porcentajes: enviar/consumir como decimal en string (no `float`).
 4. FE-SRI: separar estado comercial del documento (`BORRADOR/EMITIDA/ANULADA`) de estado FE (`EN_COLA/RECIBIDO/AUTORIZADO/RECHAZADO`).
 5. Reimpresion: siempre exigir motivo y usar formato permitido.
+6. Multiempresa por sesion: usar contexto de empresa en JWT (`empresa_id`) para aislar operaciones y listados.
 
 ## Estado Final
 

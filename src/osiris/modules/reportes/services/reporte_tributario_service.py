@@ -6,7 +6,9 @@ from uuid import UUID
 from sqlalchemy import case, func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.common.punto_emision.entity import PuntoEmision
+from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.compras.models import Compra, Retencion, RetencionDetalle
 from osiris.modules.sri.core_sri.types import (
     EstadoCompra,
@@ -24,6 +26,10 @@ from osiris.modules.sri.core_sri.schemas import q2
 
 
 class ReporteTributarioService:
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
     @staticmethod
     def _d(value: object, default: str = "0.00") -> Decimal:
         if value is None:
@@ -52,11 +58,14 @@ class ReporteTributarioService:
         anio: int,
         sucursal_id: UUID | None = None,
     ) -> ReporteImpuestosMensualRead:
+        empresa_scope = self._empresa_scope()
         ventas_filtros = [
             Venta.activo.is_(True),
             Venta.estado != EstadoVenta.ANULADA,
             *self._period_filters(session, Venta.fecha_emision, mes, anio),
         ]
+        if empresa_scope is not None:
+            ventas_filtros.append(Venta.empresa_id == empresa_scope)
         if sucursal_id is not None:
             ventas_filtros.append(PuntoEmision.sucursal_id == sucursal_id)
 
@@ -102,7 +111,13 @@ class ReporteTributarioService:
             func.coalesce(func.sum(Compra.monto_iva), 0),
             func.coalesce(func.sum(Compra.valor_total), 0),
             func.count(Compra.id),
-        ).where(*compras_filtros)
+        )
+        if empresa_scope is not None:
+            compras_stmt = compras_stmt.join(Sucursal, Sucursal.id == Compra.sucursal_id).where(
+                Sucursal.activo.is_(True),
+                Sucursal.empresa_id == empresa_scope,
+            )
+        compras_stmt = compras_stmt.where(*compras_filtros)
         (
             subtotal_0,
             subtotal_12,
@@ -144,6 +159,11 @@ class ReporteTributarioService:
             .group_by(codigo_pasivo_expr)
             .order_by(codigo_pasivo_expr.asc())
         )
+        if empresa_scope is not None:
+            pasivo_stmt = pasivo_stmt.join(Sucursal, Sucursal.id == Compra.sucursal_id).where(
+                Sucursal.activo.is_(True),
+                Sucursal.empresa_id == empresa_scope,
+            )
         if sucursal_id is not None:
             pasivo_stmt = pasivo_stmt.where(Compra.sucursal_id == sucursal_id)
         pasivo_rows = session.exec(pasivo_stmt).all()
@@ -169,6 +189,8 @@ class ReporteTributarioService:
             .group_by(RetencionRecibidaDetalle.codigo_impuesto_sri)
             .order_by(RetencionRecibidaDetalle.codigo_impuesto_sri.asc())
         )
+        if empresa_scope is not None:
+            credito_stmt = credito_stmt.where(Venta.empresa_id == empresa_scope)
         if sucursal_id is not None:
             credito_stmt = (
                 credito_stmt

@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.common.punto_emision.entity import PuntoEmision
 from osiris.modules.sri.core_sri.schemas import q2
 from osiris.modules.sri.core_sri.types import EstadoRetencionRecibida
@@ -21,6 +22,10 @@ from osiris.modules.ventas.models import CuentaPorCobrar, PagoCxC, RetencionReci
 
 class ReporteCajaService:
     @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
+    @staticmethod
     def _d(value: object, default: str = "0.00") -> Decimal:
         if value is None:
             return Decimal(default)
@@ -34,6 +39,7 @@ class ReporteCajaService:
         usuario_id: UUID | None = None,
         sucursal_id: UUID | None = None,
     ) -> ReporteCajaCierreDiarioRead:
+        empresa_scope = self._empresa_scope()
         filtros_pagos = [
             PagoCxC.activo.is_(True),
             PagoCxC.fecha == fecha,
@@ -68,13 +74,16 @@ class ReporteCajaService:
             )
             .select_from(PagoCxC)
         )
-        if sucursal_id is not None:
+        if sucursal_id is not None or empresa_scope is not None:
             pagos_stmt = (
                 pagos_stmt
                 .join(CuentaPorCobrar, CuentaPorCobrar.id == PagoCxC.cuenta_por_cobrar_id)
                 .join(Venta, Venta.id == CuentaPorCobrar.venta_id)
-                .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
             )
+            if empresa_scope is not None:
+                pagos_stmt = pagos_stmt.where(Venta.empresa_id == empresa_scope)
+            if sucursal_id is not None:
+                pagos_stmt = pagos_stmt.join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
         pagos_stmt = (
             pagos_stmt
             .where(*filtros_pagos)
@@ -94,12 +103,15 @@ class ReporteCajaService:
         retenciones_stmt = select(func.coalesce(func.sum(RetencionRecibida.total_retenido), 0)).select_from(
             RetencionRecibida
         )
-        if sucursal_id is not None:
+        if sucursal_id is not None or empresa_scope is not None:
             retenciones_stmt = (
                 retenciones_stmt
                 .join(Venta, Venta.id == RetencionRecibida.venta_id)
-                .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
             )
+            if empresa_scope is not None:
+                retenciones_stmt = retenciones_stmt.where(Venta.empresa_id == empresa_scope)
+            if sucursal_id is not None:
+                retenciones_stmt = retenciones_stmt.join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
         retenciones_stmt = retenciones_stmt.where(*filtros_retenciones)
         total_retenciones = q2(self._d(session.exec(retenciones_stmt).one()))
 

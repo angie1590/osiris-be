@@ -7,6 +7,8 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
+from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.common.proveedor_sociedad.entity import ProveedorSociedad
 from osiris.modules.compras.models import Compra
 from osiris.modules.sri.core_sri.schemas import q2
@@ -15,6 +17,10 @@ from osiris.modules.reportes.schemas import ReporteComprasPorProveedorRead
 
 
 class ReporteComprasService:
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
     @staticmethod
     def _d(value: object, default: str = "0.00") -> Decimal:
         if value is None:
@@ -29,6 +35,7 @@ class ReporteComprasService:
         fecha_fin: date,
         sucursal_id: UUID | None = None,
     ) -> list[ReporteComprasPorProveedorRead]:
+        empresa_scope = self._empresa_scope()
         filtros = [
             Compra.activo.is_(True),
             Compra.estado != EstadoCompra.ANULADA,
@@ -59,6 +66,11 @@ class ReporteComprasService:
             .group_by(Compra.proveedor_id, razon_social_expr)
             .order_by(total_expr.desc(), razon_social_expr.asc())
         )
+        if empresa_scope is not None:
+            stmt = stmt.join(Sucursal, Sucursal.id == Compra.sucursal_id).where(
+                Sucursal.activo.is_(True),
+                Sucursal.empresa_id == empresa_scope,
+            )
 
         rows = session.exec(stmt).all()
         return [

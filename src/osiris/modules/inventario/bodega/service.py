@@ -9,6 +9,7 @@ from sqlmodel import select
 from sqlalchemy import func
 from fastapi import HTTPException
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.inventario.bodega.entity import Bodega
 from osiris.modules.inventario.movimientos.models import InventarioStock
 from osiris.modules.inventario.producto.entity import ProductoBodega
@@ -24,16 +25,23 @@ class BodegaService:
         empresa_id: Optional[UUID] = None,
         sucursal_id: Optional[UUID] = None,
     ) -> list[Bodega]:
+        empresa_scope = resolve_company_scope(requested_company_id=empresa_id)
         query = select(Bodega).where(Bodega.activo.is_(True))
-        if empresa_id:
-            query = query.where(Bodega.empresa_id == empresa_id)
+        if empresa_scope:
+            query = query.where(Bodega.empresa_id == empresa_scope)
         if sucursal_id:
             query = query.where(Bodega.sucursal_id == sucursal_id)
         query = query.offset(skip).limit(limit)
         return list(session.exec(query))
 
     def get(self, session: Session, id: UUID) -> Optional[Bodega]:
-        return session.get(Bodega, id)
+        entity = session.get(Bodega, id)
+        if entity is None:
+            return None
+        empresa_scope = resolve_company_scope()
+        if empresa_scope is not None and entity.empresa_id != empresa_scope:
+            raise HTTPException(status_code=403, detail="No autorizado para acceder a bodegas de otra empresa.")
+        return entity
 
     def create(
         self,
@@ -41,11 +49,12 @@ class BodegaService:
         dto: BodegaCreate,
         usuario_auditoria: Optional[str] = None,
     ) -> Bodega:
+        empresa_scope = resolve_company_scope(requested_company_id=dto.empresa_id)
         entity = Bodega(
             codigo_bodega=dto.codigo_bodega,
             nombre_bodega=dto.nombre_bodega,
             descripcion=dto.descripcion,
-            empresa_id=dto.empresa_id,
+            empresa_id=empresa_scope or dto.empresa_id,
             sucursal_id=dto.sucursal_id,
             usuario_auditoria=usuario_auditoria or "api",
             activo=True,
@@ -65,6 +74,9 @@ class BodegaService:
         entity = session.get(Bodega, id)
         if not entity:
             return None
+        empresa_scope = resolve_company_scope()
+        if empresa_scope is not None and entity.empresa_id != empresa_scope:
+            raise HTTPException(status_code=403, detail="No autorizado para modificar bodegas de otra empresa.")
         if dto.codigo_bodega is not None:
             entity.codigo_bodega = dto.codigo_bodega
         if dto.nombre_bodega is not None:
@@ -88,6 +100,9 @@ class BodegaService:
         entity = session.get(Bodega, id)
         if not entity:
             return False
+        empresa_scope = resolve_company_scope()
+        if empresa_scope is not None and entity.empresa_id != empresa_scope:
+            raise HTTPException(status_code=403, detail="No autorizado para eliminar bodegas de otra empresa.")
 
         # Regla: una bodega no se puede eliminar lógicamente si mantiene productos asignados
         # o stock materializado con saldo mayor a cero.

@@ -7,8 +7,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
 from osiris.core.audit_context import (
+    extract_auth_context_from_request_headers,
     extract_user_id_from_request_headers,
+    reset_current_company_id,
     reset_current_user_id,
+    set_current_company_id,
     set_current_user_id,
 )
 from osiris.core.db import engine
@@ -145,15 +148,18 @@ def _is_user_authorized_for_rule_sync(
 
 @app.middleware("http")
 async def inject_audit_user_context(request: Request, call_next):
-    user_id = extract_user_id_from_request_headers(
+    user_id, company_id = extract_auth_context_from_request_headers(
         authorization=request.headers.get("Authorization"),
         x_user_id=request.headers.get("X-User-Id"),
+        x_company_id=request.headers.get("X-Empresa-Id"),
     )
-    token = set_current_user_id(user_id)
+    user_token = set_current_user_id(user_id)
+    company_token = set_current_company_id(company_id)
     try:
         return await call_next(request)
     finally:
-        reset_current_user_id(token)
+        reset_current_user_id(user_token)
+        reset_current_company_id(company_token)
 
 
 @app.middleware("http")

@@ -13,15 +13,17 @@ import TabItem from '@theme/TabItem';
 
 Según la arquitectura actual (`main.py` + `audit_context.py`):
 
-- El backend soporta dos cabeceras para resolver identidad:
+- El backend soporta cabeceras para resolver identidad y contexto de empresa:
   - `Authorization: Bearer <token>`
   - `X-User-Id: <uuid>`
+  - `X-Empresa-Id: <uuid>`
 - **Recomendación para frontend productivo**: usar `Authorization: Bearer <JWT>` como mecanismo principal.
-- `X-User-Id` debe quedar para pruebas técnicas, smoke tests o integraciones internas controladas.
+- `X-User-Id` y `X-Empresa-Id` deben quedar para pruebas técnicas, smoke tests o integraciones internas controladas.
 - Comportamiento por entorno (`ENVIRONMENT`):
-  - `development|dev|test|testing|local|ci`: se permite `X-User-Id`.
-  - `production`: `X-User-Id` se ignora; se exige `Authorization`.
+  - `development|dev|test|testing|local|ci`: se permiten headers auxiliares (`X-User-Id`, `X-Empresa-Id`).
+  - `production`: headers auxiliares se ignoran; se exige `Authorization`.
 - En endpoints sensibles, si no existe identidad o permisos suficientes, el sistema retorna `403` y registra evento `UNAUTHORIZED_ACCESS`.
+- Para el contrato completo de multiempresa por sesión, revisar: [Empresa Seleccionada por Sesión](./empresa-seleccionada-sesion).
 
 ## Política de Registros Activos (Frontend)
 

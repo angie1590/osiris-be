@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.core.errors import NotFoundError
 from osiris.domain.service import BaseService
@@ -27,6 +28,7 @@ from .entity import (
     ProductoBodega,
     ProductoImpuesto,
 )
+from osiris.modules.inventario.bodega.entity import Bodega
 
 class ProductoService(BaseService):
     repo = ProductoRepository()
@@ -35,6 +37,44 @@ class ProductoService(BaseService):
     fk_models = {
         "casa_comercial_id": CasaComercial,
     }
+
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
+    def _asegurar_producto_en_scope(self, session: Session, producto_id: UUID) -> None:
+        empresa_scope = self._empresa_scope()
+        if empresa_scope is None:
+            return
+
+        asignado_alguna_bodega = session.exec(
+            select(ProductoBodega.id)
+            .join(Bodega, Bodega.id == ProductoBodega.bodega_id)
+            .where(
+                ProductoBodega.producto_id == producto_id,
+                ProductoBodega.activo.is_(True),
+                Bodega.activo.is_(True),
+            )
+            .limit(1)
+        ).first()
+
+        # Mantiene compatibilidad legacy para productos aún no asignados a bodegas.
+        if asignado_alguna_bodega is None:
+            return
+
+        asignado_en_scope = session.exec(
+            select(ProductoBodega.id)
+            .join(Bodega, Bodega.id == ProductoBodega.bodega_id)
+            .where(
+                ProductoBodega.producto_id == producto_id,
+                ProductoBodega.activo.is_(True),
+                Bodega.activo.is_(True),
+                Bodega.empresa_id == empresa_scope,
+            )
+            .limit(1)
+        ).first()
+        if asignado_en_scope is None:
+            raise HTTPException(status_code=403, detail="No autorizado para acceder a productos de otra empresa.")
 
     def _validate_leaf_categories(self, session: Session, categoria_ids: Iterable[UUID]) -> None:
         if not categoria_ids:
@@ -149,6 +189,7 @@ class ProductoService(BaseService):
 
     def update(self, session: Session, item_id: UUID, data):
         try:
+            self._asegurar_producto_en_scope(session, item_id)
             # validar categorías si vienen
             def _val(obj, key):
                 if obj is None:
@@ -180,7 +221,12 @@ class ProductoService(BaseService):
         prod = super().get(session, item_id)
         if prod is None:
             raise NotFoundError("Producto no encontrado")
+        self._asegurar_producto_en_scope(session, item_id)
         return prod
+
+    def delete(self, session: Session, item_id: UUID):
+        self._asegurar_producto_en_scope(session, item_id)
+        return super().delete(session, item_id)
 
     def get_with_impuestos(self, session: Session, item_id: UUID):
         """
@@ -408,6 +454,19 @@ class ProductoService(BaseService):
         La resolución de jerarquía de atributos se reserva para GET /productos/{id}.
         """
         stmt_base = select(Producto)
+        empresa_scope = self._empresa_scope()
+        if empresa_scope is not None:
+            stmt_base = (
+                stmt_base
+                .join(ProductoBodega, ProductoBodega.producto_id == Producto.id)
+                .join(Bodega, Bodega.id == ProductoBodega.bodega_id)
+                .where(
+                    ProductoBodega.activo.is_(True),
+                    Bodega.activo.is_(True),
+                    Bodega.empresa_id == empresa_scope,
+                )
+                .distinct()
+            )
         if only_active is not None and hasattr(Producto, "activo"):
             stmt_base = stmt_base.where(Producto.activo == only_active)
         if hasattr(Producto, "activo") and only_active in {None, False}:

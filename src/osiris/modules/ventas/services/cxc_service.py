@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.sri.core_sri.models import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
@@ -19,6 +20,10 @@ from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 
 
 class CuentaPorCobrarService:
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
     def listar_cxc(
         self,
         session: Session,
@@ -30,6 +35,9 @@ class CuentaPorCobrarService:
         texto: str | None = None,
     ):
         stmt = select(CuentaPorCobrar, Venta).join(Venta, Venta.id == CuentaPorCobrar.venta_id)
+        empresa_scope = self._empresa_scope()
+        if empresa_scope is not None:
+            stmt = stmt.where(Venta.empresa_id == empresa_scope)
         if only_active:
             stmt = stmt.where(
                 CuentaPorCobrar.activo.is_(True),
@@ -121,14 +129,22 @@ class CuentaPorCobrarService:
         CuentaPorCobrarService._recalcular_saldo_y_estado(cxc)
 
     def obtener_cxc_por_venta(self, session: Session, venta_id: UUID) -> CuentaPorCobrar:
+        empresa_scope = self._empresa_scope()
         cxc = session.exec(
-            select(CuentaPorCobrar).where(
+            select(CuentaPorCobrar)
+            .join(Venta, Venta.id == CuentaPorCobrar.venta_id)
+            .where(
                 CuentaPorCobrar.venta_id == venta_id,
                 CuentaPorCobrar.activo.is_(True),
+                Venta.activo.is_(True),
             )
         ).one_or_none()
         if not cxc:
             raise HTTPException(status_code=404, detail="Cuenta por cobrar no encontrada para la venta")
+        if empresa_scope is not None:
+            venta = session.get(Venta, cxc.venta_id)
+            if not venta or venta.empresa_id != empresa_scope:
+                raise HTTPException(status_code=403, detail="No autorizado para acceder a CxC de otra empresa.")
         return cxc
 
     def registrar_pago_cxc(
@@ -141,16 +157,23 @@ class CuentaPorCobrarService:
         rollback_on_error: bool = True,
     ) -> PagoCxC:
         try:
+            empresa_scope = self._empresa_scope()
             cxc = session.exec(
                 select(CuentaPorCobrar)
+                .join(Venta, Venta.id == CuentaPorCobrar.venta_id)
                 .where(
                     CuentaPorCobrar.id == cuenta_por_cobrar_id,
                     CuentaPorCobrar.activo.is_(True),
+                    Venta.activo.is_(True),
                 )
                 .with_for_update()
             ).one_or_none()
             if not cxc:
                 raise HTTPException(status_code=404, detail="Cuenta por cobrar no encontrada")
+            if empresa_scope is not None:
+                venta = session.get(Venta, cxc.venta_id)
+                if not venta or venta.empresa_id != empresa_scope:
+                    raise HTTPException(status_code=403, detail="No autorizado para registrar pagos en otra empresa.")
 
             if cxc.estado == EstadoCuentaPorCobrar.ANULADA:
                 raise HTTPException(status_code=400, detail="No se puede registrar pagos en una CxC ANULADA.")

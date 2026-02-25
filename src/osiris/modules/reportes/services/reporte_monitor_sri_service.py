@@ -6,7 +6,9 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from osiris.core.company_scope import resolve_company_scope
 from osiris.modules.common.punto_emision.entity import PuntoEmision
+from osiris.modules.common.sucursal.entity import Sucursal
 from osiris.modules.compras.models import Compra, Retencion
 from osiris.modules.sri.core_sri.types import TipoDocumentoElectronico
 from osiris.modules.sri.facturacion_electronica.models import DocumentoElectronico
@@ -15,6 +17,10 @@ from osiris.modules.ventas.models import Venta
 
 
 class ReporteMonitorSRIService:
+    @staticmethod
+    def _empresa_scope() -> UUID | None:
+        return resolve_company_scope()
+
     @staticmethod
     def _rango_fechas(fecha_inicio: date, fecha_fin: date) -> tuple[datetime, datetime]:
         dt_inicio = datetime.combine(fecha_inicio, time.min)
@@ -29,6 +35,7 @@ class ReporteMonitorSRIService:
         fecha_fin: date,
         sucursal_id: UUID | None = None,
     ) -> list[ReporteMonitorSRIEstadoRead]:
+        empresa_scope = self._empresa_scope()
         dt_inicio, dt_fin_exclusivo = self._rango_fechas(fecha_inicio, fecha_fin)
 
         filtros_base = [
@@ -51,12 +58,18 @@ class ReporteMonitorSRIService:
                 DocumentoElectronico.tipo_documento == TipoDocumentoElectronico.FACTURA,
             )
         )
-        if sucursal_id is not None:
+        if sucursal_id is not None or empresa_scope is not None:
             stmt_facturas = (
                 stmt_facturas.join(Venta, Venta.id == DocumentoElectronico.venta_id)
-                .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
-                .where(PuntoEmision.sucursal_id == sucursal_id)
             )
+            if empresa_scope is not None:
+                stmt_facturas = stmt_facturas.where(Venta.empresa_id == empresa_scope)
+            if sucursal_id is not None:
+                stmt_facturas = (
+                    stmt_facturas
+                    .join(PuntoEmision, PuntoEmision.id == Venta.punto_emision_id)
+                    .where(PuntoEmision.sucursal_id == sucursal_id)
+                )
         stmt_facturas = stmt_facturas.group_by(
             DocumentoElectronico.estado_sri,
             DocumentoElectronico.tipo_documento,
@@ -74,12 +87,18 @@ class ReporteMonitorSRIService:
                 DocumentoElectronico.tipo_documento == TipoDocumentoElectronico.RETENCION,
             )
         )
-        if sucursal_id is not None:
+        if sucursal_id is not None or empresa_scope is not None:
             stmt_retenciones = (
                 stmt_retenciones.join(Retencion, Retencion.id == DocumentoElectronico.referencia_id)
                 .join(Compra, Compra.id == Retencion.compra_id)
-                .where(Compra.sucursal_id == sucursal_id)
             )
+            if empresa_scope is not None:
+                stmt_retenciones = stmt_retenciones.join(Sucursal, Sucursal.id == Compra.sucursal_id).where(
+                    Sucursal.activo.is_(True),
+                    Sucursal.empresa_id == empresa_scope,
+                )
+            if sucursal_id is not None:
+                stmt_retenciones = stmt_retenciones.where(Compra.sucursal_id == sucursal_id)
         stmt_retenciones = stmt_retenciones.group_by(
             DocumentoElectronico.estado_sri,
             DocumentoElectronico.tipo_documento,
