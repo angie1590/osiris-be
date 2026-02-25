@@ -87,7 +87,6 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 
 ## Estado Final
 
-- No quedan endpoints sin documentar dentro de `docs/docs/api`.
 - La documentacion actual cubre el contrato operativo para que frontend implemente flujos completos de:
   - Maestro común
   - Inventario
