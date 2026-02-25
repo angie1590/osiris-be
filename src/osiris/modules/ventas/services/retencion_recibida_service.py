@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import func
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -18,9 +19,12 @@ from osiris.modules.ventas.services.cxc_service import CuentaPorCobrarService
 from osiris.modules.sri.core_sri.all_schemas import (
     RetencionRecibidaCreate,
     RetencionRecibidaDetalleRead,
+    RetencionRecibidaListItemRead,
     RetencionRecibidaRead,
 )
 from osiris.modules.ventas.strategies.validacion_impuestos_sri_strategy import ValidacionImpuestosSRIStrategy
+from osiris.utils.pagination import build_pagination_meta
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 
 
 class RetencionRecibidaService:
@@ -230,3 +234,48 @@ class RetencionRecibidaService:
                 for detalle in detalles
             ],
         )
+
+    def listar_retenciones_recibidas(
+        self,
+        session: Session,
+        *,
+        limit: int,
+        offset: int,
+        only_active: bool = True,
+        fecha_inicio=None,
+        fecha_fin=None,
+        estado: EstadoRetencionRecibida | None = None,
+    ):
+        stmt = select(RetencionRecibida)
+        if only_active:
+            stmt = stmt.where(RetencionRecibida.activo.is_(True))
+        else:
+            stmt = stmt.execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+        if fecha_inicio is not None:
+            stmt = stmt.where(RetencionRecibida.fecha_emision >= fecha_inicio)
+        if fecha_fin is not None:
+            stmt = stmt.where(RetencionRecibida.fecha_emision <= fecha_fin)
+        if estado is not None:
+            stmt = stmt.where(RetencionRecibida.estado == estado)
+
+        total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+        retenciones = list(
+            session.exec(
+                stmt.order_by(RetencionRecibida.fecha_emision.desc(), RetencionRecibida.creado_en.desc())
+                .offset(offset)
+                .limit(limit)
+            ).all()
+        )
+        items = [
+            RetencionRecibidaListItemRead(
+                id=retencion.id,
+                venta_id=retencion.venta_id,
+                cliente_id=retencion.cliente_id,
+                numero_retencion=retencion.numero_retencion,
+                fecha_emision=retencion.fecha_emision,
+                estado=retencion.estado,
+                total_retenido=retencion.total_retenido,
+            )
+            for retencion in retenciones
+        ]
+        return items, build_pagination_meta(total=total, limit=limit, offset=offset)

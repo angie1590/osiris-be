@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from osiris.modules.sri.core_sri.services.template_method import TemplateMethodService
@@ -40,6 +40,7 @@ from osiris.modules.sri.core_sri.all_schemas import (
 from osiris.modules.sri.facturacion_electronica.services.orquestador_fe_service import OrquestadorFEService
 from osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service import VentaSriAsyncService
 from osiris.modules.common.audit_log.entity import AuditAction, AuditLog
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 from osiris.modules.inventario.movimientos.models import (
     EstadoMovimientoInventario,
     InventarioStock,
@@ -50,6 +51,7 @@ from osiris.modules.inventario.movimientos.models import (
 from osiris.modules.inventario.movimientos.schemas import MovimientoInventarioCreate
 from osiris.modules.inventario.movimientos.services.movimiento_inventario_service import MovimientoInventarioService, q4
 from osiris.modules.inventario.producto.entity import Producto, ProductoImpuesto
+from osiris.utils.pagination import build_pagination_meta
 
 
 class VentaService(TemplateMethodService[VentaCreate, Venta]):
@@ -423,6 +425,8 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
                 raise HTTPException(status_code=400, detail="La venta ya está emitida.")
             if venta.estado == EstadoVenta.ANULADA:
                 raise HTTPException(status_code=400, detail="No se puede emitir una venta ANULADA.")
+            if venta.estado != EstadoVenta.BORRADOR:
+                raise HTTPException(status_code=400, detail="Solo se puede emitir una venta en estado BORRADOR.")
 
             detalles = list(
                 session.exec(
@@ -737,8 +741,6 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
                     )
                     session.add(snapshot)
 
-            self._orquestar_egreso_inventario(session, venta, payload)
-
             session.commit()
             session.refresh(venta)
             return venta
@@ -864,3 +866,63 @@ class VentaService(TemplateMethodService[VentaCreate, Venta]):
             creado_en=venta.creado_en,
             actualizado_en=venta.actualizado_en,
         )
+
+    def listar_ventas(
+        self,
+        session: Session,
+        *,
+        limit: int,
+        offset: int,
+        only_active: bool = True,
+        fecha_inicio=None,
+        fecha_fin=None,
+        estado: EstadoVenta | None = None,
+        tipo_emision: TipoEmisionVenta | None = None,
+        texto: str | None = None,
+    ):
+        stmt = select(Venta)
+        if only_active:
+            stmt = stmt.where(Venta.activo.is_(True))
+        else:
+            stmt = stmt.execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+        if fecha_inicio is not None:
+            stmt = stmt.where(Venta.fecha_emision >= fecha_inicio)
+        if fecha_fin is not None:
+            stmt = stmt.where(Venta.fecha_emision <= fecha_fin)
+        if estado is not None:
+            stmt = stmt.where(Venta.estado == estado)
+        if tipo_emision is not None:
+            stmt = stmt.where(Venta.tipo_emision == tipo_emision)
+        if texto:
+            pattern = f"%{texto.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    Venta.identificacion_comprador.ilike(pattern),
+                    Venta.secuencial_formateado.ilike(pattern),
+                )
+            )
+
+        total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+        ventas = list(
+            session.exec(
+                stmt.order_by(Venta.fecha_emision.desc(), Venta.creado_en.desc())
+                .offset(offset)
+                .limit(limit)
+            ).all()
+        )
+
+        items = [
+            {
+                "id": venta.id,
+                "fecha_emision": venta.fecha_emision,
+                "cliente_id": venta.cliente_id,
+                "cliente": venta.identificacion_comprador,
+                "numero_factura": venta.secuencial_formateado,
+                "valor_total": venta.valor_total,
+                "estado": venta.estado,
+                "estado_sri": venta.estado_sri,
+                "tipo_emision": venta.tipo_emision,
+            }
+            for venta in ventas
+        ]
+        return items, build_pagination_meta(total=total, limit=limit, offset=offset)

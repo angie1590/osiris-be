@@ -257,3 +257,58 @@ def test_load_settings_allows_non_electronic_mode_without_cert_files(
     assert loaded.SRI_MODO_EMISION == "NO_ELECTRONICO"
     assert loaded.FEEC_P12_PATH is None
     assert loaded.FEEC_XSD_PATH is None
+
+
+def test_load_settings_allows_configurable_fe_queue_poll_interval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e0_fe_queue_interval"
+    lines = [
+        "ENVIRONMENT=e0_fe_queue_interval",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "FE_QUEUE_AUTO_PROCESS_ENABLED=true",
+        "FE_QUEUE_POLL_INTERVAL_SECONDS=45",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e0_fe_queue_interval")
+
+    loaded = core_settings.load_settings()
+    assert loaded.FE_QUEUE_AUTO_PROCESS_ENABLED is True
+    assert loaded.FE_QUEUE_POLL_INTERVAL_SECONDS == 45
+
+
+def test_load_settings_rejects_too_low_fe_queue_poll_interval(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e0_fe_queue_interval_invalid"
+    lines = [
+        "ENVIRONMENT=e0_fe_queue_interval_invalid",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "FE_QUEUE_POLL_INTERVAL_SECONDS=1",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e0_fe_queue_interval_invalid")
+
+    with pytest.raises(ValueError) as exc_info:
+        core_settings.load_settings()
+    assert "FE_QUEUE_POLL_INTERVAL_SECONDS" in str(exc_info.value)

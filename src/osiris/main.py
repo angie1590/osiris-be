@@ -1,4 +1,6 @@
-from contextlib import asynccontextmanager
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 
 from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request
@@ -46,15 +48,47 @@ from osiris.modules.inventario.producto_bodega.router import router as producto_
 from osiris.modules.inventario.producto_impuesto.router import router as producto_impuesto_router
 from osiris.modules.reportes.router import router as reportes_router
 from osiris.modules.sri.facturacion_electronica.router import router as facturacion_electronica_router
+from osiris.modules.sri.facturacion_electronica.services.orquestador_fe_service import OrquestadorFEService
 from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catalogo_router
 from osiris.modules.ventas.router import router as ventas_router
 
+logger = logging.getLogger(__name__)
+
+
+def _procesar_cola_fe_once() -> int:
+    service = OrquestadorFEService()
+    with Session(engine) as session:
+        return service.procesar_cola(session)
+
+
+async def _run_fe_queue_worker(poll_interval_seconds: int) -> None:
+    while True:
+        await asyncio.sleep(poll_interval_seconds)
+        try:
+            procesados = await run_in_threadpool(_procesar_cola_fe_once)
+            if procesados:
+                logger.info("Worker FE procesó %s documentos de la cola.", procesados)
+        except Exception as exc:  # pragma: no cover - protección operacional
+            logger.exception("Error en worker FE al procesar cola: %s", exc)
+
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(app_instance: FastAPI):
     # Fuerza validacion de settings al arranque para fail-fast con mensaje claro.
-    get_settings()
-    yield
+    app_settings = get_settings()
+    worker_task = None
+    if app_settings.FE_QUEUE_AUTO_PROCESS_ENABLED:
+        worker_task = asyncio.create_task(
+            _run_fe_queue_worker(app_settings.FE_QUEUE_POLL_INTERVAL_SECONDS)
+        )
+        app_instance.state.fe_queue_worker_task = worker_task
+    try:
+        yield
+    finally:
+        if worker_task is not None:
+            worker_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker_task
 
 
 app = FastAPI(

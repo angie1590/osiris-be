@@ -4,6 +4,7 @@ from datetime import date
 from uuid import uuid4
 
 import httpx
+from unittest.mock import patch
 
 from tests.smoke.ruc_utils import generar_ruc_empresa
 from tests.smoke.utils import get_or_create_iva_for_tests
@@ -205,8 +206,17 @@ def registrar_venta_desde_productos(
     bodega_id: str,
     cantidad: str = "1.0000",
     precio_unitario: str = "20.00",
+    emitir: bool = True,
+    empresa_id: str | None = None,
 ) -> dict:
+    resolved_empresa_id = empresa_id
+    if resolved_empresa_id is None:
+        bodega_response = client.get(f"/api/v1/bodegas/{bodega_id}")
+        assert bodega_response.status_code == 200, bodega_response.text
+        resolved_empresa_id = bodega_response.json().get("empresa_id")
+
     payload = {
+        "empresa_id": resolved_empresa_id,
         "fecha_emision": date.today().isoformat(),
         "bodega_id": bodega_id,
         "tipo_identificacion_comprador": "RUC",
@@ -225,9 +235,36 @@ def registrar_venta_desde_productos(
             }
         ],
     }
-    response = client.post("/api/v1/ventas/desde-productos", json=payload)
+    if emitir:
+        with patch("starlette.background.BackgroundTasks.add_task", return_value=None):
+            response = client.post(
+                "/api/v1/ventas/desde-productos",
+                params={"emitir_automaticamente": True},
+                json=payload,
+            )
+    else:
+        response = client.post(
+            "/api/v1/ventas/desde-productos",
+            params={"emitir_automaticamente": False},
+            json=payload,
+        )
     assert response.status_code == 201, response.text
-    return response.json()
+    venta = response.json()
+
+    if not emitir:
+        return venta
+
+    if venta.get("estado") == "EMITIDA":
+        return venta
+
+    venta_id = venta["id"]
+    with patch("starlette.background.BackgroundTasks.add_task", return_value=None):
+        emitir_response = client.post(
+            f"/api/v1/ventas/{venta_id}/emitir",
+            json={"usuario_auditoria": "smoke"},
+        )
+    assert emitir_response.status_code == 200, emitir_response.text
+    return emitir_response.json()
 
 
 def seed_stock_por_movimiento(

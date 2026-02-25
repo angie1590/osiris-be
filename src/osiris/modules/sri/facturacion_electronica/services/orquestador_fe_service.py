@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from osiris.core.db import engine as default_engine
@@ -287,20 +287,94 @@ class OrquestadorFEService:
         now_dt = now or datetime.utcnow()
         documentos = list(
             session.exec(
-                select(DocumentoElectronico)
-                .where(
-                    DocumentoElectronico.activo.is_(True),
-                    DocumentoElectronico.estado_sri.in_(
-                        [EstadoDocumentoElectronico.EN_COLA, EstadoDocumentoElectronico.RECIBIDO]
-                    ),
-                    DocumentoElectronico.intentos < 5,
-                    or_(DocumentoElectronico.next_retry_at.is_(None), DocumentoElectronico.next_retry_at <= now_dt),
-                )
-                .order_by(DocumentoElectronico.creado_en.asc())
+                self._stmt_documentos_pendientes(
+                    now=now_dt,
+                    incluir_no_vencidos=False,
+                    tipo_documento=None,
+                ).order_by(DocumentoElectronico.creado_en.asc())
             ).all()
         )
-
         ids = [doc.id for doc in documentos]
         for doc_id in ids:
             self.procesar_documento(doc_id)
         return len(ids)
+
+    @staticmethod
+    def _stmt_documentos_pendientes(
+        *,
+        now: datetime | None = None,
+        incluir_no_vencidos: bool = True,
+        tipo_documento: TipoDocumentoElectronico | None = None,
+    ):
+        now_dt = now or datetime.utcnow()
+        stmt = select(DocumentoElectronico).where(
+            DocumentoElectronico.activo.is_(True),
+            DocumentoElectronico.estado_sri.in_(
+                [EstadoDocumentoElectronico.EN_COLA, EstadoDocumentoElectronico.RECIBIDO]
+            ),
+            DocumentoElectronico.intentos < 5,
+        )
+        if not incluir_no_vencidos:
+            stmt = stmt.where(
+                or_(DocumentoElectronico.next_retry_at.is_(None), DocumentoElectronico.next_retry_at <= now_dt)
+            )
+        if tipo_documento is not None:
+            stmt = stmt.where(DocumentoElectronico.tipo_documento == tipo_documento)
+        return stmt
+
+    def listar_documentos_pendientes(
+        self,
+        session: Session,
+        *,
+        limit: int,
+        offset: int,
+        incluir_no_vencidos: bool = True,
+        tipo_documento: TipoDocumentoElectronico = TipoDocumentoElectronico.FACTURA,
+    ):
+        stmt = self._stmt_documentos_pendientes(
+            incluir_no_vencidos=incluir_no_vencidos,
+            tipo_documento=tipo_documento,
+        )
+        total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+        items = list(
+            session.exec(
+                stmt.order_by(DocumentoElectronico.creado_en.asc())
+                .offset(offset)
+                .limit(limit)
+            ).all()
+        )
+        return items, int(total)
+
+    def procesar_documentos_ids(self, documento_ids: list[UUID]) -> tuple[int, list[UUID], list[str]]:
+        procesados = 0
+        ids_procesados: list[UUID] = []
+        errores: list[str] = []
+
+        for doc_id in documento_ids:
+            try:
+                self.procesar_documento(doc_id)
+                procesados += 1
+                ids_procesados.append(doc_id)
+            except HTTPException as exc:
+                errores.append(f"{doc_id}: {exc.detail}")
+            except Exception as exc:  # pragma: no cover - respaldo operativo
+                errores.append(f"{doc_id}: {exc}")
+
+        return procesados, ids_procesados, errores
+
+    def procesar_documentos_pendientes(
+        self,
+        session: Session,
+        *,
+        tipo_documento: TipoDocumentoElectronico = TipoDocumentoElectronico.FACTURA,
+        incluir_no_vencidos: bool = True,
+    ) -> tuple[int, list[UUID], list[str]]:
+        documentos = list(
+            session.exec(
+                self._stmt_documentos_pendientes(
+                    incluir_no_vencidos=incluir_no_vencidos,
+                    tipo_documento=tipo_documento,
+                ).order_by(DocumentoElectronico.creado_en.asc())
+            ).all()
+        )
+        return self.procesar_documentos_ids([doc.id for doc in documentos])

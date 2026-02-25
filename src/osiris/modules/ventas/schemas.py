@@ -180,6 +180,22 @@ class CuentaPorCobrarRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CuentaPorCobrarListItemRead(BaseModel):
+    id: UUID
+    venta_id: UUID
+    cliente_id: UUID | None = None
+    cliente: str
+    numero_factura: str | None = None
+    fecha_emision: date
+    valor_total_factura: Decimal
+    valor_retenido: Decimal
+    pagos_acumulados: Decimal
+    saldo_pendiente: Decimal
+    estado: EstadoCuentaPorCobrar
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PagoCxCCreate(BaseModel):
     monto: Decimal = Field(..., gt=Decimal("0"))
     fecha: date = Field(default_factory=date.today)
@@ -289,6 +305,18 @@ class RetencionRecibidaRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RetencionRecibidaListItemRead(BaseModel):
+    id: UUID
+    venta_id: UUID
+    cliente_id: UUID
+    numero_retencion: str
+    fecha_emision: date
+    estado: EstadoRetencionRecibida
+    total_retenido: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class VentaDetalleImpuestoRead(BaseModel):
     tipo_impuesto: TipoImpuestoMVP
     codigo_impuesto_sri: str
@@ -321,7 +349,7 @@ class VentaRead(BaseModel):
     forma_pago: FormaPagoSRI
     tipo_emision: TipoEmisionVenta = TipoEmisionVenta.ELECTRONICA
     regimen_emisor: RegimenTributario = RegimenTributario.GENERAL
-    estado: EstadoVenta = EstadoVenta.EMITIDA
+    estado: EstadoVenta = EstadoVenta.BORRADOR
     estado_sri: EstadoSriDocumento = EstadoSriDocumento.PENDIENTE
     sri_intentos: int = 0
     sri_ultimo_error: str | None = None
@@ -348,3 +376,17 @@ VentaDetalleImpuestoSnapshotRead = VentaDetalleImpuestoRead
 
 class FEPayloadRead(RootModel[dict[str, Any]]):
     pass
+
+
+class VentaListItemRead(BaseModel):
+    id: UUID
+    fecha_emision: date
+    cliente_id: UUID | None = None
+    cliente: str
+    numero_factura: str | None = None
+    valor_total: Decimal
+    estado: EstadoVenta
+    estado_sri: EstadoSriDocumento
+    tipo_emision: TipoEmisionVenta
+
+    model_config = ConfigDict(from_attributes=True)

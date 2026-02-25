@@ -12,10 +12,7 @@ from sqlmodel import select
 from osiris.modules.sri.core_sri.models import (
     DocumentoElectronico,
     EstadoDocumentoElectronico,
-    EstadoSriDocumento,
-    EstadoVenta,
     TipoDocumentoElectronico,
-    Venta,
 )
 from osiris.modules.sri.facturacion_electronica.router import (
     orquestador_fe_service as fe_orquestador_router_service,
@@ -108,30 +105,6 @@ def test_smoke_flujo_ventas(client, db_session):
         ],
     }
 
-    crear_venta = client.post("/api/v1/ventas", json=venta_payload)
-    assert crear_venta.status_code == 201, crear_venta.text
-    venta_data = crear_venta.json()
-    venta_id = UUID(venta_data["id"])
-
-    # Compatibilidad transitoria: si la creación no deja BORRADOR, se normaliza
-    # para poder validar el flujo de emisión de la card E6-6 por API.
-    if venta_data.get("estado") != "BORRADOR":
-        venta_db = db_session.get(Venta, venta_id)
-        assert venta_db is not None
-        venta_db.estado = EstadoVenta.BORRADOR
-        venta_db.estado_sri = EstadoSriDocumento.PENDIENTE
-        venta_db.usuario_auditoria = "smoke"
-        db_session.add(venta_db)
-        db_session.commit()
-
-        seed_stock_por_movimiento(
-            client,
-            producto_id=producto_id,
-            bodega_id=bodega_id,
-            cantidad=str(cantidad_venta),
-            costo_unitario="12.00",
-        )
-
     with patch("osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service.ManejadorXML") as mock_xml, patch(
         "osiris.modules.sri.facturacion_electronica.services.venta_sri_async_service.SRIService"
     ) as mock_sri, patch("starlette.background.BackgroundTasks.add_task", return_value=None):
@@ -147,11 +120,11 @@ def test_smoke_flujo_ventas(client, db_session):
             "mensaje": "AUTORIZADO",
         }
 
-        emitir = client.post(
-            f"/api/v1/ventas/{venta_id}/emitir",
-            json={"usuario_auditoria": "smoke"},
-        )
-        assert emitir.status_code == 200, emitir.text
+        crear_venta = client.post("/api/v1/ventas", json=venta_payload)
+        assert crear_venta.status_code == 201, crear_venta.text
+        venta_data = crear_venta.json()
+        venta_id = UUID(venta_data["id"])
+        assert venta_data["estado"] == "EMITIDA"
 
         documento_encolado = db_session.exec(
             select(DocumentoElectronico).where(

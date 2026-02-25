@@ -36,6 +36,7 @@ from osiris.modules.reportes.schemas import (
     ReporteVentasResumenRead,
 )
 from osiris.modules.ventas.schemas import (
+    CuentaPorCobrarListItemRead,
     CuentaPorCobrarRead,
     PagoCxCCreate,
     PagoCxCRead,
@@ -43,6 +44,7 @@ from osiris.modules.ventas.schemas import (
     RetencionRecibidaCreate,
     RetencionRecibidaDetalleCreate,
     RetencionRecibidaDetalleRead,
+    RetencionRecibidaListItemRead,
     RetencionRecibidaRead,
     VentaAnularRequest,
     VentaCreate,
@@ -65,6 +67,7 @@ __all__ = [
     "VentaCompraDetalleCreate",
     "VentaCompraDetalleRegistroCreate",
     "q2",
+    "CuentaPorCobrarListItemRead",
     "CuentaPorCobrarRead",
     "PagoCxCCreate",
     "PagoCxCRead",
@@ -72,6 +75,7 @@ __all__ = [
     "RetencionRecibidaCreate",
     "RetencionRecibidaDetalleCreate",
     "RetencionRecibidaDetalleRead",
+    "RetencionRecibidaListItemRead",
     "RetencionRecibidaRead",
     "VentaAnularRequest",
     "VentaCreate",
@@ -103,4 +107,3 @@ __all__ = [
     "ReporteTopProductoRead",
     "ReporteVentasResumenRead",
 ]
-

@@ -11,7 +11,14 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa, RegimenTributario
-from osiris.modules.sri.core_sri.models import FormaPagoSRI, TipoIdentificacionSRI, Venta, VentaDetalle, VentaDetalleImpuesto
+from osiris.modules.sri.core_sri.models import (
+    EstadoVenta,
+    FormaPagoSRI,
+    TipoIdentificacionSRI,
+    Venta,
+    VentaDetalle,
+    VentaDetalleImpuesto,
+)
 from osiris.modules.sri.core_sri.all_schemas import ImpuestoAplicadoInput, VentaCompraDetalleCreate, VentaCreate, VentaUpdate
 from osiris.modules.ventas.services.venta_service import VentaService
 from osiris.modules.inventario.casa_comercial.entity import CasaComercial
@@ -126,6 +133,7 @@ def test_actualizar_venta_emitida_bloquea():
             monto_iva=Decimal("15.00"),
             monto_ice=Decimal("0.00"),
             valor_total=Decimal("115.00"),
+            estado=EstadoVenta.EMITIDA,
             usuario_auditoria="seed",
             activo=True,
         )

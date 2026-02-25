@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     SRI_MODO_EMISION: str = Field(default="ELECTRONICO")
     FEEC_TIPO_EMISION: str
     FEEC_REGIMEN: str
+    FE_QUEUE_AUTO_PROCESS_ENABLED: bool = Field(default=True)
+    FE_QUEUE_POLL_INTERVAL_SECONDS: int = Field(default=60)
 
     # DB
     DATABASE_URL: str
@@ -78,6 +80,13 @@ class Settings(BaseSettings):
             allowed_values = ", ".join(sorted(allowed))
             raise ValueError(f"FEEC_REGIMEN invalido. Valores permitidos: {allowed_values}")
         return normalized
+
+    @field_validator("FE_QUEUE_POLL_INTERVAL_SECONDS")
+    @classmethod
+    def _check_fe_queue_poll_interval_seconds(cls, value: int) -> int:
+        if value < 5:
+            raise ValueError("FE_QUEUE_POLL_INTERVAL_SECONDS debe ser >= 5 segundos")
+        return value
 
     @model_validator(mode="after")
     def _validate_feec_files(self):

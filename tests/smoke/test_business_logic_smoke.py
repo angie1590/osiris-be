@@ -38,6 +38,7 @@ def test_business_kardex_stock_change(client):
         client,
         producto_id=producto_id,
         bodega_id=bodega_id,
+        empresa_id=empresa_id,
         cantidad="2.0000",
         precio_unitario="25.00",
     )
@@ -72,6 +73,7 @@ def test_business_retencion_recibida_smoke(client):
         client,
         producto_id=producto_id,
         bodega_id=bodega_id,
+        empresa_id=empresa_id,
         cantidad="1.0000",
         precio_unitario="30.00",
     )

@@ -4,17 +4,78 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from osiris.modules.sri.core_sri.models import (
     CuentaPorCobrar,
     EstadoCuentaPorCobrar,
     PagoCxC,
+    Venta,
 )
 from osiris.modules.sri.core_sri.all_schemas import PagoCxCCreate, q2
+from osiris.utils.pagination import build_pagination_meta
+from osiris.core.db import SOFT_DELETE_INCLUDE_INACTIVE_OPTION
 
 
 class CuentaPorCobrarService:
+    def listar_cxc(
+        self,
+        session: Session,
+        *,
+        limit: int,
+        offset: int,
+        only_active: bool = True,
+        estado: EstadoCuentaPorCobrar | None = None,
+        texto: str | None = None,
+    ):
+        stmt = select(CuentaPorCobrar, Venta).join(Venta, Venta.id == CuentaPorCobrar.venta_id)
+        if only_active:
+            stmt = stmt.where(
+                CuentaPorCobrar.activo.is_(True),
+                Venta.activo.is_(True),
+            )
+        else:
+            stmt = stmt.execution_options(**{SOFT_DELETE_INCLUDE_INACTIVE_OPTION: True})
+
+        if estado is not None:
+            stmt = stmt.where(CuentaPorCobrar.estado == estado)
+
+        if texto:
+            pattern = f"%{texto.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    Venta.identificacion_comprador.ilike(pattern),
+                    Venta.secuencial_formateado.ilike(pattern),
+                )
+            )
+
+        total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+        rows = list(
+            session.exec(
+                stmt.order_by(Venta.fecha_emision.desc(), CuentaPorCobrar.creado_en.desc())
+                .offset(offset)
+                .limit(limit)
+            ).all()
+        )
+        items = [
+            {
+                "id": cxc.id,
+                "venta_id": cxc.venta_id,
+                "cliente_id": venta.cliente_id,
+                "cliente": venta.identificacion_comprador,
+                "numero_factura": venta.secuencial_formateado,
+                "fecha_emision": venta.fecha_emision,
+                "valor_total_factura": cxc.valor_total_factura,
+                "valor_retenido": cxc.valor_retenido,
+                "pagos_acumulados": cxc.pagos_acumulados,
+                "saldo_pendiente": cxc.saldo_pendiente,
+                "estado": cxc.estado,
+            }
+            for cxc, venta in rows
+        ]
+        return items, build_pagination_meta(total=total, limit=limit, offset=offset)
+
     @staticmethod
     def _recalcular_saldo_y_estado(cxc: CuentaPorCobrar) -> None:
         nuevo_saldo = q2(cxc.valor_total_factura - cxc.valor_retenido - cxc.pagos_acumulados)

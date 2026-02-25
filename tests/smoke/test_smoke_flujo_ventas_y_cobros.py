@@ -122,6 +122,7 @@ def test_smoke_flujo_ventas_cobros_retencion(client, db_session):
             client,
             producto_id=producto_id,
             bodega_id=bodega_id,
+            empresa_id=empresa_id,
             cantidad="2.0000",
             precio_unitario="30.00",
         )

@@ -43,7 +43,7 @@ class Venta(BaseTable, AuditMixin, SoftDeleteMixin, table=True):
     monto_iva: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     monto_ice: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False, default=Decimal("0.00")))
     valor_total: Decimal = Field(sa_column=Column(Numeric(12, 2), nullable=False))
-    estado: EstadoVenta = Field(default=EstadoVenta.EMITIDA, nullable=False, max_length=20)
+    estado: EstadoVenta = Field(default=EstadoVenta.BORRADOR, nullable=False, max_length=20)
     estado_sri: EstadoSriDocumento = Field(default=EstadoSriDocumento.PENDIENTE, nullable=False, max_length=20)
     sri_intentos: int = Field(default=0, nullable=False)
     sri_ultimo_error: str | None = Field(default=None, max_length=1000)

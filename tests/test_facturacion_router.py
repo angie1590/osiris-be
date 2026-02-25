@@ -20,10 +20,15 @@ def test_facturacion_router_publica_endpoints_ventas():
     assert "/api/v1/retenciones/{retencion_id}/emitir" in paths
     assert "/api/v1/retenciones/{retencion_id}/fe-payload" in paths
     assert "/api/v1/retenciones-recibidas" in paths
+    assert "/api/v1/retenciones-recibidas/{retencion_id}" in paths
     assert "/api/v1/retenciones-recibidas/{retencion_id}/aplicar" in paths
+    assert "/api/v1/cxc" in paths
     assert "/api/v1/cxc/{venta_id}" in paths
     assert "/api/v1/cxc/{venta_id}/pagos" in paths
     assert "/api/v1/fe/procesar-cola" in paths
+    assert "/api/v1/fe/cola" in paths
+    assert "/api/v1/fe/procesar/{documento_id}" in paths
+    assert "/api/v1/fe/procesar-manual" in paths
     assert "/api/v1/documentos/{documento_id}/xml" in paths
     assert "/api/v1/documentos/{documento_id}/ride" in paths
 
