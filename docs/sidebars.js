@@ -4,6 +4,20 @@ const sidebars = {
     'intro',
     {
       type: 'category',
+      label: 'Procesos',
+      items: [
+        'procesos/procesos-indice',
+        'procesos/procesos-onboarding-gobierno-inicial',
+        'procesos/procesos-maestros-comerciales-directorio',
+        'procesos/procesos-inventario-y-bodegas',
+        'procesos/procesos-compras-cxp-retenciones',
+        'procesos/procesos-ventas-cxc-facturacion-electronica',
+        'procesos/procesos-impresion-comprobantes',
+        'procesos/procesos-reporteria-control-gerencial'
+      ]
+    },
+    {
+      type: 'category',
       label: 'API',
       items: [
         'api/cobertura-total-endpoints',

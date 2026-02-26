@@ -65,7 +65,6 @@ Al anular compra:
 ### Alcance del modulo (API actual)
 
 - En el router actual de compras no existen `GET /api/v1/compras` ni `GET /api/v1/compras/{id}`.
-- Existe modelo y servicio de `PagoCxP`, pero no hay endpoint publico documentado en este modulo para registrar pagos de CxP.
 
 POST /api/v1/compras
 Proposito: Registra una compra y la deja en estado REGISTRADA. Calcula subtotales e impuestos a partir de los detalles, crea CxP inicial y orquesta un ingreso a inventario (movimiento INGRESO) en la bodega indicada o en la unica bodega activa.
@@ -637,3 +636,152 @@ Diccionario de Datos
 | Campo | Tipo | Regla / Origen | Descripcion |
 |---|---|---|---|
 | payload | object | FE-EC | Mapa libre con estructura FE generada por FEMapperService. |
+
+---
+
+GET /api/v1/cxp
+Proposito: Lista cuentas por pagar para bandeja administrativa de compras/tesorería.
+
+<Tabs>
+<TabItem value="request-cxp-list" label="Request">
+
+Query params:
+
+- `limit` (int, default `50`, min `1`, max `500`)
+- `offset` (int, default `0`, min `0`)
+- `only_active` (bool, default `true`)
+- `estado` (`PENDIENTE|PARCIAL|PAGADA|ANULADA`) opcional
+- `texto` (string) opcional; busca por identificación proveedor o secuencial factura
+
+</TabItem>
+<TabItem value="response-cxp-list" label="Response 200">
+
+Body (JSON):
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "compra_id": "UUID",
+      "proveedor_id": "UUID",
+      "proveedor": "1790012345001",
+      "numero_factura": "001-001-123456789",
+      "fecha_emision": "2026-02-26",
+      "valor_total_factura": "100.00",
+      "valor_retenido": "10.00",
+      "pagos_acumulados": "40.00",
+      "saldo_pendiente": "50.00",
+      "estado": "PARCIAL"
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "next_offset": null,
+    "prev_offset": null,
+    "has_more": false,
+    "page": 1,
+    "page_count": 1
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Diccionario de Datos
+
+| Campo | Tipo | Regla / Origen | Descripcion |
+|---|---|---|---|
+| estado | enum | filtro opcional | Filtra por estado de CxP. |
+| texto | string | filtro opcional | Busca por identificación proveedor o secuencial factura. |
+| items[].saldo_pendiente | decimal | calculado | `valor_total_factura - valor_retenido - pagos_acumulados`. |
+
+---
+
+GET /api/v1/cxp/\{compra_id\}
+Proposito: Obtiene la cuenta por pagar asociada a una compra específica.
+
+<Tabs>
+<TabItem value="request-cxp-detail" label="Request">
+
+Path params:
+
+- `compra_id` (UUID)
+
+</TabItem>
+<TabItem value="response-cxp-detail" label="Response 200">
+
+Body (JSON):
+```json
+{
+  "id": "UUID",
+  "compra_id": "UUID",
+  "valor_total_factura": "100.00",
+  "valor_retenido": "10.00",
+  "pagos_acumulados": "40.00",
+  "saldo_pendiente": "50.00",
+  "estado": "PARCIAL",
+  "creado_en": "2026-02-26T10:00:00",
+  "actualizado_en": "2026-02-26T10:15:00"
+}
+```
+
+</TabItem>
+</Tabs>
+
+Diccionario de Datos
+
+| Campo | Tipo | Regla / Origen | Descripcion |
+|---|---|---|---|
+| compra_id | UUID | requerido | Compra asociada a la cuenta por pagar. |
+| estado | enum | derivado de saldos | `PENDIENTE`, `PARCIAL`, `PAGADA` o `ANULADA`. |
+
+---
+
+POST /api/v1/cxp/\{compra_id\}/pagos
+Proposito: Registra un pago de proveedor sobre la CxP de la compra y recalcula saldo/estado.
+
+<Tabs>
+<TabItem value="request-cxp-pay" label="Request">
+
+Path params:
+
+- `compra_id` (UUID)
+
+Body (JSON):
+```json
+{
+  "monto": "40.00",
+  "fecha": "2026-02-26",
+  "forma_pago": "EFECTIVO",
+  "usuario_auditoria": "tesoreria@empresa.com"
+}
+```
+
+</TabItem>
+<TabItem value="response-cxp-pay" label="Response 201">
+
+Body (JSON):
+```json
+{
+  "id": "UUID",
+  "cuenta_por_pagar_id": "UUID",
+  "monto": "40.00",
+  "fecha": "2026-02-26",
+  "forma_pago": "EFECTIVO"
+}
+```
+
+</TabItem>
+</Tabs>
+
+Diccionario de Datos
+
+| Campo | Tipo | Regla / Origen | Descripcion |
+|---|---|---|---|
+| monto | decimal | `> 0` y `<= saldo_pendiente` | Si excede saldo, retorna `400`. |
+| forma_pago | enum | catálogo SRI | `EFECTIVO`, `TARJETA`, `TRANSFERENCIA`. |
+| bloqueo | interno | `with_for_update` | Evita carreras y sobrepagos concurrentes. |
+| recalculo | interno | automático | Ajusta `pagos_acumulados`, `saldo_pendiente` y estado (`PARCIAL`/`PAGADA`). |

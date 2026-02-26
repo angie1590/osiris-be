@@ -10,8 +10,8 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 
 ## Resultado de Auditoria
 
-- Endpoints detectados en backend: `173`
-- Endpoints documentados en `docs/docs/api`: `173`
+- Endpoints detectados en backend: `176`
+- Endpoints documentados en `docs/docs/api`: `176`
 - Cobertura: `100%`
 - Routers agregadores sin endpoints directos (esperado por arquitectura):
   - `src/osiris/modules/common/router.py`
@@ -26,7 +26,7 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 |---|---:|---|
 | `common` | 72 | [Onboarding](./common/onboarding), [Seguridad y Accesos](./common/seguridad-accesos), [Empresa seleccionada por sesión](./common/empresa-seleccionada-sesion), [Directorio](./common/directorio) |
 | `inventario` | 45 | [Checklist](./inventario/checklist-integracion-frontend), [Bloques](./inventario/bloques-construccion), [Casa comercial y bodega](./inventario/casa-comercial-bodega), [Producto + atributos/impuestos/bodegas](./inventario/producto-atributos-impuestos-bodegas), [Producto CRUD](./inventario/producto-crud-base) |
-| `compras` | 9 | [Compras](./transacciones/compras) |
+| `compras` | 12 | [Compras](./transacciones/compras) |
 | `ventas` | 17 | [Checklist](./transacciones/ventas/checklist-integracion-frontend), [Ciclo comercial](./transacciones/ventas/ventas-ciclo-comercial), [FE y documentos](./transacciones/ventas/facturacion-electronica-y-documentos) |
 | `sri` | 12 | [Checklist](./sri/checklist-integracion-frontend), [Core SRI](./sri/core-sri-contratos), [Catalogo impuestos](./sri/catalogo-impuestos), [FE cola/documentos](./sri/facturacion-electronica-cola-documentos) |
 | `impresion` | 4 | [Checklist](./impresion/checklist-integracion-frontend), [Matriz pantallas/endpoints](./impresion/matriz-pantallas-endpoints), [Impresion y reimpresion](./impresion/impresion-documentos-y-reimpresion) |
@@ -57,6 +57,9 @@ Este documento audita la cobertura de `docs/docs/api` contra los endpoints reale
 ### Compras / Ventas / SRI / Impresion
 
 - Compras:
+  - `GET /api/v1/cxp`
+  - `GET /api/v1/cxp/{compra_id}`
+  - `POST /api/v1/cxp/{compra_id}/pagos`
   - `POST /api/v1/compras/{compra_id}/retenciones`
   - `POST /api/v1/retenciones/{retencion_id}/emitir`
   - `GET /api/v1/retenciones/{retencion_id}/fe-payload`
