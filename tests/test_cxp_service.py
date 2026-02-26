@@ -266,7 +266,29 @@ def test_registrar_pago_cxp_usa_bloqueo_pesimista():
         activo=True,
     )
     scalar_result = MagicMock()
-    scalar_result.one_or_none.return_value = cxp
+    compra = Compra(
+        id=cxp.compra_id,
+        proveedor_id=uuid4(),
+        secuencial_factura="001-001-123456789",
+        autorizacion_sri="1" * 49,
+        fecha_emision=date.today(),
+        sustento_tributario=SustentoTributarioSRI.CREDITO_TRIBUTARIO_BIENES,
+        tipo_identificacion_proveedor=TipoIdentificacionSRI.RUC,
+        identificacion_proveedor="1790012345001",
+        forma_pago=FormaPagoSRI.TRANSFERENCIA,
+        subtotal_sin_impuestos=Decimal("100.00"),
+        subtotal_12=Decimal("0.00"),
+        subtotal_15=Decimal("0.00"),
+        subtotal_0=Decimal("100.00"),
+        subtotal_no_objeto=Decimal("0.00"),
+        monto_iva=Decimal("0.00"),
+        monto_ice=Decimal("0.00"),
+        valor_total=Decimal("100.00"),
+        estado=EstadoCompra.REGISTRADA,
+        usuario_auditoria="seed",
+        activo=True,
+    )
+    scalar_result.one_or_none.return_value = (cxp, compra)
     session.exec.return_value = scalar_result
 
     pago = service.registrar_pago_cxp(

@@ -18,6 +18,7 @@ from osiris.modules.sri.core_sri.schemas import (
 )
 from osiris.modules.sri.core_sri.types import (
     EstadoCompra,
+    EstadoCuentaPorPagar,
     EstadoRetencion,
     FormaPagoSRI,
     SustentoTributarioSRI,
@@ -157,6 +158,34 @@ class CompraRead(BaseModel):
     actualizado_en: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CuentaPorPagarRead(BaseModel):
+    id: UUID
+    compra_id: UUID
+    valor_total_factura: Decimal
+    valor_retenido: Decimal
+    pagos_acumulados: Decimal
+    saldo_pendiente: Decimal
+    estado: EstadoCuentaPorPagar
+    creado_en: datetime | None = None
+    actualizado_en: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CuentaPorPagarListItemRead(BaseModel):
+    id: UUID
+    compra_id: UUID
+    proveedor_id: UUID
+    proveedor: str
+    numero_factura: str
+    fecha_emision: date
+    valor_total_factura: Decimal
+    valor_retenido: Decimal
+    pagos_acumulados: Decimal
+    saldo_pendiente: Decimal
+    estado: EstadoCuentaPorPagar
 
 
 class PagoCxPCreate(BaseModel):
