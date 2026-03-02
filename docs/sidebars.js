@@ -8,7 +8,8 @@ const sidebars = {
       items: [
         'architecture/observabilidad-sprint-1',
         'architecture/performance-escalabilidad-sprint-2',
-        'architecture/resiliencia-operativa-sprint-3'
+        'architecture/resiliencia-operativa-sprint-3',
+        'architecture/gate-go-no-go'
       ]
     },
     {

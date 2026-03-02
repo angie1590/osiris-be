@@ -2,7 +2,7 @@ ENV_FILE ?= .env.development
 BOOTSTRAP_RETRIES ?= 30
 BOOTSTRAP_RETRY_SLEEP ?= 2
 
-.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit
+.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit gate-go-no-go
 
 run:
 	docker compose --env-file $(ENV_FILE) up --build -d
@@ -186,3 +186,12 @@ documentacion:
 docs-audit:
 	@echo ">> Auditando cobertura docs/docs/api contra src/osiris/modules..."
 	poetry run python scripts/audit_docs_api_coverage.py
+
+gate-go-no-go:
+	@echo ">> [Gate] Lint tecnico..."
+	poetry run ruff check src tests
+	@echo ">> [Gate] Suite de pruebas..."
+	poetry run pytest -q
+	@echo ">> [Gate] Build de documentacion..."
+	cd docs && npm run build --silent
+	@echo ">> [Gate] Resultado: GO (todas las validaciones pasaron)."
