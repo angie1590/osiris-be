@@ -4,6 +4,13 @@ const sidebars = {
     'intro',
     {
       type: 'category',
+      label: 'Arquitectura',
+      items: [
+        'architecture/observabilidad-sprint-1'
+      ]
+    },
+    {
+      type: 'category',
       label: 'Procesos',
       items: [
         'procesos/procesos-indice',

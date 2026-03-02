@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     FEEC_REGIMEN: str
     FE_QUEUE_AUTO_PROCESS_ENABLED: bool = Field(default=True)
     FE_QUEUE_POLL_INTERVAL_SECONDS: int = Field(default=60)
+    OBSERVABILITY_JSON_LOGS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_METRICS_ENABLED: bool = Field(default=True)
+    LOG_LEVEL: str = Field(default="INFO")
 
     # DB
     DATABASE_URL: str
@@ -87,6 +90,15 @@ class Settings(BaseSettings):
         if value < 5:
             raise ValueError("FE_QUEUE_POLL_INTERVAL_SECONDS debe ser >= 5 segundos")
         return value
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def _check_log_level(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        allowed = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+        if normalized not in allowed:
+            raise ValueError(f"LOG_LEVEL invalido. Valores permitidos: {', '.join(sorted(allowed))}")
+        return normalized
 
     @model_validator(mode="after")
     def _validate_feec_files(self):
