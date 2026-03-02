@@ -212,6 +212,17 @@ def initialize_metrics() -> None:
         value=0,
         labels={"method": "UNKNOWN", "path": "UNKNOWN"},
     )
+    METRICS.inc_counter(
+        "osiris_http_overload_rejections_total",
+        value=0,
+        labels={"method": "UNKNOWN", "path": "UNKNOWN"},
+    )
+    for status in ("up", "down"):
+        METRICS.inc_counter(
+            "osiris_health_readiness_checks_total",
+            value=0,
+            labels={"status": status},
+        )
 
 
 def begin_db_request_tracking() -> Token:
@@ -292,6 +303,20 @@ def record_db_request_summary(*, method: str, path: str, stats: DBRequestStats) 
             "osiris_http_requests_with_slow_db_queries_total",
             labels=labels,
         )
+
+
+def record_http_overload_rejection(*, method: str, path: str) -> None:
+    METRICS.inc_counter(
+        "osiris_http_overload_rejections_total",
+        labels={"method": method, "path": path},
+    )
+
+
+def record_readiness_check(*, status: str) -> None:
+    METRICS.inc_counter(
+        "osiris_health_readiness_checks_total",
+        labels={"status": status},
+    )
 
 
 def record_http_request(*, method: str, path: str, status_code: int, latency_seconds: float) -> None:

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import text
 from sqlmodel import Session
 from osiris.core.audit_context import (
     extract_auth_context_from_request_headers,
@@ -29,9 +30,12 @@ from osiris.core.observability import (
     record_db_request_summary,
     record_fe_worker_error,
     record_fe_worker_run,
+    record_http_overload_rejection,
     record_http_in_flight,
     record_http_request,
+    record_readiness_check,
     record_unauthorized_access,
+    get_http_in_flight,
     reset_db_request_tracking,
     reset_current_request_id,
     set_current_request_id,
@@ -87,6 +91,12 @@ def _procesar_cola_fe_once() -> int:
     service = OrquestadorFEService()
     with Session(engine) as session:
         return service.procesar_cola(session)
+
+
+def _check_db_ready_sync() -> bool:
+    with Session(engine) as session:
+        session.exec(text("SELECT 1"))
+    return True
 
 
 async def _run_fe_queue_worker(poll_interval_seconds: int) -> None:
@@ -208,6 +218,37 @@ async def _safe_log_unauthorized_access(
 async def observability_http_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or new_request_id()
     request_token = set_current_request_id(request_id)
+    max_in_flight = app_settings.SCALABILITY_MAX_IN_FLIGHT_REQUESTS
+    if max_in_flight > 0 and get_http_in_flight() >= max_in_flight:
+        response = JSONResponse(
+            status_code=503,
+            content={"detail": "Servidor temporalmente saturado. Reintente en breve."},
+        )
+        response.headers["X-Request-ID"] = request_id
+        record_http_overload_rejection(method=request.method, path=request.url.path)
+        record_http_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=503,
+            latency_seconds=0.0,
+        )
+        request_logger.warning(
+            "http_overload_rejected",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 503,
+                "latency_ms": 0.0,
+                "client_ip": request.client.host if request.client else None,
+                "db_query_count": 0,
+                "db_query_time_ms": 0.0,
+                "db_slow_query_count": 0,
+            },
+        )
+        reset_current_request_id(request_token)
+        return response
+
     db_token = begin_db_request_tracking()
     record_http_in_flight(+1)
     start = time.monotonic()
@@ -353,6 +394,24 @@ async def enforce_sensitive_access_control(request: Request, call_next):
 @app.exception_handler(NotFoundError)
 async def not_found_handler(_req: Request, exc: NotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.get("/health/live", include_in_schema=False)
+async def health_live() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/health/ready", include_in_schema=False)
+async def health_ready() -> JSONResponse:
+    try:
+        await run_in_threadpool(_check_db_ready_sync)
+    except Exception as exc:  # pragma: no cover - degradacion operativa
+        record_readiness_check(status="down")
+        logger.exception("Health check readiness fallo en DB: %s", exc)
+        return JSONResponse(status_code=503, content={"status": "degraded", "database": "down"})
+
+    record_readiness_check(status="up")
+    return JSONResponse(status_code=200, content={"status": "ok", "database": "up"})
 
 
 @app.get("/metrics", include_in_schema=False)

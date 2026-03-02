@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     OBSERVABILITY_DB_METRICS_ENABLED: bool = Field(default=True)
     OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS: int = Field(default=300)
     PERFORMANCE_RESPONSE_HEADERS_ENABLED: bool = Field(default=False)
+    SCALABILITY_MAX_IN_FLIGHT_REQUESTS: int = Field(default=0)
     LOG_LEVEL: str = Field(default="INFO")
 
     # DB
@@ -108,6 +109,13 @@ class Settings(BaseSettings):
     def _check_db_slow_query_threshold_ms(cls, value: int) -> int:
         if value < 1:
             raise ValueError("OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS debe ser >= 1 ms")
+        return value
+
+    @field_validator("SCALABILITY_MAX_IN_FLIGHT_REQUESTS")
+    @classmethod
+    def _check_scalability_max_in_flight_requests(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("SCALABILITY_MAX_IN_FLIGHT_REQUESTS debe ser >= 0")
         return value
 
     @model_validator(mode="after")

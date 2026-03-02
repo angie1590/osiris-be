@@ -370,3 +370,56 @@ def test_load_settings_rejects_invalid_db_slow_query_threshold(
     with pytest.raises(ValueError) as exc_info:
         core_settings.load_settings()
     assert "OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS" in str(exc_info.value)
+
+
+def test_load_settings_allows_scalability_max_in_flight_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e3_scalability"
+    lines = [
+        "ENVIRONMENT=e3_scalability",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "SCALABILITY_MAX_IN_FLIGHT_REQUESTS=64",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e3_scalability")
+
+    loaded = core_settings.load_settings()
+    assert loaded.SCALABILITY_MAX_IN_FLIGHT_REQUESTS == 64
+
+
+def test_load_settings_rejects_negative_scalability_max_in_flight_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e3_scalability_invalid"
+    lines = [
+        "ENVIRONMENT=e3_scalability_invalid",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "SCALABILITY_MAX_IN_FLIGHT_REQUESTS=-1",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e3_scalability_invalid")
+
+    with pytest.raises(ValueError) as exc_info:
+        core_settings.load_settings()
+    assert "SCALABILITY_MAX_IN_FLIGHT_REQUESTS" in str(exc_info.value)
