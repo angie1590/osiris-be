@@ -1,8 +1,13 @@
 ENV_FILE ?= .env.development
 BOOTSTRAP_RETRIES ?= 30
 BOOTSTRAP_RETRY_SLEEP ?= 2
+PERF_BASE_URL ?= http://127.0.0.1:8000
+PERF_REQUESTS ?= 120
+PERF_CONCURRENCY ?= 20
+PERF_P95_MS ?= 700
+DR_BACKUP_DIR ?= backups
 
-.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit gate-go-no-go
+.PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci live-smoke seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit gate-go-no-go security-scan perf-smoke dr-backup dr-verify enterprise-gate enterprise-gate-runtime
 
 run:
 	docker compose --env-file $(ENV_FILE) up --build -d
@@ -96,6 +101,10 @@ smoke-ci:
 	# Ejecuta solo las pruebas list-only (seguras para CI)
 	poetry run pytest -q tests/smoke/test_list_only.py
 	docker compose --env-file $(ENV_FILE) down
+
+live-smoke:
+	@echo ">> Ejecutando smoke live (requiere servidor HTTP real)..."
+	RUN_LIVE_SMOKE=true poetry run pytest -q tests/live_smoke -rs
 
 seed:
 	docker compose --env-file $(ENV_FILE) exec osiris-backend bash -c "ENVIRONMENT=development PYTHONPATH=src poetry run python scripts/seed_complete_data.py"
@@ -191,7 +200,68 @@ gate-go-no-go:
 	@echo ">> [Gate] Lint tecnico..."
 	poetry run ruff check src tests
 	@echo ">> [Gate] Suite de pruebas..."
-	poetry run pytest -q
+	@set -e; \
+	poetry run pytest -q -rs > /tmp/osiris_gate_pytest.log; \
+	cat /tmp/osiris_gate_pytest.log; \
+	if grep -q "SKIPPED" /tmp/osiris_gate_pytest.log; then \
+		echo "ERROR: Gate falló porque se detectaron tests SKIPPED en la suite principal."; \
+		exit 1; \
+	fi
 	@echo ">> [Gate] Build de documentacion..."
 	cd docs && npm run build --silent
 	@echo ">> [Gate] Resultado: GO (todas las validaciones pasaron)."
+
+security-scan:
+	@echo ">> [Security] Preparando herramientas de escaneo..."
+	poetry run python -c "import importlib.util,sys;missing=[m for m in ('bandit','pip_audit') if importlib.util.find_spec(m) is None];sys.exit(0 if not missing else 1)" \
+	|| poetry run python -m pip install --quiet bandit pip-audit
+	@echo ">> [Security] Ejecutando Bandit..."
+	poetry run bandit -q -r src -x src/osiris/db/alembic
+	@echo ">> [Security] Ejecutando pip-audit..."
+	poetry run pip-audit
+	@echo ">> [Security] Escaneo en verde."
+
+perf-smoke:
+	@echo ">> [Perf] Ejecutando smoke de latencia/concurrencia..."
+	poetry run python scripts/perf_smoke.py \
+		--base-url $(PERF_BASE_URL) \
+		--requests $(PERF_REQUESTS) \
+		--concurrency $(PERF_CONCURRENCY) \
+		--p95-ms-threshold $(PERF_P95_MS)
+
+dr-backup:
+	@mkdir -p $(DR_BACKUP_DIR)
+	@backup_file="$(DR_BACKUP_DIR)/osiris_backup_$$(date +%Y%m%d_%H%M%S).sql"; \
+	echo ">> [DR] Generando backup en $$backup_file ..."; \
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'PGPASSWORD="$$POSTGRES_PASSWORD" pg_dump -U "$$POSTGRES_USER" -h localhost "$$POSTGRES_DB"' > "$$backup_file"; \
+	echo ">> [DR] Backup generado correctamente."
+
+dr-verify:
+	@mkdir -p $(DR_BACKUP_DIR)
+	@backup_file="$(DR_BACKUP_DIR)/dr_verify_$$(date +%Y%m%d_%H%M%S).sql"; \
+	verify_db="osiris_dr_verify"; \
+	echo ">> [DR] Exportando backup temporal para verificacion..."; \
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'PGPASSWORD="$$POSTGRES_PASSWORD" pg_dump -U "$$POSTGRES_USER" -h localhost "$$POSTGRES_DB"' > "$$backup_file"; \
+	echo ">> [DR] Restaurando en base de verificacion $$verify_db ..."; \
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'set -euo pipefail; \
+		PGPASSWORD="$$POSTGRES_PASSWORD" psql -U "$$POSTGRES_USER" -h localhost -d postgres -c "DROP DATABASE IF EXISTS \"'$$verify_db'\""; \
+		PGPASSWORD="$$POSTGRES_PASSWORD" psql -U "$$POSTGRES_USER" -h localhost -d postgres -c "CREATE DATABASE \"'$$verify_db'\""' ; \
+	cat "$$backup_file" | docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -U "$$POSTGRES_USER" -h localhost "'"$$verify_db"'" >/dev/null'; \
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -U "$$POSTGRES_USER" -h localhost -d "'"$$verify_db"'" -c "SELECT COUNT(*) AS tablas FROM information_schema.tables WHERE table_schema='\''public'\'';"'; \
+	docker compose --env-file $(ENV_FILE) exec -T postgres bash -lc 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -U "$$POSTGRES_USER" -h localhost -d postgres -c "DROP DATABASE IF EXISTS \"'$$verify_db'\""' ; \
+	echo ">> [DR] Verificacion backup/restore completada."
+
+enterprise-gate:
+	@echo ">> [Enterprise Gate] Gate tecnico base..."
+	@$(MAKE) gate-go-no-go
+	@echo ">> [Enterprise Gate] Seguridad..."
+	@$(MAKE) security-scan
+	@echo ">> [Enterprise Gate] Cobertura documental..."
+	@$(MAKE) docs-audit
+	@echo ">> [Enterprise Gate] Resultado: GO enterprise."
+
+enterprise-gate-runtime:
+	@echo ">> [Enterprise Runtime Gate] Validaciones runtime..."
+	@$(MAKE) perf-smoke
+	@$(MAKE) dr-verify
+	@echo ">> [Enterprise Runtime Gate] Resultado: GO runtime."

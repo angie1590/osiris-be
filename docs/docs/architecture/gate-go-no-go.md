@@ -22,7 +22,7 @@ Este gate cubre:
 Todos son **bloqueantes**:
 
 1. Lint técnico en verde.
-2. Suite de pruebas en verde.
+2. Suite de pruebas principal en verde y **sin SKIPPED**.
 3. Build de documentación en verde.
 4. Endpoints operativos disponibles:
    - `GET /health/live`
@@ -35,6 +35,15 @@ Todos son **bloqueantes**:
 
 Si cualquiera falla: **NO-GO**.
 
+### Política de smoke live
+
+Los smoke que dependen de servidor HTTP real se ejecutan fuera de la suite principal, en pipeline dedicado:
+
+- carpeta: `tests/live_smoke/`
+- comando: `make live-smoke`
+
+Para decisión final de release a producción, ese pipeline también debe estar en verde.
+
 ## Comando oficial del gate
 
 Desde la raíz del repo:
@@ -43,11 +52,33 @@ Desde la raíz del repo:
 make gate-go-no-go
 ```
 
+Para certificación enterprise integral:
+
+```bash
+make enterprise-gate
+```
+
+Para validaciones runtime (latencia + backup/restore):
+
+```bash
+make enterprise-gate-runtime
+```
+
 Este comando ejecuta:
 
 1. `poetry run ruff check src tests`
-2. `poetry run pytest -q`
+2. `poetry run pytest -q -rs` y falla automáticamente si detecta `SKIPPED`
 3. `cd docs && npm run build --silent`
+
+El gate enterprise extiende además:
+
+1. `make security-scan`
+2. `make docs-audit`
+
+Y para completar la evidencia operativa de producción:
+
+1. `make perf-smoke`
+2. `make dr-verify`
 
 ## Evidencia mínima para acta de gate
 
@@ -55,8 +86,9 @@ Guardar en el ticket/release:
 
 1. Output completo de `make gate-go-no-go`.
 2. Resultado del checklist QA de Sprint 1/2/3.
-3. Commit hash candidate.
-4. Fecha/hora y responsable de aprobación.
+3. Resultado del pipeline `live-smoke` (cuando aplica a release productivo).
+4. Commit hash candidate.
+5. Fecha/hora y responsable de aprobación.
 
 ## Checklist QA de decisión
 

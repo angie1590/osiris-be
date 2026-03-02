@@ -127,3 +127,11 @@ OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS=1
 ```
 
 y validar incremento de `osiris_db_slow_queries_total`.
+
+5. Ejecutar smoke de performance local:
+
+```bash
+make perf-smoke
+```
+
+Script utilizado: `scripts/perf_smoke.py` (latencia promedio/p50/p95/p99 y validación de errores).
