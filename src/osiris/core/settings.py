@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     FE_QUEUE_POLL_INTERVAL_SECONDS: int = Field(default=60)
     OBSERVABILITY_JSON_LOGS_ENABLED: bool = Field(default=True)
     OBSERVABILITY_METRICS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_DB_METRICS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS: int = Field(default=300)
+    PERFORMANCE_RESPONSE_HEADERS_ENABLED: bool = Field(default=False)
     LOG_LEVEL: str = Field(default="INFO")
 
     # DB
@@ -99,6 +102,13 @@ class Settings(BaseSettings):
         if normalized not in allowed:
             raise ValueError(f"LOG_LEVEL invalido. Valores permitidos: {', '.join(sorted(allowed))}")
         return normalized
+
+    @field_validator("OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS")
+    @classmethod
+    def _check_db_slow_query_threshold_ms(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS debe ser >= 1 ms")
+        return value
 
     @model_validator(mode="after")
     def _validate_feec_files(self):

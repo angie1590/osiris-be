@@ -18,16 +18,21 @@ from osiris.core.audit_context import (
 from osiris.core.db import engine
 from osiris.core.settings import get_settings
 from osiris.core.observability import (
+    DBRequestStats,
     METRICS,
+    begin_db_request_tracking,
     configure_json_logging,
+    get_current_db_request_stats,
     initialize_metrics,
     new_request_id,
     observe_request_latency_seconds,
+    record_db_request_summary,
     record_fe_worker_error,
     record_fe_worker_run,
     record_http_in_flight,
     record_http_request,
     record_unauthorized_access,
+    reset_db_request_tracking,
     reset_current_request_id,
     set_current_request_id,
 )
@@ -203,19 +208,29 @@ async def _safe_log_unauthorized_access(
 async def observability_http_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or new_request_id()
     request_token = set_current_request_id(request_id)
+    db_token = begin_db_request_tracking()
     record_http_in_flight(+1)
     start = time.monotonic()
     status_code = 500
     route_path = request.url.path
+    db_stats = DBRequestStats()
     try:
         response = await call_next(request)
         status_code = response.status_code
         route = request.scope.get("route")
         if route is not None and getattr(route, "path", None):
             route_path = route.path
+        db_stats = get_current_db_request_stats()
+        if app_settings.PERFORMANCE_RESPONSE_HEADERS_ENABLED:
+            response.headers["X-DB-Query-Count"] = str(db_stats.query_count)
+            response.headers["X-DB-Time-MS"] = str(round(db_stats.total_time_seconds * 1000, 3))
+            response.headers["X-DB-Slow-Query-Count"] = str(db_stats.slow_query_count)
         response.headers["X-Request-ID"] = request_id
         return response
     finally:
+        if db_stats.query_count == 0 and db_stats.total_time_seconds == 0:
+            # In exception paths before response assignment, recompute from context.
+            db_stats = get_current_db_request_stats()
         latency_seconds = observe_request_latency_seconds(start)
         record_http_request(
             method=request.method,
@@ -223,6 +238,12 @@ async def observability_http_middleware(request: Request, call_next):
             status_code=status_code,
             latency_seconds=latency_seconds,
         )
+        if app_settings.OBSERVABILITY_METRICS_ENABLED and app_settings.OBSERVABILITY_DB_METRICS_ENABLED:
+            record_db_request_summary(
+                method=request.method,
+                path=route_path,
+                stats=db_stats,
+            )
         record_http_in_flight(-1)
         request_logger.info(
             "http_request",
@@ -233,8 +254,12 @@ async def observability_http_middleware(request: Request, call_next):
                 "status_code": status_code,
                 "latency_ms": round(latency_seconds * 1000, 3),
                 "client_ip": request.client.host if request.client else None,
+                "db_query_count": db_stats.query_count,
+                "db_query_time_ms": round(db_stats.total_time_seconds * 1000, 3),
+                "db_slow_query_count": db_stats.slow_query_count,
             },
         )
+        reset_db_request_tracking(db_token)
         reset_current_request_id(request_token)
 
 

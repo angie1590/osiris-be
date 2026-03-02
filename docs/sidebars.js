@@ -6,7 +6,8 @@ const sidebars = {
       type: 'category',
       label: 'Arquitectura',
       items: [
-        'architecture/observabilidad-sprint-1'
+        'architecture/observabilidad-sprint-1',
+        'architecture/performance-escalabilidad-sprint-2'
       ]
     },
     {

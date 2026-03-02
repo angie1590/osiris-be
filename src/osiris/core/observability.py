@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 from contextvars import ContextVar, Token
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
@@ -12,6 +13,17 @@ from uuid import uuid4
 from osiris.core.audit_context import get_current_company_id, get_current_user_id
 
 _current_request_id: ContextVar[Optional[str]] = ContextVar("current_request_id", default=None)
+_current_db_request_stats: ContextVar[Optional["DBRequestStats"]] = ContextVar(
+    "current_db_request_stats",
+    default=None,
+)
+
+
+@dataclass
+class DBRequestStats:
+    query_count: int = 0
+    total_time_seconds: float = 0.0
+    slow_query_count: int = 0
 
 
 def new_request_id() -> str:
@@ -56,6 +68,9 @@ class _JsonLogFormatter(logging.Formatter):
             "status_code": getattr(record, "status_code", None),
             "latency_ms": getattr(record, "latency_ms", None),
             "client_ip": getattr(record, "client_ip", None),
+            "db_query_count": getattr(record, "db_query_count", None),
+            "db_query_time_ms": getattr(record, "db_query_time_ms", None),
+            "db_slow_query_count": getattr(record, "db_slow_query_count", None),
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
@@ -181,6 +196,101 @@ def initialize_metrics() -> None:
             "osiris_security_unauthorized_access_total",
             value=0,
             labels={"reason": reason},
+        )
+    METRICS.inc_counter(
+        "osiris_db_queries_total",
+        value=0,
+        labels={"statement_type": "SELECT"},
+    )
+    METRICS.inc_counter(
+        "osiris_db_slow_queries_total",
+        value=0,
+        labels={"statement_type": "SELECT"},
+    )
+    METRICS.inc_counter(
+        "osiris_http_requests_with_slow_db_queries_total",
+        value=0,
+        labels={"method": "UNKNOWN", "path": "UNKNOWN"},
+    )
+
+
+def begin_db_request_tracking() -> Token:
+    return _current_db_request_stats.set(DBRequestStats())
+
+
+def reset_db_request_tracking(token: Token) -> None:
+    _current_db_request_stats.reset(token)
+
+
+def get_current_db_request_stats() -> DBRequestStats:
+    current = _current_db_request_stats.get()
+    if current is None:
+        return DBRequestStats()
+    return DBRequestStats(
+        query_count=current.query_count,
+        total_time_seconds=current.total_time_seconds,
+        slow_query_count=current.slow_query_count,
+    )
+
+
+def _resolve_statement_type(statement: str) -> str:
+    normalized = statement.strip().split(maxsplit=1)
+    if not normalized:
+        return "UNKNOWN"
+    return normalized[0].upper()
+
+
+def record_db_query(
+    *,
+    statement: str,
+    duration_seconds: float,
+    slow_query_threshold_seconds: float,
+) -> None:
+    safe_duration = max(duration_seconds, 0.0)
+    statement_type = _resolve_statement_type(statement)
+
+    METRICS.inc_counter(
+        "osiris_db_queries_total",
+        labels={"statement_type": statement_type},
+    )
+    METRICS.observe_histogram(
+        "osiris_db_query_duration_seconds",
+        value=safe_duration,
+        labels={"statement_type": statement_type},
+    )
+
+    is_slow = safe_duration >= max(slow_query_threshold_seconds, 0.0)
+    if is_slow:
+        METRICS.inc_counter(
+            "osiris_db_slow_queries_total",
+            labels={"statement_type": statement_type},
+        )
+
+    stats = _current_db_request_stats.get()
+    if stats is None:
+        return
+    stats.query_count += 1
+    stats.total_time_seconds += safe_duration
+    if is_slow:
+        stats.slow_query_count += 1
+
+
+def record_db_request_summary(*, method: str, path: str, stats: DBRequestStats) -> None:
+    labels = {"method": method, "path": path}
+    METRICS.observe_histogram(
+        "osiris_http_db_queries_per_request",
+        value=float(max(stats.query_count, 0)),
+        labels=labels,
+    )
+    METRICS.observe_histogram(
+        "osiris_http_db_time_seconds_per_request",
+        value=max(stats.total_time_seconds, 0.0),
+        labels=labels,
+    )
+    if stats.slow_query_count > 0:
+        METRICS.inc_counter(
+            "osiris_http_requests_with_slow_db_queries_total",
+            labels=labels,
         )
 
 

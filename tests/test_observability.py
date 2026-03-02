@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from osiris.main import app
+import osiris.main as main_module
 
 
 def _parse_metric_value(
@@ -43,7 +43,7 @@ def _parse_metric_value(
 
 
 def test_metrics_endpoint_exposes_http_metrics_and_counter_increments():
-    with TestClient(app) as client:
+    with TestClient(main_module.app) as client:
         baseline_metrics = client.get("/metrics")
         assert baseline_metrics.status_code == 200
         assert "osiris_http_in_flight_requests" in baseline_metrics.text
@@ -71,16 +71,57 @@ def test_metrics_endpoint_exposes_http_metrics_and_counter_increments():
 
 def test_request_id_header_is_propagated_when_provided():
     custom_request_id = "req-observability-001"
-    with TestClient(app) as client:
+    with TestClient(main_module.app) as client:
         response = client.get("/openapi.json", headers={"X-Request-ID": custom_request_id})
     assert response.status_code == 200
     assert response.headers.get("X-Request-ID") == custom_request_id
 
 
 def test_request_id_header_is_generated_when_missing():
-    with TestClient(app) as client:
+    with TestClient(main_module.app) as client:
         response = client.get("/openapi.json")
     assert response.status_code == 200
     request_id = response.headers.get("X-Request-ID")
     assert request_id is not None
     UUID(request_id)
+
+
+def test_performance_headers_are_returned_when_enabled(monkeypatch):
+    monkeypatch.setattr(
+        main_module.app_settings,
+        "PERFORMANCE_RESPONSE_HEADERS_ENABLED",
+        True,
+    )
+    with TestClient(main_module.app) as client:
+        response = client.get("/openapi.json")
+    assert response.status_code == 200
+    assert "X-DB-Query-Count" in response.headers
+    assert "X-DB-Time-MS" in response.headers
+    assert "X-DB-Slow-Query-Count" in response.headers
+
+
+def test_db_request_summary_metrics_do_not_increment_when_db_metrics_disabled(monkeypatch):
+    monkeypatch.setattr(main_module.app_settings, "OBSERVABILITY_METRICS_ENABLED", True)
+    monkeypatch.setattr(main_module.app_settings, "OBSERVABILITY_DB_METRICS_ENABLED", False)
+
+    with TestClient(main_module.app) as client:
+        before_metrics = client.get("/metrics")
+        assert before_metrics.status_code == 200
+        before = _parse_metric_value(
+            before_metrics.text,
+            name="osiris_http_db_queries_per_request_count",
+            labels={"method": "GET", "path": "/openapi.json"},
+        )
+
+        openapi = client.get("/openapi.json")
+        assert openapi.status_code == 200
+
+        after_metrics = client.get("/metrics")
+        assert after_metrics.status_code == 200
+        after = _parse_metric_value(
+            after_metrics.text,
+            name="osiris_http_db_queries_per_request_count",
+            labels={"method": "GET", "path": "/openapi.json"},
+        )
+
+    assert after == before
