@@ -32,11 +32,14 @@ osiris-be/
 │       │   ├── repository.py
 │       │   ├── service.py
 │       │   └── router.py
-│       ├── modules/         # Módulos de dominio
+│       ├── modules/         # Módulos de dominio (DDD)
 │       │   ├── common/      # Entidades comunes (empresa, persona, cliente, etc.)
-│       │   ├── inventario/  # Catálogo/maestros de inventario
-│       │   ├── sri/         # Catálogos tributarios SRI
-│       │   └── facturacion/ # Ventas, compras, FE, impresión, reportes
+│       │   ├── sri/         # Catálogos tributarios y orquestación FE
+│       │   ├── inventario/  # Catálogo/maestros y movimientos de inventario
+│       │   ├── compras/     # Compras, CxP y retenciones emitidas
+│       │   ├── ventas/      # Ventas, CxC y retenciones recibidas
+│       │   ├── reportes/    # Reportería gerencial/tributaria
+│       │   └── impresion/   # RIDE, ticket térmico y preimpresa
 │       ├── utils/           # Utilidades (validaciones, paginación)
 │       └── main.py          # Punto de entrada FastAPI
 ├── tests/                   # Pruebas unitarias y smoke tests
@@ -116,6 +119,10 @@ make smoke-ci           # Ejecuta smoke tests seguros para CI (solo listados)
 # Utilidades
 make lint               # Ejecuta linters (ruff + mypy)
 make docs-audit         # Valida que docs/docs/api cubra todos los endpoints del backend
+make gate-go-no-go      # Gate técnico base (lint + tests + build docs)
+make security-scan      # Bandit + pip-audit (con política estricta por defecto)
+make enterprise-gate    # Gate integral: técnico + seguridad + cobertura docs
+make enterprise-gate-runtime  # Validaciones runtime (performance + DR)
 make seed               # Carga datos completos de prueba (empresa, productos, bodegas, etc.)
 make seed-sample        # Carga solo un producto de ejemplo (seed antiguo)
 make verify-seed        # Verifica datos cargados por el seed
@@ -137,6 +144,25 @@ make docs-audit
 make test
 make stop
 ```
+
+### 🔐 Gate Enterprise y Política de Seguridad
+
+```bash
+# Gate integral (estricto)
+make enterprise-gate
+
+# Solo seguridad (estricto)
+make security-scan
+
+# Solo para entornos sin internet / troubleshooting local:
+make security-scan SECURITY_SCAN_STRICT=false
+```
+
+Detalles relevantes del flujo de seguridad:
+- Antes del lock, se normaliza automáticamente el wheel local `fe-ec` con `scripts/patch_feec_wheel_constraints.py`.
+- Luego se ejecuta `poetry lock --regenerate --no-cache` para evitar metadata cacheada.
+- Se audita con `bandit` y `pip-audit`.
+- En modo estricto (`SECURITY_SCAN_STRICT=true`), cualquier hallazgo de `pip-audit` falla el gate.
 
 ### 🧯 Reseteo seguro de base de datos
 
@@ -361,7 +387,7 @@ El sistema incluye el catálogo oficial de impuestos del SRI (Servicio de Rentas
 - `descripcion`: Descripción del impuesto
 - **Restricción unique**: Combinación `(codigo_sri, descripcion)` permite códigos ICE repetidos con distintas descripciones
 
-### Endpoint: `GET /api/impuestos/catalogo`
+### Endpoint: `GET /api/v1/impuestos/catalogo`
 
 - **Paginación**: `limit` (int) y `offset` (int)
 - **Filtro por tipo**: `tipo_impuesto` opcional (`IVA`, `ICE`, `IRBPNR`)
@@ -385,25 +411,25 @@ El sistema incluye el catálogo oficial de impuestos del SRI (Servicio de Rentas
 ### Endpoints de Productos
 
 ```
-POST   /api/productos                                    # Crear producto
-GET    /api/productos                                    # Listar productos (paginado)
-GET    /api/productos/{producto_id}                      # Detalle completo con impuestos
-PUT    /api/productos/{producto_id}                      # Actualizar producto
-DELETE /api/productos/{producto_id}                      # Eliminar (soft delete)
+POST   /api/v1/productos                                    # Crear producto
+GET    /api/v1/productos                                    # Listar productos (paginado)
+GET    /api/v1/productos/{producto_id}                      # Detalle completo con impuestos
+PUT    /api/v1/productos/{producto_id}                      # Actualizar producto
+DELETE /api/v1/productos/{producto_id}                      # Eliminar (soft delete)
 ```
 
 ### Endpoints de Impuestos de Producto
 
 ```
-GET    /api/productos/{producto_id}/impuestos            # Listar impuestos del producto
-POST   /api/productos/{producto_id}/impuestos            # Asignar impuesto
-       ?impuesto_catalogo_id=UUID&usuario_auditoria=str  # (reemplaza si existe mismo tipo)
-DELETE /api/productos/impuestos/{producto_impuesto_id}   # Eliminar (excepto IVA)
+GET    /api/v1/productos/{producto_id}/impuestos            # Listar impuestos del producto
+POST   /api/v1/productos/{producto_id}/impuestos            # Asignar impuesto
+       ?impuesto_catalogo_id=UUID&usuario_auditoria=str     # (reemplaza si existe mismo tipo)
+DELETE /api/v1/productos/impuestos/{producto_impuesto_id}   # Eliminar (excepto IVA)
 ```
 
 ### Flujo de Creación de Producto
 
-Al crear un producto mediante `POST /api/productos`:
+Al crear un producto mediante `POST /api/v1/productos`:
 1. NO se especifican `impuesto_catalogo_ids` en el payload inicial
 2. El producto se crea sin impuestos
 3. Se asignan impuestos después mediante `POST /{producto_id}/impuestos`
@@ -480,6 +506,10 @@ xml_firmado = ManejadorXML.firmar_xml(
 ```
 
 ⚠️ **Nota:** La librería no está en PyPI, se distribuye como `.whl` local. Requiere certificados `.p12` válidos para firmar documentos electrónicos.
+
+Para el gate de seguridad:
+- El script `scripts/patch_feec_wheel_constraints.py` normaliza la restricción de `cryptography` del wheel local antes de ejecutar `poetry lock`.
+- Esto evita conflictos de resolución con políticas de seguridad más estrictas del backend.
 
 ---
 

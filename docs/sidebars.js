@@ -11,6 +11,7 @@ const sidebars = {
         'architecture/resiliencia-operativa-sprint-3',
         'architecture/gate-go-no-go',
         'architecture/devsecops-enterprise',
+        'architecture/politica-security-scan',
         'architecture/sre-operacion-enterprise',
         'architecture/dr-continuidad-enterprise',
         'architecture/matriz-madurez-enterprise'

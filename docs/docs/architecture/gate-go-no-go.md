@@ -75,6 +75,10 @@ El gate enterprise extiende además:
 1. `make security-scan`
 2. `make docs-audit`
 
+Política obligatoria de seguridad:
+- ver [Política de Security Scan](./politica-security-scan)
+- en release candidate debe ejecutarse en modo estricto (`SECURITY_SCAN_STRICT=true`).
+
 Y para completar la evidencia operativa de producción:
 
 1. `make perf-smoke`

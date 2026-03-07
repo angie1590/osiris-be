@@ -6,6 +6,7 @@ PERF_REQUESTS ?= 120
 PERF_CONCURRENCY ?= 20
 PERF_P95_MS ?= 700
 DR_BACKUP_DIR ?= backups
+SECURITY_SCAN_STRICT ?= true
 
 .PHONY: run stop lint logs build shell test db-upgrade db-makemigration db-recreate db-reset smoke smoke-ci live-smoke seed seed-sample verify-seed verify-relations cleanup-test-data validate bootstrap-zero documentacion docs-audit gate-go-no-go security-scan perf-smoke dr-backup dr-verify enterprise-gate enterprise-gate-runtime
 
@@ -213,12 +214,27 @@ gate-go-no-go:
 
 security-scan:
 	@echo ">> [Security] Preparando herramientas de escaneo..."
+	@echo ">> [Security] Normalizando constraints del wheel local fe-ec..."
+	poetry run python scripts/patch_feec_wheel_constraints.py --wheel lib/fe_ec-0.1.0-py3-none-any-3.whl
+	@echo ">> [Security] Sincronizando lock e instalación de dependencias..."
+	poetry lock --no-interaction --regenerate --no-cache
+	poetry install --no-interaction --no-root
+	@echo ">> [Security] Actualizando pip en el entorno de auditoría..."
+	poetry run python -m pip install --quiet --cache-dir /tmp/pip-cache --upgrade pip
+	@mkdir -p /tmp/pip-audit-cache
 	poetry run python -c "import importlib.util,sys;missing=[m for m in ('bandit','pip_audit') if importlib.util.find_spec(m) is None];sys.exit(0 if not missing else 1)" \
-	|| poetry run python -m pip install --quiet bandit pip-audit
+	|| poetry run python -m pip install --quiet --cache-dir /tmp/pip-cache bandit pip-audit
 	@echo ">> [Security] Ejecutando Bandit..."
 	poetry run bandit -q -r src -x src/osiris/db/alembic
 	@echo ">> [Security] Ejecutando pip-audit..."
-	poetry run pip-audit
+	@set -e; \
+	if ! poetry run pip-audit --cache-dir /tmp/pip-audit-cache; then \
+		if [ "$(SECURITY_SCAN_STRICT)" = "true" ]; then \
+			echo "ERROR: pip-audit fallo (modo estricto)."; \
+			exit 1; \
+		fi; \
+		echo "WARN: pip-audit no disponible en este entorno (modo no estricto)."; \
+	fi
 	@echo ">> [Security] Escaneo en verde."
 
 perf-smoke:

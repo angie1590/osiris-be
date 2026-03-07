@@ -136,8 +136,8 @@ class ProductoService(BaseService):
                 if hasattr(obj, "get"):
                     try:
                         return obj.get(key)
-                    except Exception:
-                        pass
+                    except (AttributeError, TypeError, KeyError):
+                        return None
                 return getattr(obj, key, None)
 
             categoria_ids: Optional[Iterable[UUID]] = _val(data, "categoria_ids")
@@ -197,8 +197,8 @@ class ProductoService(BaseService):
                 if hasattr(obj, "get"):
                     try:
                         return obj.get(key)
-                    except Exception:
-                        pass
+                    except (AttributeError, TypeError, KeyError):
+                        return None
                 return getattr(obj, key, None)
 
             categoria_ids = _val(data, "categoria_ids")

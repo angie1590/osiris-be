@@ -102,10 +102,11 @@ class UsuarioService(BaseService):
 
             temp_password = self._generate_temp_password()
             hashed = security.hash_password(temp_password)
+            requiere_cambio_password = True
 
             data: dict[str, Any] = {
                 "password_hash": hashed,
-                "requiere_cambio_password": True,
+                "requiere_cambio_password": requiere_cambio_password,
             }
             if usuario_auditoria:
                 data["usuario_auditoria"] = usuario_auditoria
