@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager, suppress
 
 from fastapi.concurrency import run_in_threadpool
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import text
 from sqlmodel import Session
 from osiris.core.audit_context import (
     extract_auth_context_from_request_headers,
@@ -16,6 +18,28 @@ from osiris.core.audit_context import (
 )
 from osiris.core.db import engine
 from osiris.core.settings import get_settings
+from osiris.core.observability import (
+    DBRequestStats,
+    METRICS,
+    begin_db_request_tracking,
+    configure_json_logging,
+    get_current_db_request_stats,
+    initialize_metrics,
+    new_request_id,
+    observe_request_latency_seconds,
+    record_db_request_summary,
+    record_fe_worker_error,
+    record_fe_worker_run,
+    record_http_overload_rejection,
+    record_http_in_flight,
+    record_http_request,
+    record_readiness_check,
+    record_unauthorized_access,
+    get_http_in_flight,
+    reset_db_request_tracking,
+    reset_current_request_id,
+    set_current_request_id,
+)
 from osiris.core.errors import NotFoundError
 from osiris.core.openapi_docs import build_gold_standard_openapi
 from osiris.core.security_audit import (
@@ -56,6 +80,11 @@ from osiris.modules.sri.impuesto_catalogo.router import router as impuesto_catal
 from osiris.modules.ventas.router import router as ventas_router
 
 logger = logging.getLogger(__name__)
+request_logger = logging.getLogger("osiris.request")
+
+
+def _resolve_log_level(level_name: str) -> int:
+    return getattr(logging, level_name.upper(), logging.INFO)
 
 
 def _procesar_cola_fe_once() -> int:
@@ -64,14 +93,22 @@ def _procesar_cola_fe_once() -> int:
         return service.procesar_cola(session)
 
 
+def _check_db_ready_sync() -> bool:
+    with Session(engine) as session:
+        session.exec(text("SELECT 1"))
+    return True
+
+
 async def _run_fe_queue_worker(poll_interval_seconds: int) -> None:
     while True:
         await asyncio.sleep(poll_interval_seconds)
         try:
             procesados = await run_in_threadpool(_procesar_cola_fe_once)
+            record_fe_worker_run(processed=procesados)
             if procesados:
                 logger.info("Worker FE procesó %s documentos de la cola.", procesados)
         except Exception as exc:  # pragma: no cover - protección operacional
+            record_fe_worker_error()
             logger.exception("Error en worker FE al procesar cola: %s", exc)
 
 
@@ -103,6 +140,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.security_audit_engine = engine
+app_settings = get_settings()
+if app_settings.OBSERVABILITY_JSON_LOGS_ENABLED:
+    configure_json_logging(level=_resolve_log_level(app_settings.LOG_LEVEL))
+if app_settings.OBSERVABILITY_METRICS_ENABLED:
+    initialize_metrics()
 
 
 def custom_openapi():
@@ -146,6 +188,122 @@ def _is_user_authorized_for_rule_sync(
         )
 
 
+async def _safe_log_unauthorized_access(
+    *,
+    security_engine,
+    request: Request,
+    user_id: str | None,
+    payload,
+    reason: str,
+    rule,
+) -> None:
+    try:
+        await run_in_threadpool(
+            _log_unauthorized_access_sync,
+            security_engine=security_engine,
+            request=request,
+            user_id=user_id,
+            payload=payload,
+            reason=reason,
+            rule=rule,
+        )
+    except Exception as exc:  # pragma: no cover - hardening defensivo
+        logger.exception(
+            "No se pudo registrar UNAUTHORIZED_ACCESS en auditoria (se preserva respuesta 403): %s",
+            exc,
+        )
+
+
+@app.middleware("http")
+async def observability_http_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or new_request_id()
+    request_token = set_current_request_id(request_id)
+    max_in_flight = app_settings.SCALABILITY_MAX_IN_FLIGHT_REQUESTS
+    if max_in_flight > 0 and get_http_in_flight() >= max_in_flight:
+        response = JSONResponse(
+            status_code=503,
+            content={"detail": "Servidor temporalmente saturado. Reintente en breve."},
+        )
+        response.headers["X-Request-ID"] = request_id
+        record_http_overload_rejection(method=request.method, path=request.url.path)
+        record_http_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=503,
+            latency_seconds=0.0,
+        )
+        request_logger.warning(
+            "http_overload_rejected",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 503,
+                "latency_ms": 0.0,
+                "client_ip": request.client.host if request.client else None,
+                "db_query_count": 0,
+                "db_query_time_ms": 0.0,
+                "db_slow_query_count": 0,
+            },
+        )
+        reset_current_request_id(request_token)
+        return response
+
+    db_token = begin_db_request_tracking()
+    record_http_in_flight(+1)
+    start = time.monotonic()
+    status_code = 500
+    route_path = request.url.path
+    db_stats = DBRequestStats()
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        route = request.scope.get("route")
+        if route is not None and getattr(route, "path", None):
+            route_path = route.path
+        db_stats = get_current_db_request_stats()
+        if app_settings.PERFORMANCE_RESPONSE_HEADERS_ENABLED:
+            response.headers["X-DB-Query-Count"] = str(db_stats.query_count)
+            response.headers["X-DB-Time-MS"] = str(round(db_stats.total_time_seconds * 1000, 3))
+            response.headers["X-DB-Slow-Query-Count"] = str(db_stats.slow_query_count)
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        if db_stats.query_count == 0 and db_stats.total_time_seconds == 0:
+            # In exception paths before response assignment, recompute from context.
+            db_stats = get_current_db_request_stats()
+        latency_seconds = observe_request_latency_seconds(start)
+        record_http_request(
+            method=request.method,
+            path=route_path,
+            status_code=status_code,
+            latency_seconds=latency_seconds,
+        )
+        if app_settings.OBSERVABILITY_METRICS_ENABLED and app_settings.OBSERVABILITY_DB_METRICS_ENABLED:
+            record_db_request_summary(
+                method=request.method,
+                path=route_path,
+                stats=db_stats,
+            )
+        record_http_in_flight(-1)
+        request_logger.info(
+            "http_request",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": route_path,
+                "status_code": status_code,
+                "latency_ms": round(latency_seconds * 1000, 3),
+                "client_ip": request.client.host if request.client else None,
+                "db_query_count": db_stats.query_count,
+                "db_query_time_ms": round(db_stats.total_time_seconds * 1000, 3),
+                "db_slow_query_count": db_stats.slow_query_count,
+            },
+        )
+        reset_db_request_tracking(db_token)
+        reset_current_request_id(request_token)
+
+
 @app.middleware("http")
 async def inject_audit_user_context(request: Request, call_next):
     user_id, company_id = extract_auth_context_from_request_headers(
@@ -183,8 +341,8 @@ async def enforce_sensitive_access_control(request: Request, call_next):
     security_engine = getattr(request.app.state, "security_audit_engine", engine)
 
     if not user_id:
-        await run_in_threadpool(
-            _log_unauthorized_access_sync,
+        record_unauthorized_access("missing_user")
+        await _safe_log_unauthorized_access(
             security_engine=security_engine,
             request=request,
             user_id=None,
@@ -205,8 +363,8 @@ async def enforce_sensitive_access_control(request: Request, call_next):
     )
 
     if not authorized:
-        await run_in_threadpool(
-            _log_unauthorized_access_sync,
+        record_unauthorized_access("insufficient_permissions")
+        await _safe_log_unauthorized_access(
             security_engine=security_engine,
             request=request,
             user_id=user_id,
@@ -221,8 +379,8 @@ async def enforce_sensitive_access_control(request: Request, call_next):
 
     response = await call_next(request)
     if response.status_code == 403:
-        await run_in_threadpool(
-            _log_unauthorized_access_sync,
+        record_unauthorized_access("endpoint_returned_403")
+        await _safe_log_unauthorized_access(
             security_engine=security_engine,
             request=request,
             user_id=user_id,
@@ -236,6 +394,35 @@ async def enforce_sensitive_access_control(request: Request, call_next):
 @app.exception_handler(NotFoundError)
 async def not_found_handler(_req: Request, exc: NotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+@app.get("/health/live", include_in_schema=False)
+async def health_live() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/health/ready", include_in_schema=False)
+async def health_ready() -> JSONResponse:
+    try:
+        await run_in_threadpool(_check_db_ready_sync)
+    except Exception as exc:  # pragma: no cover - degradacion operativa
+        record_readiness_check(status="down")
+        logger.exception("Health check readiness fallo en DB: %s", exc)
+        return JSONResponse(status_code=503, content={"status": "degraded", "database": "down"})
+
+    record_readiness_check(status="up")
+    return JSONResponse(status_code=200, content={"status": "ok", "database": "up"})
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> PlainTextResponse:
+    if not app_settings.OBSERVABILITY_METRICS_ENABLED:
+        return PlainTextResponse(status_code=404, content="metrics disabled\n")
+    content = METRICS.render_prometheus()
+    return PlainTextResponse(
+        content=content,
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 # Incluir routers
 app.include_router(empresa_router)

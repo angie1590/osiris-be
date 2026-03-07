@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from osiris.core.db import get_session
-from osiris.main import app
+import osiris.main as main_module
 from osiris.modules.common.audit_log.entity import AuditLog
 from osiris.modules.common.empresa.entity import Empresa
 from osiris.modules.common.modulo.entity import Modulo
@@ -109,11 +109,11 @@ def test_log_unauthorized_access():
         with Session(engine) as session:
             yield session
 
-    original_security_engine = getattr(app.state, "security_audit_engine", None)
-    app.state.security_audit_engine = engine
-    app.dependency_overrides[get_session] = override_get_session
+    original_security_engine = getattr(main_module.app.state, "security_audit_engine", None)
+    main_module.app.state.security_audit_engine = engine
+    main_module.app.dependency_overrides[get_session] = override_get_session
     try:
-        with TestClient(app) as client:
+        with TestClient(main_module.app) as client:
             response = client.put(
                 f"/api/v1/empresas/{empresa.id}",
                 json={
@@ -146,5 +146,25 @@ def test_log_unauthorized_access():
         assert log.estado_nuevo["payload_intentado"]["regimen"] == "RIMPE_EMPRENDEDOR"
         assert log.estado_nuevo["ip"] is not None
     finally:
-        app.dependency_overrides.pop(get_session, None)
-        app.state.security_audit_engine = original_security_engine
+        main_module.app.dependency_overrides.pop(get_session, None)
+        main_module.app.state.security_audit_engine = original_security_engine
+
+
+def test_unauthorized_access_keeps_403_when_security_audit_fails(monkeypatch):
+    def _raise_on_security_log(**_kwargs):
+        raise RuntimeError("db unavailable during security audit")
+
+    monkeypatch.setattr(
+        main_module,
+        "_log_unauthorized_access_sync",
+        _raise_on_security_log,
+    )
+
+    with TestClient(main_module.app) as client:
+        response = client.put(
+            f"/api/v1/empresas/{uuid4()}",
+            json={"regimen": "GENERAL", "modo_emision": "ELECTRONICO"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Acceso denegado a endpoint sensible."

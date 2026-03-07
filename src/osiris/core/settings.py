@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     FEEC_REGIMEN: str
     FE_QUEUE_AUTO_PROCESS_ENABLED: bool = Field(default=True)
     FE_QUEUE_POLL_INTERVAL_SECONDS: int = Field(default=60)
+    OBSERVABILITY_JSON_LOGS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_METRICS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_DB_METRICS_ENABLED: bool = Field(default=True)
+    OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS: int = Field(default=300)
+    PERFORMANCE_RESPONSE_HEADERS_ENABLED: bool = Field(default=False)
+    SCALABILITY_MAX_IN_FLIGHT_REQUESTS: int = Field(default=0)
+    LOG_LEVEL: str = Field(default="INFO")
 
     # DB
     DATABASE_URL: str
@@ -86,6 +93,29 @@ class Settings(BaseSettings):
     def _check_fe_queue_poll_interval_seconds(cls, value: int) -> int:
         if value < 5:
             raise ValueError("FE_QUEUE_POLL_INTERVAL_SECONDS debe ser >= 5 segundos")
+        return value
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def _check_log_level(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        allowed = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+        if normalized not in allowed:
+            raise ValueError(f"LOG_LEVEL invalido. Valores permitidos: {', '.join(sorted(allowed))}")
+        return normalized
+
+    @field_validator("OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS")
+    @classmethod
+    def _check_db_slow_query_threshold_ms(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS debe ser >= 1 ms")
+        return value
+
+    @field_validator("SCALABILITY_MAX_IN_FLIGHT_REQUESTS")
+    @classmethod
+    def _check_scalability_max_in_flight_requests(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("SCALABILITY_MAX_IN_FLIGHT_REQUESTS debe ser >= 0")
         return value
 
     @model_validator(mode="after")

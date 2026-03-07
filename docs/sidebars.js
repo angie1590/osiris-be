@@ -4,6 +4,21 @@ const sidebars = {
     'intro',
     {
       type: 'category',
+      label: 'Arquitectura',
+      items: [
+        'architecture/observabilidad-sprint-1',
+        'architecture/performance-escalabilidad-sprint-2',
+        'architecture/resiliencia-operativa-sprint-3',
+        'architecture/gate-go-no-go',
+        'architecture/devsecops-enterprise',
+        'architecture/politica-security-scan',
+        'architecture/sre-operacion-enterprise',
+        'architecture/dr-continuidad-enterprise',
+        'architecture/matriz-madurez-enterprise'
+      ]
+    },
+    {
+      type: 'category',
       label: 'Procesos',
       items: [
         'procesos/procesos-indice',

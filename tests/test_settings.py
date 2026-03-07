@@ -312,3 +312,114 @@ def test_load_settings_rejects_too_low_fe_queue_poll_interval(
     with pytest.raises(ValueError) as exc_info:
         core_settings.load_settings()
     assert "FE_QUEUE_POLL_INTERVAL_SECONDS" in str(exc_info.value)
+
+
+def test_load_settings_allows_observability_performance_toggles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e2_observability"
+    lines = [
+        "ENVIRONMENT=e2_observability",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "OBSERVABILITY_DB_METRICS_ENABLED=true",
+        "OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS=250",
+        "PERFORMANCE_RESPONSE_HEADERS_ENABLED=true",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e2_observability")
+
+    loaded = core_settings.load_settings()
+
+    assert loaded.OBSERVABILITY_DB_METRICS_ENABLED is True
+    assert loaded.OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS == 250
+    assert loaded.PERFORMANCE_RESPONSE_HEADERS_ENABLED is True
+
+
+def test_load_settings_rejects_invalid_db_slow_query_threshold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e2_observability_invalid_threshold"
+    lines = [
+        "ENVIRONMENT=e2_observability_invalid_threshold",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS=0",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e2_observability_invalid_threshold")
+
+    with pytest.raises(ValueError) as exc_info:
+        core_settings.load_settings()
+    assert "OBSERVABILITY_DB_SLOW_QUERY_THRESHOLD_MS" in str(exc_info.value)
+
+
+def test_load_settings_allows_scalability_max_in_flight_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e3_scalability"
+    lines = [
+        "ENVIRONMENT=e3_scalability",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "SCALABILITY_MAX_IN_FLIGHT_REQUESTS=64",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e3_scalability")
+
+    loaded = core_settings.load_settings()
+    assert loaded.SCALABILITY_MAX_IN_FLIGHT_REQUESTS == 64
+
+
+def test_load_settings_rejects_negative_scalability_max_in_flight_requests(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_file = tmp_path / ".env.e3_scalability_invalid"
+    lines = [
+        "ENVIRONMENT=e3_scalability_invalid",
+        "POSTGRES_USER=postgres",
+        "POSTGRES_PASSWORD=postgres",
+        "POSTGRES_DB=osiris",
+        "DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost/osiris",
+        "FEEC_AMBIENTE=pruebas",
+        "SRI_MODO_EMISION=NO_ELECTRONICO",
+        "FEEC_TIPO_EMISION=1",
+        "FEEC_REGIMEN=GENERAL",
+        "SCALABILITY_MAX_IN_FLIGHT_REQUESTS=-1",
+    ]
+    _write_env_file(env_file, "\n".join(lines))
+
+    monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("ENVIRONMENT", "e3_scalability_invalid")
+
+    with pytest.raises(ValueError) as exc_info:
+        core_settings.load_settings()
+    assert "SCALABILITY_MAX_IN_FLIGHT_REQUESTS" in str(exc_info.value)
