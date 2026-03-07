@@ -192,6 +192,9 @@ def test_load_settings_fails_fast_when_feec_tipo_emision_or_regimen_missing(
 
     monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
     monkeypatch.setenv("ENVIRONMENT", "e0_feec_missing")
+    # Garantiza aislamiento frente a variables inyectadas por CI/job.
+    monkeypatch.delenv("FEEC_TIPO_EMISION", raising=False)
+    monkeypatch.delenv("FEEC_REGIMEN", raising=False)
 
     with pytest.raises(ValueError) as exc_info:
         core_settings.load_settings()
@@ -222,6 +225,11 @@ def test_load_settings_requires_cert_paths_when_sri_modo_emision_is_electronico(
 
     monkeypatch.setattr(core_settings, "PROJECT_ROOT", tmp_path)
     monkeypatch.setenv("ENVIRONMENT", "e0_missing_cert_paths")
+    # Garantiza aislamiento frente a variables inyectadas por CI/job.
+    monkeypatch.delenv("SRI_MODO_EMISION", raising=False)
+    monkeypatch.delenv("FEEC_P12_PATH", raising=False)
+    monkeypatch.delenv("FEEC_P12_PASSWORD", raising=False)
+    monkeypatch.delenv("FEEC_XSD_PATH", raising=False)
 
     with pytest.raises(ValueError) as exc_info:
         core_settings.load_settings()
